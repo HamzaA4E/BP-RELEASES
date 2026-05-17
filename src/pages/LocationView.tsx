@@ -11,7 +11,7 @@ export function LocationView() {
   const navigate = useNavigate();
   const pId = Number(projectId);
   const lId = Number(locationId);
-  const { panels, setPanels, setSelection, setLocations } = useAppStore();
+  const { panels, setPanels, setSelection, setLocations, company } = useAppStore();
   const [locationName, setLocationName] = useState('');
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [newPanelName, setNewPanelName] = useState('');
@@ -72,10 +72,13 @@ export function LocationView() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const filePath = await exportLocationToExcel(lId);
-      if (filePath) {
-        toast.success(`Export réussi: ${filePath}`);
-        await window.bilpow.shell.openPath(filePath);
+      const result = await exportLocationToExcel(lId, company ?? undefined);
+      if (result.filePath) {
+        toast.success(`Export réussi: ${result.filePath}`);
+        if (result.warning) {
+          toast(result.warning, { icon: 'ℹ️', duration: 6000 });
+        }
+        await window.bilpow.shell.openPath(result.filePath);
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur d\'export');

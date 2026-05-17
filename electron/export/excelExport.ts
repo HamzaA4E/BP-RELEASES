@@ -5,10 +5,13 @@ import { getProjectById } from '../database/projects';
 import { getLocationById } from '../database/locations';
 import { getPanelsByLocation } from '../database/panels';
 import { getElementsByPanel } from '../database/elements';
+import { getCompanySettings } from '../database/settings';
+import type { CompanySettings, ExcelExportResult } from '../../shared/types';
 
 const PRIMARY_COLOR = 'FF1E3A5F';
 const ALT_ROW_COLOR = 'FFF8F9FA';
 const TOTAL_ROW_COLOR = 'FFDBEAFE';
+const COL_COUNT = 9;
 
 const STANDARD_BREAKERS = [10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200];
 
@@ -37,6 +40,10 @@ function sanitizeSheetName(name: string): string {
   return name.replace(/[\\/*?:\[\]]/g, '_').slice(0, 31);
 }
 
+function sanitizeFileName(name: string): string {
+  return name.replace(/[<>:"/\\|?*]/g, '_');
+}
+
 function applyBorder(cell: ExcelJS.Cell): void {
   cell.border = {
     top: { style: 'thin', color: { argb: 'FFD1D5DB' } },
@@ -44,6 +51,11 @@ function applyBorder(cell: ExcelJS.Cell): void {
     bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
     right: { style: 'thin', color: { argb: 'FFD1D5DB' } },
   };
+}
+
+function stripBase64Prefix(b64: string): string {
+  const idx = b64.indexOf('base64,');
+  return idx >= 0 ? b64.slice(idx + 7) : b64;
 }
 
 interface PanelSummary {
@@ -54,9 +66,116 @@ interface PanelSummary {
   breaker: number;
 }
 
+interface ProjectInfo {
+  name: string;
+  engineer: string | null;
+}
+
+function addCompanyHeader(
+  worksheet: ExcelJS.Worksheet,
+  workbook: ExcelJS.Workbook,
+  company: CompanySettings,
+  title: string,
+  project: ProjectInfo
+): { headerRow: number; svgSkipped: boolean } {
+  worksheet.getRow(1).height = 55;
+  worksheet.getRow(2).height = 16;
+  worksheet.getRow(3).height = 6;
+
+  let svgSkipped = false;
+
+  worksheet.mergeCells('A1:C1');
+  const logoCell = worksheet.getCell('A1');
+  logoCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: PRIMARY_COLOR },
+  };
+
+  const canEmbedLogo =
+    company.logo_base64 &&
+    company.logo_mime &&
+    company.logo_mime !== 'image/svg+xml';
+
+  if (canEmbedLogo) {
+    const ext = company.logo_mime.includes('png') ? 'png' : 'jpeg';
+    const imageId = workbook.addImage({
+      base64: stripBase64Prefix(company.logo_base64),
+      extension: ext,
+    });
+    worksheet.addImage(imageId, {
+      tl: { col: 0, row: 0 },
+      ext: { width: 180, height: 52 },
+      editAs: 'oneCell',
+    });
+  } else {
+    if (company.logo_base64 && company.logo_mime === 'image/svg+xml') {
+      svgSkipped = true;
+    }
+    logoCell.value = company.company_name || 'BilPow';
+    logoCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 14 };
+    logoCell.alignment = { vertical: 'middle', horizontal: 'center' };
+  }
+
+  worksheet.mergeCells('D1:F1');
+  const titleCell = worksheet.getCell('D1');
+  titleCell.value = title;
+  titleCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 13 };
+  titleCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: PRIMARY_COLOR },
+  };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+  worksheet.mergeCells('G1:I1');
+  const infoCell = worksheet.getCell('G1');
+  infoCell.value = {
+    richText: [
+      {
+        text: `${company.company_name || ''}\n`,
+        font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 },
+      },
+      {
+        text: company.address ? `${company.address}\n` : '',
+        font: { color: { argb: 'FFBFDBFE' }, size: 9 },
+      },
+      {
+        text: company.phone ? `Tel: ${company.phone}   ` : '',
+        font: { color: { argb: 'FFBFDBFE' }, size: 9 },
+      },
+      {
+        text: company.email ? `Email: ${company.email}` : '',
+        font: { color: { argb: 'FFBFDBFE' }, size: 9 },
+      },
+    ],
+  };
+  infoCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: PRIMARY_COLOR },
+  };
+  infoCell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true };
+
+  worksheet.mergeCells('A2:I2');
+  const subCell = worksheet.getCell('A2');
+  subCell.value = `Ingénieur : ${project.engineer || '—'}   |   Date : ${new Date().toLocaleDateString('fr-FR')}   |   ${company.website || ''}`;
+  subCell.font = { italic: true, size: 9, color: { argb: 'FF475569' } };
+  subCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFDBEAFE' },
+  };
+  subCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+  return { headerRow: 4, svgSkipped };
+}
+
 export async function exportLocationToExcel(
-  locationId: number
-): Promise<string | null> {
+  locationId: number,
+  companyFromRenderer?: CompanySettings
+): Promise<ExcelExportResult> {
+  const company = companyFromRenderer ?? getCompanySettings();
   const project = getProjectForLocation(locationId);
   const location = getLocationById(locationId);
   if (!location || !project) {
@@ -70,7 +189,7 @@ export async function exportLocationToExcel(
     filters: [{ name: 'Excel', extensions: ['xlsx'] }],
   });
 
-  if (canceled || !filePath) return null;
+  if (canceled || !filePath) return { filePath: null };
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'BilPow';
@@ -112,24 +231,49 @@ export async function exportLocationToExcel(
     });
   }
 
-  createSyntheseSheet(workbook, summaries);
+  const projectInfo: ProjectInfo = {
+    name: project.name,
+    engineer: project.engineer,
+  };
+
+  let svgWarning = false;
+
+  const syntheseTitle = `SYNTHESE — ${location.name} — ${project.name}`;
+  const syntheseResult = createSyntheseSheet(
+    workbook,
+    summaries,
+    company,
+    syntheseTitle,
+    projectInfo
+  );
+  if (syntheseResult.svgSkipped) svgWarning = true;
 
   for (const panelData of panelDataList) {
-    createPanelSheet(workbook, {
+    const sheetTitle = `BILAN DE PUISSANCE — ${panelData.panelName} — ${location.name}`;
+    const panelResult = createPanelSheet(workbook, {
       projectName: project.name,
       locationName: location.name,
       panelName: panelData.panelName,
-      engineer: project.engineer ?? '',
       elements: panelData.elements,
       installed: panelData.installed,
       absorbed: panelData.absorbed,
       current: panelData.current,
       breaker: panelData.breaker,
+      company,
+      sheetTitle,
+      projectInfo,
     });
+    if (panelResult.svgSkipped) svgWarning = true;
   }
 
   await workbook.xlsx.writeFile(filePath);
-  return filePath;
+
+  const result: ExcelExportResult = { filePath };
+  if (svgWarning) {
+    result.warning =
+      'Note : les logos SVG ne sont pas supportés dans Excel. Le nom de la société sera affiché à la place. Utilisez un PNG pour un rendu optimal.';
+  }
+  return result;
 }
 
 function getProjectForLocation(locationId: number) {
@@ -144,18 +288,21 @@ function getProjectForLocation(locationId: number) {
   return row;
 }
 
-function sanitizeFileName(name: string): string {
-  return name.replace(/[<>:"/\\|?*]/g, '_');
-}
-
 function createSyntheseSheet(
   workbook: ExcelJS.Workbook,
-  summaries: PanelSummary[]
-): void {
+  summaries: PanelSummary[],
+  company: CompanySettings,
+  title: string,
+  project: ProjectInfo
+): { svgSkipped: boolean } {
   const sheet = workbook.addWorksheet('SYNTHESE', { state: 'visible' });
-  workbook.worksheets.forEach((ws) => {
-    if (ws.name === 'SYNTHESE') return;
-  });
+  const { headerRow, svgSkipped } = addCompanyHeader(
+    sheet,
+    workbook,
+    company,
+    title,
+    project
+  );
 
   const headers = [
     'Tableau',
@@ -165,8 +312,10 @@ function createSyntheseSheet(
     'DJ général (A)',
   ];
 
-  const headerRow = sheet.addRow(headers);
-  headerRow.eachCell((cell) => {
+  const headerRowObj = sheet.getRow(headerRow);
+  headers.forEach((h, i) => {
+    const cell = headerRowObj.getCell(i + 1);
+    cell.value = h;
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
@@ -177,14 +326,17 @@ function createSyntheseSheet(
   });
 
   summaries.forEach((s, i) => {
-    const row = sheet.addRow([
+    const row = sheet.getRow(headerRow + 1 + i);
+    const values = [
       s.name,
       Math.round(s.installed),
       Math.round(s.absorbed),
       Math.round(s.current * 100) / 100,
       s.breaker,
-    ]);
-    row.eachCell((cell) => {
+    ];
+    values.forEach((v, ci) => {
+      const cell = row.getCell(ci + 1);
+      cell.value = v;
       if (i % 2 === 1) {
         cell.fill = {
           type: 'pattern',
@@ -202,9 +354,14 @@ function createSyntheseSheet(
     { width: 18 },
     { width: 14 },
     { width: 14 },
+    { width: 12 },
+    { width: 12 },
+    { width: 12 },
+    { width: 12 },
   ];
 
-  sheet.views = [{ state: 'frozen', ySplit: 1 }];
+  sheet.views = [{ state: 'frozen', ySplit: headerRow }];
+  return { svgSkipped };
 }
 
 function createPanelSheet(
@@ -213,43 +370,26 @@ function createPanelSheet(
     projectName: string;
     locationName: string;
     panelName: string;
-    engineer: string;
     elements: ReturnType<typeof getElementsByPanel>;
     installed: number;
     absorbed: number;
     current: number;
     breaker: number;
+    company: CompanySettings;
+    sheetTitle: string;
+    projectInfo: ProjectInfo;
   }
-): void {
+): { svgSkipped: boolean } {
   const sheetName = sanitizeSheetName(data.panelName);
   const sheet = workbook.addWorksheet(sheetName);
 
-  const colCount = 9;
-
-  sheet.mergeCells(1, 1, 1, colCount);
-  const titleCell = sheet.getCell(1, 1);
-  titleCell.value = data.projectName;
-  titleCell.font = { bold: true, size: 14 };
-  titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
-
-  sheet.mergeCells(2, 1, 2, colCount);
-  const subtitleCell = sheet.getCell(2, 1);
-  subtitleCell.value = `${data.locationName} — ${data.panelName}`;
-  subtitleCell.font = { bold: true, size: 11 };
-
-  sheet.getRow(3).height = 8;
-
-  const dateRow = sheet.getRow(4);
-  const exportDate = new Date().toLocaleDateString('fr-FR');
-  const dateText = data.engineer
-    ? `Exporté le ${exportDate} — Ingénieur: ${data.engineer}`
-    : `Exporté le ${exportDate}`;
-  sheet.mergeCells(4, 1, 4, colCount);
-  dateRow.getCell(1).value = dateText;
-  dateRow.getCell(1).alignment = { horizontal: 'right' };
-  dateRow.getCell(1).font = { italic: true, size: 9 };
-
-  sheet.getRow(5).height = 8;
+  const { headerRow, svgSkipped } = addCompanyHeader(
+    sheet,
+    workbook,
+    data.company,
+    data.sheetTitle,
+    data.projectInfo
+  );
 
   const headers = [
     'N°',
@@ -263,9 +403,9 @@ function createPanelSheet(
     'Chute de tension (%)',
   ];
 
-  const headerRow = sheet.getRow(6);
+  const headerRowObj = sheet.getRow(headerRow);
   headers.forEach((h, i) => {
-    const cell = headerRow.getCell(i + 1);
+    const cell = headerRowObj.getCell(i + 1);
     cell.value = h;
     cell.fill = {
       type: 'pattern',
@@ -276,11 +416,11 @@ function createPanelSheet(
     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     applyBorder(cell);
   });
-  headerRow.height = 28;
+  headerRowObj.height = 28;
 
   let totalPower = 0;
   data.elements.forEach((el, index) => {
-    const rowNum = 7 + index;
+    const rowNum = headerRow + 1 + index;
     const row = sheet.getRow(rowNum);
     const totalEl = el.power_w * el.quantity;
     totalPower += totalEl;
@@ -313,11 +453,11 @@ function createPanelSheet(
     });
   });
 
-  const totalRowNum = 7 + data.elements.length;
+  const totalRowNum = headerRow + 1 + data.elements.length;
   const totalRow = sheet.getRow(totalRowNum);
   totalRow.getCell(1).value = 'TOTAL';
   totalRow.getCell(7).value = totalPower;
-  for (let c = 1; c <= colCount; c++) {
+  for (let c = 1; c <= COL_COUNT; c++) {
     const cell = totalRow.getCell(c);
     cell.fill = {
       type: 'pattern',
@@ -354,5 +494,6 @@ function createPanelSheet(
     { width: 18 },
   ];
 
-  sheet.views = [{ state: 'frozen', ySplit: 6 }];
+  sheet.views = [{ state: 'frozen', ySplit: headerRow }];
+  return { svgSkipped };
 }

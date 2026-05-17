@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAppStore } from '@/store/useAppStore';
 import { formatPower } from '@/utils/calculations';
+import { exportProjectToPdf } from '@/utils/export';
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -15,8 +16,10 @@ export function ProjectView() {
     setLocations,
     setSelection,
     setPanels,
+    company,
   } = useAppStore();
 
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [editFields, setEditFields] = useState({
     name: '',
     client: '',
@@ -78,6 +81,21 @@ export function ProjectView() {
       toast.success('Localisation ajoutée');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    try {
+      const filePath = await exportProjectToPdf(id, company ?? undefined);
+      if (filePath) {
+        toast.success(`PDF exporté: ${filePath}`);
+        await window.bilpow.shell.openPath(filePath);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur d\'export PDF');
+    } finally {
+      setExportingPdf(false);
     }
   };
 
@@ -149,13 +167,23 @@ export function ProjectView() {
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
             Localisations ({locations.length})
           </h2>
-          <button
-            type="button"
-            onClick={() => setShowAddLocation(true)}
-            className="btn-primary text-sm"
-          >
-            + Ajouter une localisation
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => void handleExportPdf()}
+              disabled={exportingPdf || locations.length === 0}
+              className="btn-secondary text-sm"
+            >
+              {exportingPdf ? 'Export...' : '📄 Exporter PDF'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddLocation(true)}
+              className="btn-primary text-sm"
+            >
+              + Ajouter une localisation
+            </button>
+          </div>
         </div>
 
         {locations.length === 0 ? (

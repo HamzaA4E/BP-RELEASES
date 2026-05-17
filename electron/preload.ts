@@ -17,6 +17,10 @@ import type {
   CreateElementInput,
   UpdateElementInput,
   CreateFavoriteInput,
+  CompanySettings,
+  UpdateCompanySettingsInput,
+  UploadLogoResult,
+  ExcelExportResult,
   IpcResponse,
 } from '../shared/types';
 
@@ -81,8 +85,23 @@ const api = {
     delete: (id: number): Promise<boolean> => invoke('favorites:delete', id),
   },
   export: {
-    exportLocationToExcel: (locationId: number): Promise<string | null> =>
-      invoke('export:exportLocationToExcel', locationId),
+    exportLocationToExcel: (
+      locationId: number,
+      company?: CompanySettings
+    ): Promise<ExcelExportResult> =>
+      invoke('export:exportLocationToExcel', locationId, company),
+    exportProjectToPdf: (
+      projectId: number,
+      company?: CompanySettings
+    ): Promise<string | null> =>
+      invoke('export:exportProjectToPdf', projectId, company),
+  },
+  settings: {
+    get: (): Promise<CompanySettings> => invoke('settings:get'),
+    save: (data: UpdateCompanySettingsInput): Promise<boolean> =>
+      invoke('settings:save', data),
+    uploadLogo: (): Promise<UploadLogoResult | null> => invoke('settings:uploadLogo'),
+    removeLogo: (): Promise<boolean> => invoke('settings:removeLogo'),
   },
   app: {
     getPlatform: (): Promise<string> => invoke('app:getPlatform'),

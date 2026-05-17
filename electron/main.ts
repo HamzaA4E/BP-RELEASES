@@ -4,15 +4,20 @@ import {
   ipcMain,
   shell,
   nativeTheme,
+  dialog,
 } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { getDatabase, closeDatabase } from './database/db';
 import * as projectsDb from './database/projects';
 import * as locationsDb from './database/locations';
 import * as panelsDb from './database/panels';
 import * as elementsDb from './database/elements';
 import * as favoritesDb from './database/favorites';
+import { getCompanySettings, saveCompanySettings } from './database/settings';
 import { exportLocationToExcel } from './export/excelExport';
+import { exportProjectToPdf } from './export/pdfExport';
+import type { CompanySettings, UpdateCompanySettingsInput } from '../shared/types';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -259,8 +264,80 @@ function registerIpcHandlers(): void {
     })
   );
 
-  ipcMain.handle('export:exportLocationToExcel', (_e, locationId: number) =>
-    wrapAsyncHandler(() => exportLocationToExcel(locationId))
+  ipcMain.handle(
+    'export:exportLocationToExcel',
+    (_e, locationId: number, company?: CompanySettings) =>
+      wrapAsyncHandler(() => exportLocationToExcel(locationId, company))
+  );
+
+  ipcMain.handle('export:exportProjectToPdf', (_e, projectId: number, company?: CompanySettings) =>
+    wrapAsyncHandler(() => exportProjectToPdf(projectId, company))
+  );
+
+  ipcMain.handle('settings:get', () => wrapHandler(() => getCompanySettings()));
+
+  ipcMain.handle('settings:save', (_e, data: UpdateCompanySettingsInput) =>
+    wrapHandler(() => {
+      saveCompanySettings(data);
+      return true;
+    })
+  );
+
+  ipcMain.handle('settings:uploadLogo', async () =>
+    wrapAsyncHandler(async () => {
+      const { filePaths, canceled } = await dialog.showOpenDialog({
+        title: 'Choisir le logo de la société',
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'svg'] }],
+        properties: ['openFile'],
+      });
+      if (canceled || filePaths.length === 0) return null;
+
+      const srcPath = filePaths[0]!;
+      const ext = path.extname(srcPath).toLowerCase();
+      const mimeMap: Record<string, string> = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.svg': 'image/svg+xml',
+      };
+      const mime = mimeMap[ext] ?? 'image/png';
+
+      const buffer = fs.readFileSync(srcPath);
+      if (buffer.length > 2 * 1024 * 1024) {
+        throw new Error('Le logo ne doit pas dépasser 2 Mo.');
+      }
+
+      const base64 = buffer.toString('base64');
+
+      const userDataPath = app.getPath('userData');
+      const logoDir = path.join(userDataPath, 'logos');
+      if (!fs.existsSync(logoDir)) fs.mkdirSync(logoDir, { recursive: true });
+      const destPath = path.join(logoDir, `company_logo${ext}`);
+      fs.copyFileSync(srcPath, destPath);
+
+      saveCompanySettings({
+        logo_path: destPath,
+        logo_base64: base64,
+        logo_mime: mime,
+      });
+
+      return { base64, mime, path: destPath };
+    })
+  );
+
+  ipcMain.handle('settings:removeLogo', () =>
+    wrapHandler(() => {
+      const current = getCompanySettings();
+      if (current.logo_path && fs.existsSync(current.logo_path)) {
+        try {
+          fs.unlinkSync(current.logo_path);
+        } catch {
+          /* ignore */
+        }
+      }
+      saveCompanySettings({ logo_path: '', logo_base64: '', logo_mime: '' });
+      return true;
+    })
   );
 
   ipcMain.handle('app:getPlatform', () => process.platform);

@@ -6,10 +6,11 @@ import { ProjectView } from '@/pages/ProjectView';
 import { LocationView } from '@/pages/LocationView';
 import { PanelView } from '@/pages/PanelView';
 import { Favorites } from '@/pages/Favorites';
+import { SettingsPage } from '@/pages/SettingsPage';
 import { useAppStore } from '@/store/useAppStore';
 
 export default function App() {
-  const { darkMode, setProjects } = useAppStore();
+  const { darkMode, setProjects, loadCompanySettings } = useAppStore();
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -27,6 +28,10 @@ export default function App() {
     void loadProjects();
   }, [setProjects]);
 
+  useEffect(() => {
+    void loadCompanySettings();
+  }, [loadCompanySettings]);
+
   return (
     <HashRouter>
       <Routes>
@@ -42,6 +47,7 @@ export default function App() {
             element={<PanelView />}
           />
           <Route path="favorites" element={<Favorites />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
     </HashRouter>

@@ -8,6 +8,8 @@ import type {
   Element,
   Favorite,
   AppSelection,
+  CompanySettings,
+  UpdateCompanySettingsInput,
 } from '@/types';
 
 interface AppState {
@@ -22,6 +24,7 @@ interface AppState {
   selection: AppSelection;
   sidebarExpanded: Record<string, boolean>;
   searchQuery: string;
+  company: CompanySettings | null;
 
   setDarkMode: (value: boolean) => void;
   toggleInfoPanel: () => void;
@@ -35,6 +38,8 @@ interface AppState {
   setSidebarExpanded: (key: string, expanded: boolean) => void;
   setSearchQuery: (query: string) => void;
   resetViewData: () => void;
+  loadCompanySettings: () => Promise<void>;
+  updateCompany: (data: UpdateCompanySettingsInput) => void;
 }
 
 const defaultSelection: AppSelection = {
@@ -58,6 +63,7 @@ export const useAppStore = create<AppState>()(
       selection: defaultSelection,
       sidebarExpanded: {},
       searchQuery: '',
+      company: null,
 
       setDarkMode: (value) => {
         document.documentElement.classList.toggle('dark', value);
@@ -87,6 +93,14 @@ export const useAppStore = create<AppState>()(
           panels: [],
           elements: [],
         }),
+      loadCompanySettings: async () => {
+        const company = await window.bilpow.settings.get();
+        set({ company });
+      },
+      updateCompany: (data) =>
+        set((state) => ({
+          company: state.company ? { ...state.company, ...data } : null,
+        })),
     }),
     {
       name: 'bilpow-settings',

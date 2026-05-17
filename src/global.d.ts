@@ -16,6 +16,10 @@ import type {
   CreateElementInput,
   UpdateElementInput,
   CreateFavoriteInput,
+  CompanySettings,
+  UpdateCompanySettingsInput,
+  UploadLogoResult,
+  ExcelExportResult,
 } from '../shared/types';
 
 export interface BilPowAPI {
@@ -54,7 +58,20 @@ export interface BilPowAPI {
     delete: (id: number) => Promise<boolean>;
   };
   export: {
-    exportLocationToExcel: (locationId: number) => Promise<string | null>;
+    exportLocationToExcel: (
+      locationId: number,
+      company?: CompanySettings
+    ) => Promise<ExcelExportResult>;
+    exportProjectToPdf: (
+      projectId: number,
+      company?: CompanySettings
+    ) => Promise<string | null>;
+  };
+  settings: {
+    get: () => Promise<CompanySettings>;
+    save: (data: UpdateCompanySettingsInput) => Promise<boolean>;
+    uploadLogo: () => Promise<UploadLogoResult | null>;
+    removeLogo: () => Promise<boolean>;
   };
   app: {
     getPlatform: () => Promise<string>;

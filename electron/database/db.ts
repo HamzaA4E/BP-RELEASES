@@ -54,6 +54,21 @@ CREATE TABLE IF NOT EXISTS favorites (
   color TEXT DEFAULT '#3B82F6'
 );
 
+CREATE TABLE IF NOT EXISTS company_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  company_name TEXT DEFAULT '',
+  address TEXT DEFAULT '',
+  phone TEXT DEFAULT '',
+  email TEXT DEFAULT '',
+  website TEXT DEFAULT '',
+  logo_path TEXT DEFAULT '',
+  logo_base64 TEXT DEFAULT '',
+  logo_mime TEXT DEFAULT '',
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
+INSERT OR IGNORE INTO company_settings (id) VALUES (1);
+
 PRAGMA foreign_keys = ON;
 `;
 

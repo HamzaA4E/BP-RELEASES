@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, NavLink } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAppStore } from '@/store/useAppStore';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -281,6 +281,22 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="border-t border-primary-light px-3 py-3 flex-shrink-0">
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+              isActive
+                ? 'bg-accent text-white font-medium'
+                : 'text-blue-200 hover:bg-primary-light hover:text-white'
+            }`
+          }
+        >
+          <span>⚙️</span>
+          Paramètres société
+        </NavLink>
+      </div>
 
       {contextMenu && (
         <>

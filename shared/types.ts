@@ -134,6 +134,34 @@ export interface CreateFavoriteInput {
   color?: string;
 }
 
+export interface CompanySettings {
+  id: number;
+  company_name: string;
+  address: string;
+  phone: string;
+  email: string;
+  website: string;
+  logo_path: string;
+  logo_base64: string;
+  logo_mime: string;
+  updated_at: string;
+}
+
+export type UpdateCompanySettingsInput = Partial<
+  Omit<CompanySettings, 'id' | 'updated_at'>
+>;
+
+export interface UploadLogoResult {
+  base64: string;
+  mime: string;
+  path: string;
+}
+
+export interface ExcelExportResult {
+  filePath: string | null;
+  warning?: string;
+}
+
 export interface IpcResponse<T> {
   success: boolean;
   data?: T;
