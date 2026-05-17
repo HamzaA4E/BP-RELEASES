@@ -1,0 +1,220 @@
+import { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { useAppStore } from '@/store/useAppStore';
+import { formatPower } from '@/utils/calculations';
+
+export function ProjectView() {
+  const { projectId } = useParams<{ projectId: string }>();
+  const navigate = useNavigate();
+  const id = Number(projectId);
+  const {
+    currentProject,
+    setCurrentProject,
+    locations,
+    setLocations,
+    setSelection,
+    setPanels,
+  } = useAppStore();
+
+  const [editFields, setEditFields] = useState({
+    name: '',
+    client: '',
+    engineer: '',
+    description: '',
+  });
+  const [newLocationName, setNewLocationName] = useState('');
+  const [showAddLocation, setShowAddLocation] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      const project = await window.bilpow.projects.getById(id);
+      if (!project) {
+        navigate('/');
+        return;
+      }
+      setCurrentProject(project);
+      setEditFields({
+        name: project.name,
+        client: project.client ?? '',
+        engineer: project.engineer ?? '',
+        description: project.description ?? '',
+      });
+      const locs = await window.bilpow.locations.getByProject(id);
+      setLocations(locs);
+      setSelection({ type: 'project', projectId: id, locationId: null, panelId: null });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur');
+    }
+  }, [id, navigate, setCurrentProject, setLocations, setSelection]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  const saveField = async (field: keyof typeof editFields, value: string) => {
+    try {
+      const updated = await window.bilpow.projects.update({
+        id,
+        [field]: value || null,
+      });
+      setCurrentProject(updated);
+      toast.success('Projet mis à jour');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleAddLocation = async () => {
+    if (!newLocationName.trim()) {
+      toast.error('Le nom est requis');
+      return;
+    }
+    try {
+      await window.bilpow.locations.create({ project_id: id, name: newLocationName.trim() });
+      setNewLocationName('');
+      setShowAddLocation(false);
+      await loadData();
+      toast.success('Localisation ajoutée');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const openLocation = async (locationId: number) => {
+    const panels = await window.bilpow.panels.getByLocation(locationId);
+    setPanels(panels);
+    setSelection({ type: 'location', projectId: id, locationId, panelId: null });
+    navigate(`/project/${id}/location/${locationId}`);
+  };
+
+  if (!currentProject) {
+    return <p className="p-6 text-gray-400">Chargement...</p>;
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto p-6">
+      <div className="max-w-4xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-primary dark:text-white mb-4">
+            {currentProject.name}
+          </h1>
+          <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Nom</label>
+              <input
+                type="text"
+                value={editFields.name}
+                onChange={(e) => setEditFields((f) => ({ ...f, name: e.target.value }))}
+                onBlur={(e) => void saveField('name', e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Client</label>
+              <input
+                type="text"
+                value={editFields.client}
+                onChange={(e) => setEditFields((f) => ({ ...f, client: e.target.value }))}
+                onBlur={(e) => void saveField('client', e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Ingénieur</label>
+              <input
+                type="text"
+                value={editFields.engineer}
+                onChange={(e) => setEditFields((f) => ({ ...f, engineer: e.target.value }))}
+                onBlur={(e) => void saveField('engineer', e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
+              <textarea
+                value={editFields.description}
+                onChange={(e) =>
+                  setEditFields((f) => ({ ...f, description: e.target.value }))
+                }
+                onBlur={(e) => void saveField('description', e.target.value)}
+                className="input-field resize-none"
+                rows={2}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
+            Localisations ({locations.length})
+          </h2>
+          <button
+            type="button"
+            onClick={() => setShowAddLocation(true)}
+            className="btn-primary text-sm"
+          >
+            + Ajouter une localisation
+          </button>
+        </div>
+
+        {locations.length === 0 ? (
+          <div className="card p-8 text-center text-gray-400">
+            Aucune localisation. Ajoutez-en une pour commencer.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {locations.map((loc) => (
+              <div
+                key={loc.id}
+                className="card p-4 flex items-center justify-between hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => void openLocation(loc.id)}
+              >
+                <div>
+                  <h3 className="font-medium text-primary dark:text-white">{loc.name}</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {loc.panel_count} tableau{loc.panel_count !== 1 ? 'x' : ''} ·{' '}
+                    {formatPower(loc.total_power_w)}
+                  </p>
+                </div>
+                <span className="text-accent">→</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showAddLocation && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="card p-6 w-full max-w-sm mx-4">
+              <h3 className="font-semibold mb-3">Nouvelle localisation</h3>
+              <input
+                type="text"
+                value={newLocationName}
+                onChange={(e) => setNewLocationName(e.target.value)}
+                className="input-field mb-4"
+                placeholder="Ex: RDC, Étage 1..."
+                autoFocus
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowAddLocation(false)}
+                  className="btn-secondary"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleAddLocation()}
+                  className="btn-primary"
+                >
+                  Ajouter
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

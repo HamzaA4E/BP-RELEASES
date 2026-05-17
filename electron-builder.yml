@@ -1,0 +1,50 @@
+appId: com.bilpow.app
+productName: BilPow
+copyright: Copyright © 2026 BilPow
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+  - public/**/*
+
+extraResources:
+  - from: public
+    to: public
+    filter:
+      - "**/*"
+
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: BilPow
+
+mac:
+  target:
+    - dmg
+  icon: build/icon.icns
+  category: public.app-category.productivity
+
+linux:
+  target:
+    - AppImage
+  icon: build/icon.png
+  category: Engineering

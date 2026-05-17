@@ -1,0 +1,150 @@
+export type ElementType = 'eclairage' | 'prise';
+
+export interface Project {
+  id: number;
+  name: string;
+  client: string | null;
+  engineer: string | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectWithStats extends Project {
+  location_count: number;
+  total_power_w: number;
+}
+
+export interface Location {
+  id: number;
+  project_id: number;
+  name: string;
+  order_index: number;
+}
+
+export interface LocationWithStats extends Location {
+  total_power_w: number;
+  panel_count: number;
+}
+
+export interface Panel {
+  id: number;
+  location_id: number;
+  name: string;
+  description: string | null;
+  general_breaker_ampere: number;
+  order_index: number;
+}
+
+export interface PanelWithStats extends Panel {
+  element_count: number;
+  installed_power_w: number;
+  absorbed_power_w: number;
+}
+
+export interface Element {
+  id: number;
+  panel_id: number;
+  type: ElementType;
+  repere: string;
+  designation: string;
+  power_w: number;
+  quantity: number;
+  distance_m: number;
+  circuit: string | null;
+  notes: string | null;
+  order_index: number;
+}
+
+export interface Favorite {
+  id: number;
+  type: ElementType;
+  designation: string;
+  power_w: number;
+  color: string;
+}
+
+export interface CreateProjectInput {
+  name: string;
+  client?: string;
+  engineer?: string;
+  description?: string;
+}
+
+export interface UpdateProjectInput {
+  id: number;
+  name?: string;
+  client?: string;
+  engineer?: string;
+  description?: string;
+}
+
+export interface CreateLocationInput {
+  project_id: number;
+  name: string;
+}
+
+export interface UpdateLocationInput {
+  id: number;
+  name?: string;
+}
+
+export interface CreatePanelInput {
+  location_id: number;
+  name: string;
+  description?: string;
+  general_breaker_ampere?: number;
+}
+
+export interface UpdatePanelInput {
+  id: number;
+  name?: string;
+  description?: string;
+  general_breaker_ampere?: number;
+}
+
+export interface CreateElementInput {
+  panel_id: number;
+  type: ElementType;
+  repere: string;
+  designation: string;
+  power_w: number;
+  quantity: number;
+  distance_m: number;
+  circuit?: string;
+  notes?: string;
+}
+
+export interface UpdateElementInput {
+  id: number;
+  type?: ElementType;
+  repere?: string;
+  designation?: string;
+  power_w?: number;
+  quantity?: number;
+  distance_m?: number;
+  circuit?: string;
+  notes?: string;
+}
+
+export interface CreateFavoriteInput {
+  type: ElementType;
+  designation: string;
+  power_w: number;
+  color?: string;
+}
+
+export interface IpcResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export type SelectionType = 'project' | 'location' | 'panel' | null;
+
+export interface AppSelection {
+  type: SelectionType;
+  projectId: number | null;
+  locationId: number | null;
+  panelId: number | null;
+}
