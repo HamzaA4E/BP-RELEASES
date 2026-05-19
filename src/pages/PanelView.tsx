@@ -1,17 +1,45 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAppStore } from '@/store/useAppStore';
 import { ElementTable } from '@/components/ElementTable';
 import { AddElementModal } from '@/components/AddElementModal';
-import { AddBarSetModal } from '@/components/AddBarSetModal';
+import { AddJdbModal } from '@/components/AddJdbModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { normalizeElement, isJeuDeBarres } from '@/utils/elementHelpers';
 import {
-  barSetLabel,
-  nextBarSetIndex,
-  normalizeElement,
-} from '@/utils/elementHelpers';
-import type { Element, ElementType } from '@/types';
+  panelInstalledPower,
+  panelUsedPower,
+  calculationCurrent,
+  formatPower,
+  formatNumber,
+} from '@/utils/calculations';
+import type { Element, Panel, PhaseType } from '@/types';
+
+type ElementFormType = Exclude<Element['type'], 'jeu_de_barres'>;
+
+const DEFAULT_PANEL: Panel = {
+  id: 0,
+  location_id: 0,
+  name: '',
+  description: null,
+  general_breaker_ampere: 0,
+  order_index: 0,
+};
+
+type ElementSavePayload = {
+  type: ElementFormType;
+  repere: string;
+  type_label: string;
+  emplacement: string;
+  power_w: number;
+  quantity: number;
+  phase_type: PhaseType;
+  coef_ks: number;
+  coef_ku: number;
+  coef_fp: number;
+  notes?: string;
+};
 
 export function PanelView() {
   const { projectId, locationId, panelId } = useParams<{
@@ -32,87 +60,48 @@ export function PanelView() {
     setPanels,
   } = useAppStore();
 
-  const [panelName, setPanelName] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [showBarSetModal, setShowBarSetModal] = useState(false);
+  const [panel, setPanel] = useState<Panel>(DEFAULT_PANEL);
+  const [showAddElement, setShowAddElement] = useState(false);
+  const [showAddJdb, setShowAddJdb] = useState(false);
   const [editElement, setEditElement] = useState<Element | null>(null);
   const [deleteElementId, setDeleteElementId] = useState<number | null>(null);
+
+  const refreshElements = useCallback(async () => {
+    const els = await window.bilpow.elements.getByPanel(panId);
+    setElements(els.map((e) => normalizeElement(e)));
+  }, [panId, setElements]);
 
   const loadData = useCallback(async () => {
     try {
       const pnl = await window.bilpow.panels.getByLocation(lId);
       setPanels(pnl);
-      const panel = pnl.find((p) => p.id === panId);
-      if (panel) {
-        setPanelName(panel.name);
+      const panelData = pnl.find((p) => p.id === panId);
+      if (panelData) {
+        setPanel(panelData);
       }
-      const els = await window.bilpow.elements.getByPanel(panId);
-      setElements(els.map((e) => normalizeElement(e)));
+      await refreshElements();
       setSelection({ type: 'panel', projectId: pId, locationId: lId, panelId: panId });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
     }
-  }, [lId, panId, pId, setElements, setPanels, setSelection]);
+  }, [lId, panId, pId, refreshElements, setPanels, setSelection]);
 
   useEffect(() => {
     void loadData();
     void window.bilpow.favorites.getAll().then(setFavorites);
   }, [loadData, setFavorites]);
 
+  const installedPower = useMemo(() => panelInstalledPower(elements), [elements]);
+  const usedPower = useMemo(() => panelUsedPower(elements), [elements]);
+  const calcCurrent = useMemo(
+    () => calculationCurrent(usedPower, 230, 0.8),
+    [usedPower]
+  );
+
   const savePanelName = async (name: string) => {
     try {
       await window.bilpow.panels.update({ id: panId, name });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
-    }
-  };
-
-  const handleSaveElement = async (data: {
-    type: ElementType;
-    repere: string;
-    type_label: string;
-    emplacement: string;
-    power_w: number;
-    quantity: number;
-    ku: number;
-    ks: number;
-    fp: number;
-    notes?: string;
-  }) => {
-    if (editElement) {
-      await window.bilpow.elements.update({ id: editElement.id, ...data });
-      toast.success('Élément mis à jour');
-    } else {
-      await window.bilpow.elements.create({ panel_id: panId, ...data });
-      toast.success('Élément ajouté');
-    }
-    await loadData();
-    const pnl = await window.bilpow.panels.getByLocation(lId);
-    setPanels(pnl);
-  };
-
-  const handleAddBarSet = async (type: ElementType) => {
-    setShowBarSetModal(false);
-    try {
-      const index = nextBarSetIndex(elements, type);
-      const type_label = barSetLabel(type, index);
-      const reperePrefix = type === 'eclairage' ? 'JB-E' : 'JB-P';
-      await window.bilpow.elements.create({
-        panel_id: panId,
-        type,
-        row_kind: 'bar_set',
-        bar_set_index: index,
-        type_label,
-        emplacement: '',
-        repere: `${reperePrefix}${index}`,
-        power_w: 0,
-        quantity: 1,
-        ku: 1,
-        ks: 1,
-        fp: 1,
-      });
-      toast.success(type_label);
-      await loadData();
+      setPanel((p) => ({ ...p, name }));
       const pnl = await window.bilpow.panels.getByLocation(lId);
       setPanels(pnl);
     } catch (err) {
@@ -120,15 +109,66 @@ export function PanelView() {
     }
   };
 
+  const createElementFromPayload = async (data: ElementSavePayload) => {
+    await window.bilpow.elements.create({
+      panel_id: panId,
+      type: data.type,
+      repere: data.repere,
+      type_label: data.type_label,
+      emplacement: data.emplacement,
+      phase_type: data.phase_type,
+      power_w: data.power_w,
+      quantity: data.quantity,
+      coef_ks: data.coef_ks,
+      coef_ku: data.coef_ku,
+      coef_fp: data.coef_fp,
+      notes: data.notes,
+    });
+  };
+
+  const handleSaveElement = async (data: ElementSavePayload) => {
+    if (editElement && editElement.type !== 'jeu_de_barres') {
+      await window.bilpow.elements.update({ id: editElement.id, ...data });
+      toast.success('Élément mis à jour');
+    } else {
+      await createElementFromPayload(data);
+      toast.success('Élément ajouté');
+    }
+    await refreshElements();
+    const pnl = await window.bilpow.panels.getByLocation(lId);
+    setPanels(pnl);
+  };
+
+  const handleSaveMultiple = async (items: ElementSavePayload[]) => {
+    for (const item of items) {
+      await createElementFromPayload(item);
+    }
+    toast.success(`${items.length} éléments ajoutés avec succès`);
+    await refreshElements();
+    const pnl = await window.bilpow.panels.getByLocation(lId);
+    setPanels(pnl);
+  };
+
   const handleFieldUpdate = async (
     id: number,
-    field: 'ku' | 'ks' | 'fp' | 'emplacement' | 'type_label',
+    field:
+      | 'emplacement'
+      | 'type_label'
+      | 'power_w'
+      | 'repere'
+      | 'quantity'
+      | 'coef_ks'
+      | 'coef_ku'
+      | 'coef_fp',
     value: number | string
   ) => {
+    setElements(
+      elements.map((el) => (el.id === id ? { ...el, [field]: value } : el))
+    );
     try {
       await window.bilpow.elements.update({ id, [field]: value });
-      const els = await window.bilpow.elements.getByPanel(panId);
-      setElements(els.map((e) => normalizeElement(e)));
+      const pnl = await window.bilpow.panels.getByLocation(lId);
+      setPanels(pnl);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur de mise à jour');
       await loadData();
@@ -140,7 +180,7 @@ export function PanelView() {
     try {
       await window.bilpow.elements.delete(deleteElementId);
       toast.success('Ligne supprimée');
-      await loadData();
+      await refreshElements();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
     }
@@ -150,8 +190,7 @@ export function PanelView() {
   const handleReorder = async (orderedIds: number[]) => {
     try {
       await window.bilpow.elements.reorder(panId, orderedIds);
-      const els = await window.bilpow.elements.getByPanel(panId);
-      setElements(els.map((e) => normalizeElement(e)));
+      await refreshElements();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur de réorganisation');
     }
@@ -168,43 +207,51 @@ export function PanelView() {
     }
   };
 
+  const handleJdbSuccess = async () => {
+    await refreshElements();
+    const pnl = await window.bilpow.panels.getByLocation(lId);
+    setPanels(pnl);
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-6">
-      <div className="max-w-full mx-auto">
-        <div className="mb-6">
+      <div className="max-w-full mx-auto space-y-6">
+        <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">
             Nom du tableau
           </label>
           <input
             type="text"
-            value={panelName}
-            onChange={(e) => setPanelName(e.target.value)}
+            value={panel.name}
+            onChange={(e) => setPanel((p) => ({ ...p, name: e.target.value }))}
             onBlur={(e) => void savePanelName(e.target.value)}
             className="input-field text-xl font-bold max-w-md"
           />
         </div>
 
-        <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+        <div className="flex flex-wrap justify-between items-center gap-3">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-            Lignes ({elements.length})
+            Lignes ({elements.filter((e) => !isJeuDeBarres(e)).length})
           </h2>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setShowBarSetModal(true)}
-              className="btn-secondary"
+              onClick={() => setShowAddJdb(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-[#1E3A5F] hover:bg-[#162d4a] active:scale-95 text-white rounded-lg text-sm font-medium transition-all shadow-sm"
             >
-              + Ajouter jeu de barre
+              <span className="text-lg leading-none">⚡</span>
+              Ajouter jeu de barres
             </button>
             <button
               type="button"
               onClick={() => {
                 setEditElement(null);
-                setShowModal(true);
+                setShowAddElement(true);
               }}
-              className="btn-primary"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-sm font-medium transition-all shadow-sm"
             >
-              + Ajouter un élément
+              <span className="text-lg leading-none">+</span>
+              Ajouter un élément
             </button>
           </div>
         </div>
@@ -212,33 +259,39 @@ export function PanelView() {
         <ElementTable
           elements={elements}
           onEdit={(el) => {
+            if (el.type === 'jeu_de_barres') return;
             setEditElement(el);
-            setShowModal(true);
+            setShowAddElement(true);
           }}
           onDelete={setDeleteElementId}
           onReorder={handleReorder}
           onFieldUpdate={handleFieldUpdate}
         />
+
+        
       </div>
 
       <AddElementModal
-        isOpen={showModal}
+        isOpen={showAddElement}
         existingElements={elements}
         favorites={favorites}
         editElement={editElement}
         onClose={() => {
-          setShowModal(false);
+          setShowAddElement(false);
           setEditElement(null);
         }}
         onSave={handleSaveElement}
+        onSaveMultiple={handleSaveMultiple}
         onDeleteFavorite={handleDeleteFavorite}
       />
 
-      <AddBarSetModal
-        isOpen={showBarSetModal}
-        onClose={() => setShowBarSetModal(false)}
-        onConfirm={(type) => void handleAddBarSet(type)}
-      />
+      {showAddJdb && (
+        <AddJdbModal
+          panelId={panId}
+          onClose={() => setShowAddJdb(false)}
+          onSuccess={() => void handleJdbSuccess()}
+        />
+      )}
 
       <ConfirmDialog
         isOpen={deleteElementId !== null}

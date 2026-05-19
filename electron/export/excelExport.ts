@@ -195,7 +195,10 @@ export async function exportLocationToExcel(
   for (const panel of panels) {
     const elements = getElementsByPanel(panel.id);
     const installed = elements
-      .filter((e) => (e as { row_kind?: string }).row_kind !== 'bar_set')
+      .filter((e) => {
+        const el = e as { row_kind?: string; type?: string };
+        return el.type !== 'jeu_de_barres' && el.row_kind !== 'bar_set';
+      })
       .reduce((s, e) => s + e.power_w * e.quantity, 0);
     const absorbed = installed * 0.8;
     const current = absorbed / (230 * 0.8);
@@ -413,8 +416,10 @@ function createPanelSheet(
     const rowNum = headerRow + 1 + index;
     const row = sheet.getRow(rowNum);
     const rowKind = (el as { row_kind?: string }).row_kind ?? 'element';
+    const isJdb =
+      (el as { type?: string }).type === 'jeu_de_barres' || rowKind === 'bar_set';
     const totalEl = el.power_w * el.quantity;
-    if (rowKind !== 'bar_set') {
+    if (!isJdb) {
       totalPower += totalEl;
     }
 
@@ -434,7 +439,7 @@ function createPanelSheet(
       emplacement,
       el.power_w,
       el.quantity,
-      rowKind === 'bar_set' ? '' : totalEl,
+      isJdb ? '' : totalEl,
       ku,
       ks,
       fp,

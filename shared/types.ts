@@ -1,5 +1,7 @@
-export type ElementType = 'eclairage' | 'prise';
+export type ElementType = 'eclairage' | 'prise' | 'attente' | 'jeu_de_barres';
 export type ElementRowKind = 'element' | 'bar_set';
+export type PhaseType = 'mono' | 'tri';
+export type JdbCategory = 'eclairage' | 'prise' | null;
 
 export interface Project {
   id: number;
@@ -41,6 +43,7 @@ export interface PanelWithStats extends Panel {
   element_count: number;
   installed_power_w: number;
   absorbed_power_w: number;
+  used_power_w: number;
 }
 
 export interface Element {
@@ -54,12 +57,17 @@ export interface Element {
   emplacement: string;
   row_kind: ElementRowKind;
   bar_set_index: number;
+  phase_type: PhaseType;
+  jdb_category: JdbCategory;
   power_w: number;
   quantity: number;
   distance_m: number;
   ku: number;
   ks: number;
   fp: number;
+  coef_ks: number;
+  coef_ku: number;
+  coef_fp: number;
   circuit: string | null;
   notes: string | null;
   order_index: number;
@@ -120,12 +128,17 @@ export interface CreateElementInput {
   emplacement?: string;
   row_kind?: ElementRowKind;
   bar_set_index?: number;
+  phase_type?: PhaseType;
+  jdb_category?: JdbCategory;
   power_w: number;
   quantity: number;
   distance_m?: number;
   ku?: number;
   ks?: number;
   fp?: number;
+  coef_ks?: number;
+  coef_ku?: number;
+  coef_fp?: number;
   circuit?: string;
   notes?: string;
 }
@@ -136,12 +149,17 @@ export interface UpdateElementInput {
   repere?: string;
   type_label?: string;
   emplacement?: string;
+  phase_type?: PhaseType;
+  jdb_category?: JdbCategory;
   power_w?: number;
   quantity?: number;
   distance_m?: number;
   ku?: number;
   ks?: number;
   fp?: number;
+  coef_ks?: number;
+  coef_ku?: number;
+  coef_fp?: number;
   circuit?: string;
   notes?: string;
 }

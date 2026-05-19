@@ -1,22 +1,27 @@
 import { getDatabase } from './db';
-import type { ElementRowKind } from '../../shared/types';
+import type { ElementRowKind, ElementType, JdbCategory, PhaseType } from '../../shared/types';
 
 export interface ElementRow {
   id: number;
   panel_id: number;
-  type: 'eclairage' | 'prise';
+  type: ElementType;
   repere: string;
   designation: string;
   type_label: string;
   emplacement: string;
   row_kind: ElementRowKind;
   bar_set_index: number;
+  phase_type: PhaseType;
+  jdb_category: JdbCategory;
   power_w: number;
   quantity: number;
   distance_m: number;
   ku: number;
   ks: number;
   fp: number;
+  coef_ks: number;
+  coef_ku: number;
+  coef_fp: number;
   circuit: string | null;
   notes: string | null;
   order_index: number;
@@ -24,32 +29,87 @@ export interface ElementRow {
 
 type RawElementRow = Omit<
   ElementRow,
-  'type_label' | 'emplacement' | 'row_kind' | 'bar_set_index' | 'ku' | 'ks' | 'fp'
+  | 'type_label'
+  | 'emplacement'
+  | 'row_kind'
+  | 'bar_set_index'
+  | 'phase_type'
+  | 'jdb_category'
+  | 'ku'
+  | 'ks'
+  | 'fp'
+  | 'coef_ks'
+  | 'coef_ku'
+  | 'coef_fp'
 > &
   Partial<
-    Pick<ElementRow, 'type_label' | 'emplacement' | 'row_kind' | 'bar_set_index' | 'ku' | 'ks' | 'fp'>
+    Pick<
+      ElementRow,
+      | 'type_label'
+      | 'emplacement'
+      | 'row_kind'
+      | 'bar_set_index'
+      | 'phase_type'
+      | 'jdb_category'
+      | 'ku'
+      | 'ks'
+      | 'fp'
+      | 'coef_ks'
+      | 'coef_ku'
+      | 'coef_fp'
+    >
   >;
+
+export function defaultCoefsForType(
+  type: ElementType,
+  phaseType: PhaseType = 'mono'
+): { coef_ks: number; coef_ku: number; coef_fp: number } {
+  switch (type) {
+    case 'eclairage':
+      return { coef_ks: 1.0, coef_ku: 1.0, coef_fp: 1.0 };
+    case 'prise':
+      return {
+        coef_ks: 0.8,
+        coef_ku: 1.0,
+        coef_fp: phaseType === 'tri' ? 0.8 : 1.0,
+      };
+    case 'attente':
+      return { coef_ks: 0.0, coef_ku: 0.0, coef_fp: 1.0 };
+    case 'jeu_de_barres':
+      return { coef_ks: 1.0, coef_ku: 1.0, coef_fp: 1.0 };
+  }
+}
 
 function mapRow(raw: RawElementRow): ElementRow {
   const row_kind = (raw.row_kind ?? 'element') as ElementRowKind;
   const bar_set_index = raw.bar_set_index ?? 0;
+  const isJdb = raw.type === 'jeu_de_barres' || row_kind === 'bar_set';
+  const phase_type = (raw.phase_type ?? 'mono') as PhaseType;
+  const elementType = isJdb && raw.type !== 'jeu_de_barres' ? 'jeu_de_barres' : raw.type;
   const type_label =
     raw.type_label ||
-    (row_kind === 'bar_set' && bar_set_index > 0
-      ? raw.type === 'eclairage'
+    (isJdb && bar_set_index > 0
+      ? raw.jdb_category === 'eclairage'
         ? `Jeu de barre Éclairage ${bar_set_index}`
         : `Jeu de barre Prise ${bar_set_index}`
       : raw.designation || '');
+  const defaults = defaultCoefsForType(elementType, phase_type);
 
   return {
     ...raw,
+    type: elementType,
     type_label,
     emplacement: raw.emplacement ?? '',
-    row_kind,
+    row_kind: isJdb ? 'bar_set' : row_kind,
     bar_set_index,
+    phase_type,
+    jdb_category: raw.jdb_category ?? null,
     ku: raw.ku ?? 1,
     ks: raw.ks ?? 1,
     fp: raw.fp ?? 1,
+    coef_ks: raw.coef_ks ?? defaults.coef_ks,
+    coef_ku: raw.coef_ku ?? defaults.coef_ku,
+    coef_fp: raw.coef_fp ?? defaults.coef_fp,
     designation: type_label,
   };
 }
@@ -74,18 +134,23 @@ export function getElementById(id: number): ElementRow | undefined {
 
 export function createElement(data: {
   panel_id: number;
-  type: 'eclairage' | 'prise';
+  type: ElementType;
   repere: string;
   type_label: string;
   emplacement?: string;
   row_kind?: ElementRowKind;
   bar_set_index?: number;
+  phase_type?: PhaseType;
+  jdb_category?: JdbCategory;
   power_w: number;
   quantity: number;
   distance_m?: number;
   ku?: number;
   ks?: number;
   fp?: number;
+  coef_ks?: number;
+  coef_ku?: number;
+  coef_fp?: number;
   circuit?: string;
   notes?: string;
 }): ElementRow {
@@ -96,20 +161,27 @@ export function createElement(data: {
     )
     .get(data.panel_id) as { max_order: number };
 
-  const row_kind = data.row_kind ?? 'element';
+  const isJdb = data.type === 'jeu_de_barres';
+  const row_kind = isJdb ? 'bar_set' : (data.row_kind ?? 'element');
   const type_label = data.type_label.trim();
   const emplacement = data.emplacement?.trim() ?? '';
+  const phase_type = data.phase_type ?? 'mono';
+  const coefDefaults = defaultCoefsForType(data.type, phase_type);
 
   const result = db
     .prepare(
       `INSERT INTO elements (
         panel_id, type, repere, designation, type_label, emplacement,
-        row_kind, bar_set_index, power_w, quantity, distance_m,
-        ku, ks, fp, circuit, notes, order_index
+        row_kind, bar_set_index, phase_type, jdb_category,
+        power_w, quantity, distance_m,
+        ku, ks, fp, coef_ks, coef_ku, coef_fp,
+        circuit, notes, order_index
       ) VALUES (
         @panel_id, @type, @repere, @designation, @type_label, @emplacement,
-        @row_kind, @bar_set_index, @power_w, @quantity, @distance_m,
-        @ku, @ks, @fp, @circuit, @notes, @order_index
+        @row_kind, @bar_set_index, @phase_type, @jdb_category,
+        @power_w, @quantity, @distance_m,
+        @ku, @ks, @fp, @coef_ks, @coef_ku, @coef_fp,
+        @circuit, @notes, @order_index
       )`
     )
     .run({
@@ -121,12 +193,17 @@ export function createElement(data: {
       emplacement,
       row_kind,
       bar_set_index: data.bar_set_index ?? 0,
+      phase_type,
+      jdb_category: data.jdb_category ?? null,
       power_w: data.power_w,
       quantity: data.quantity,
       distance_m: data.distance_m ?? 0,
       ku: data.ku ?? 1,
       ks: data.ks ?? 1,
       fp: data.fp ?? 1,
+      coef_ks: data.coef_ks ?? coefDefaults.coef_ks,
+      coef_ku: data.coef_ku ?? coefDefaults.coef_ku,
+      coef_fp: data.coef_fp ?? coefDefaults.coef_fp,
       circuit: data.circuit ?? null,
       notes: data.notes ?? null,
       order_index: maxOrder.max_order + 1,
@@ -139,16 +216,21 @@ export function createElement(data: {
 
 export function updateElement(data: {
   id: number;
-  type?: 'eclairage' | 'prise';
+  type?: ElementType;
   repere?: string;
   type_label?: string;
   emplacement?: string;
+  phase_type?: PhaseType;
+  jdb_category?: JdbCategory;
   power_w?: number;
   quantity?: number;
   distance_m?: number;
   ku?: number;
   ks?: number;
   fp?: number;
+  coef_ks?: number;
+  coef_ku?: number;
+  coef_fp?: number;
   circuit?: string;
   notes?: string;
 }): ElementRow {
@@ -160,6 +242,8 @@ export function updateElement(data: {
     data.type_label !== undefined ? data.type_label.trim() : existing.type_label;
   const emplacement =
     data.emplacement !== undefined ? data.emplacement.trim() : existing.emplacement;
+  const elementType = data.type ?? existing.type;
+  const row_kind = elementType === 'jeu_de_barres' ? 'bar_set' : 'element';
 
   db.prepare(
     `UPDATE elements SET
@@ -168,28 +252,41 @@ export function updateElement(data: {
       designation = @designation,
       type_label = @type_label,
       emplacement = @emplacement,
+      row_kind = @row_kind,
+      phase_type = @phase_type,
+      jdb_category = @jdb_category,
       power_w = @power_w,
       quantity = @quantity,
       distance_m = @distance_m,
       ku = @ku,
       ks = @ks,
       fp = @fp,
+      coef_ks = @coef_ks,
+      coef_ku = @coef_ku,
+      coef_fp = @coef_fp,
       circuit = @circuit,
       notes = @notes
     WHERE id = @id`
   ).run({
     id: data.id,
-    type: data.type ?? existing.type,
+    type: elementType,
     repere: data.repere ?? existing.repere,
     designation: type_label,
     type_label,
     emplacement,
+    row_kind,
+    phase_type: data.phase_type ?? existing.phase_type,
+    jdb_category:
+      data.jdb_category !== undefined ? data.jdb_category : existing.jdb_category,
     power_w: data.power_w ?? existing.power_w,
     quantity: data.quantity ?? existing.quantity,
     distance_m: data.distance_m ?? existing.distance_m,
     ku: data.ku ?? existing.ku,
     ks: data.ks ?? existing.ks,
     fp: data.fp ?? existing.fp,
+    coef_ks: data.coef_ks ?? existing.coef_ks,
+    coef_ku: data.coef_ku ?? existing.coef_ku,
+    coef_fp: data.coef_fp ?? existing.coef_fp,
     circuit: data.circuit !== undefined ? data.circuit : existing.circuit,
     notes: data.notes !== undefined ? data.notes : existing.notes,
   });

@@ -14,7 +14,6 @@ import type {
 
 interface AppState {
   darkMode: boolean;
-  infoPanelCollapsed: boolean;
   projects: ProjectWithStats[];
   currentProject: Project | null;
   locations: LocationWithStats[];
@@ -27,7 +26,6 @@ interface AppState {
   company: CompanySettings | null;
 
   setDarkMode: (value: boolean) => void;
-  toggleInfoPanel: () => void;
   setProjects: (projects: ProjectWithStats[]) => void;
   setCurrentProject: (project: Project | null) => void;
   setLocations: (locations: LocationWithStats[]) => void;
@@ -53,7 +51,6 @@ export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
       darkMode: false,
-      infoPanelCollapsed: false,
       projects: [],
       currentProject: null,
       locations: [],
@@ -70,8 +67,6 @@ export const useAppStore = create<AppState>()(
         void window.bilpow?.app.setNativeTheme(value ? 'dark' : 'light');
         set({ darkMode: value });
       },
-      toggleInfoPanel: () =>
-        set((s) => ({ infoPanelCollapsed: !s.infoPanelCollapsed })),
       setProjects: (projects) => set({ projects }),
       setCurrentProject: (project) => set({ currentProject: project }),
       setLocations: (locations) => set({ locations }),
@@ -106,7 +101,6 @@ export const useAppStore = create<AppState>()(
       name: 'bilpow-settings',
       partialize: (state) => ({
         darkMode: state.darkMode,
-        infoPanelCollapsed: state.infoPanelCollapsed,
         sidebarExpanded: state.sidebarExpanded,
       }),
       onRehydrateStorage: () => (state) => {

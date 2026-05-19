@@ -1,7 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { Sidebar } from './Sidebar';
-import { SummaryPanel } from './SummaryPanel';
 import { useAppStore } from '@/store/useAppStore';
 
 export function Layout() {
@@ -24,7 +23,6 @@ export function Layout() {
         </header>
         <div className="flex flex-1 overflow-hidden">
           <Outlet />
-          <SummaryPanel />
         </div>
       </main>
       <Toaster

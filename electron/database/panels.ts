@@ -1,5 +1,6 @@
 import { getDatabase } from './db';
 import { getElementsByPanel, createElement } from './elements';
+import type { ElementType } from '../../shared/types';
 
 export interface PanelRow {
   id: number;
@@ -14,6 +15,20 @@ export interface PanelWithStatsRow extends PanelRow {
   element_count: number;
   installed_power_w: number;
   absorbed_power_w: number;
+  used_power_w: number;
+}
+
+function calcUsedPowerFromElement(el: {
+  type: string;
+  power_w: number;
+  quantity: number;
+  coef_ks: number;
+  coef_ku: number;
+  coef_fp: number;
+}): number {
+  if (el.type === 'attente' || el.type === 'jeu_de_barres') return 0;
+  const puissanceTotale = el.power_w * el.quantity;
+  return Math.round(puissanceTotale * el.coef_ks * el.coef_ku * el.coef_fp);
 }
 
 export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
@@ -24,18 +39,28 @@ export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
         (SELECT COUNT(*) FROM elements e WHERE e.panel_id = p.id) as element_count,
         COALESCE((
           SELECT SUM(e.power_w * e.quantity) FROM elements e
-          WHERE e.panel_id = p.id AND COALESCE(e.row_kind, 'element') = 'element'
+          WHERE e.panel_id = p.id AND e.type != 'jeu_de_barres'
         ), 0) as installed_power_w
       FROM panels p
       WHERE p.location_id = ?
       ORDER BY p.order_index, p.id`
     )
-    .all(locationId) as Array<PanelRow & { element_count: number; installed_power_w: number }>;
+    .all(locationId) as Array<
+    PanelRow & { element_count: number; installed_power_w: number }
+  >;
 
-  return panels.map((p) => ({
-    ...p,
-    absorbed_power_w: p.installed_power_w * 0.8,
-  }));
+  return panels.map((p) => {
+    const elements = getElementsByPanel(p.id);
+    const used_power_w = elements.reduce(
+      (sum, e) => sum + calcUsedPowerFromElement(e),
+      0
+    );
+    return {
+      ...p,
+      absorbed_power_w: used_power_w,
+      used_power_w,
+    };
+  });
 }
 
 export function getPanelById(id: number): PanelRow | undefined {
@@ -127,18 +152,21 @@ export function duplicatePanel(id: number): PanelRow {
   for (const el of elements) {
     createElement({
       panel_id: newPanel.id,
-      type: el.type,
+      type: el.type as ElementType,
       repere: el.repere,
       type_label: el.type_label,
       emplacement: el.emplacement,
-      row_kind: el.row_kind,
-      bar_set_index: el.bar_set_index,
+      phase_type: el.phase_type,
+      jdb_category: el.jdb_category,
       power_w: el.power_w,
       quantity: el.quantity,
       distance_m: el.distance_m,
       ku: el.ku,
       ks: el.ks,
       fp: el.fp,
+      coef_ks: el.coef_ks,
+      coef_ku: el.coef_ku,
+      coef_fp: el.coef_fp,
       circuit: el.circuit ?? undefined,
       notes: el.notes ?? undefined,
     });

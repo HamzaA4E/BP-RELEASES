@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS panels (
 CREATE TABLE IF NOT EXISTS elements (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   panel_id INTEGER NOT NULL REFERENCES panels(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise')),
+  type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'attente', 'jeu_de_barres')),
   repere TEXT NOT NULL,
   designation TEXT NOT NULL,
   power_w REAL NOT NULL DEFAULT 0,
@@ -79,6 +79,68 @@ const DEFAULT_FAVORITES = [
   { type: 'eclairage', designation: 'Réglette fluorescente', power_w: 58, color: '#3B82F6' },
 ] as const;
 
+const RECREATE_ELEMENTS_SQL = `
+  DROP TABLE IF EXISTS elements_new;
+
+  CREATE TABLE elements_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    panel_id INTEGER NOT NULL REFERENCES panels(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'attente', 'jeu_de_barres')),
+    repere TEXT NOT NULL,
+    designation TEXT NOT NULL,
+    type_label TEXT DEFAULT '',
+    emplacement TEXT DEFAULT '',
+    row_kind TEXT DEFAULT 'element',
+    bar_set_index INTEGER DEFAULT 0,
+    phase_type TEXT DEFAULT 'mono' CHECK(phase_type IN ('mono', 'tri')),
+    jdb_category TEXT DEFAULT NULL CHECK(jdb_category IS NULL OR jdb_category IN ('eclairage', 'prise')),
+    power_w REAL NOT NULL DEFAULT 0,
+    quantity INTEGER NOT NULL DEFAULT 1,
+    distance_m REAL NOT NULL DEFAULT 0,
+    ku REAL DEFAULT 1,
+    ks REAL DEFAULT 1,
+    fp REAL DEFAULT 1,
+    coef_ks REAL DEFAULT 0.8,
+    coef_ku REAL DEFAULT 1.0,
+    coef_fp REAL DEFAULT 1.0,
+    circuit TEXT,
+    notes TEXT,
+    order_index INTEGER DEFAULT 0
+  );
+
+  INSERT INTO elements_new (
+    id, panel_id, type, repere, designation, type_label, emplacement,
+    row_kind, bar_set_index, phase_type, jdb_category,
+    power_w, quantity, distance_m, ku, ks, fp,
+    coef_ks, coef_ku, coef_fp, circuit, notes, order_index
+  )
+  SELECT
+    id, panel_id,
+    CASE
+      WHEN COALESCE(row_kind, 'element') = 'bar_set' THEN 'jeu_de_barres'
+      ELSE type
+    END,
+    repere, designation,
+    COALESCE(type_label, designation, ''),
+    COALESCE(emplacement, ''),
+    COALESCE(row_kind, 'element'),
+    COALESCE(bar_set_index, 0),
+    COALESCE(phase_type, 'mono'),
+    CASE
+      WHEN COALESCE(row_kind, 'element') = 'bar_set' AND type = 'eclairage' THEN 'eclairage'
+      WHEN COALESCE(row_kind, 'element') = 'bar_set' AND type = 'prise' THEN 'prise'
+      ELSE jdb_category
+    END,
+    power_w, quantity, distance_m,
+    COALESCE(ku, 1), COALESCE(ks, 1), COALESCE(fp, 1),
+    COALESCE(coef_ks, 0.8), COALESCE(coef_ku, 1.0), COALESCE(coef_fp, 1.0),
+    circuit, notes, order_index
+  FROM elements;
+
+  DROP TABLE elements;
+  ALTER TABLE elements_new RENAME TO elements;
+`;
+
 export function getDatabase(): Database.Database {
   if (db) return db;
 
@@ -94,28 +156,136 @@ export function getDatabase(): Database.Database {
   db.pragma('foreign_keys = ON');
 
   db.exec(MIGRATIONS);
-  migrateElementsSchema(db);
+  recoverInterruptedElementsMigration(db);
+  ensureElementsColumns(db);
+  migratePanelCoefficients(db);
+  migrateElementsTable(db);
   seedFavorites();
 
   return db;
 }
 
-function migrateElementsSchema(database: Database.Database): void {
+function tableExists(database: Database.Database, name: string): boolean {
+  const row = database
+    .prepare(
+      `SELECT 1 FROM sqlite_master WHERE type='table' AND name=?`
+    )
+    .get(name);
+  return row != null;
+}
+
+/** Fix DB left in a half-finished migration (elements_new leftover). */
+function recoverInterruptedElementsMigration(database: Database.Database): void {
+  if (!tableExists(database, 'elements_new')) return;
+
+  const hasElements = tableExists(database, 'elements');
+
+  if (hasElements) {
+    const newCount = (
+      database.prepare('SELECT COUNT(*) as c FROM elements_new').get() as { c: number }
+    ).c;
+    if (newCount > 0) {
+      database.exec('DROP TABLE elements');
+      database.exec('ALTER TABLE elements_new RENAME TO elements');
+    } else {
+      database.exec('DROP TABLE elements_new');
+    }
+  } else {
+    database.exec('ALTER TABLE elements_new RENAME TO elements');
+  }
+}
+
+function getElementsTableSql(database: Database.Database): string | null {
+  const row = database
+    .prepare(
+      `SELECT sql FROM sqlite_master WHERE type='table' AND name='elements'`
+    )
+    .get() as { sql: string } | undefined;
+  return row?.sql ?? null;
+}
+
+function elementsTypeAllowsJeuDeBarres(database: Database.Database): boolean {
+  const sql = getElementsTableSql(database);
+  return sql != null && sql.includes("'jeu_de_barres'");
+}
+
+function recreateElementsTable(database: Database.Database): void {
+  ensureElementsColumns(database);
+  const run = database.transaction(() => {
+    database.exec(RECREATE_ELEMENTS_SQL);
+  });
+  run();
+}
+
+/** Add every optional column on elements if missing (each column checked separately). */
+function ensureElementsColumns(database: Database.Database): void {
+  if (!tableExists(database, 'elements')) return;
+
   const cols = database.pragma('table_info(elements)') as Array<{ name: string }>;
   const names = new Set(cols.map((c) => c.name));
 
-  if (!names.has('type_label')) {
-    database.exec(`ALTER TABLE elements ADD COLUMN type_label TEXT DEFAULT ''`);
-    database.exec(`ALTER TABLE elements ADD COLUMN emplacement TEXT DEFAULT ''`);
-    database.exec(`ALTER TABLE elements ADD COLUMN row_kind TEXT DEFAULT 'element'`);
-    database.exec(`ALTER TABLE elements ADD COLUMN bar_set_index INTEGER DEFAULT 0`);
-    database.exec(`ALTER TABLE elements ADD COLUMN ku REAL DEFAULT 1`);
-    database.exec(`ALTER TABLE elements ADD COLUMN ks REAL DEFAULT 1`);
-    database.exec(`ALTER TABLE elements ADD COLUMN fp REAL DEFAULT 1`);
-    database.exec(
-      `UPDATE elements SET type_label = designation WHERE type_label = '' OR type_label IS NULL`
-    );
+  const addColumn = (name: string, definition: string): void => {
+    if (!names.has(name)) {
+      database.exec(`ALTER TABLE elements ADD COLUMN ${name} ${definition}`);
+      names.add(name);
+    }
+  };
+
+  addColumn('type_label', "TEXT DEFAULT ''");
+  addColumn('emplacement', "TEXT DEFAULT ''");
+  addColumn('row_kind', "TEXT DEFAULT 'element'");
+  addColumn('bar_set_index', 'INTEGER DEFAULT 0');
+  addColumn('phase_type', "TEXT DEFAULT 'mono'");
+  addColumn('jdb_category', 'TEXT DEFAULT NULL');
+  addColumn('ku', 'REAL DEFAULT 1');
+  addColumn('ks', 'REAL DEFAULT 1');
+  addColumn('fp', 'REAL DEFAULT 1');
+  addColumn('coef_ks', 'REAL DEFAULT 0.8');
+  addColumn('coef_ku', 'REAL DEFAULT 1.0');
+  addColumn('coef_fp', 'REAL DEFAULT 1.0');
+
+  database.exec(
+    `UPDATE elements SET type_label = designation WHERE (type_label = '' OR type_label IS NULL) AND designation IS NOT NULL`
+  );
+}
+
+function migratePanelCoefficients(database: Database.Database): void {
+  if (!tableExists(database, 'panels')) return;
+
+  const cols = database.pragma('table_info(panels)') as Array<{ name: string }>;
+  const names = new Set(cols.map((c) => c.name));
+
+  if (!names.has('coef_ks')) {
+    database.exec(`ALTER TABLE panels ADD COLUMN coef_ks REAL DEFAULT 0.8`);
+    database.exec(`ALTER TABLE panels ADD COLUMN coef_ku REAL DEFAULT 1.0`);
+    database.exec(`ALTER TABLE panels ADD COLUMN coef_fp REAL DEFAULT 1.0`);
   }
+}
+
+function migrateElementsTable(database: Database.Database): void {
+  if (!tableExists(database, 'elements')) return;
+
+  ensureElementsColumns(database);
+
+  if (!elementsTypeAllowsJeuDeBarres(database)) {
+    recreateElementsTable(database);
+    return;
+  }
+
+  database.exec(
+    `UPDATE elements SET type = 'jeu_de_barres'
+     WHERE COALESCE(row_kind, 'element') = 'bar_set' AND type IN ('eclairage', 'prise')`
+  );
+  database.exec(
+    `UPDATE elements SET jdb_category = 'eclairage'
+     WHERE type = 'jeu_de_barres' AND jdb_category IS NULL
+       AND (designation LIKE '%Éclairage%' OR designation LIKE '%Eclairage%' OR type_label LIKE '%Éclairage%')`
+  );
+  database.exec(
+    `UPDATE elements SET jdb_category = 'prise'
+     WHERE type = 'jeu_de_barres' AND jdb_category IS NULL
+       AND (designation LIKE '%Prise%' OR type_label LIKE '%Prise%')`
+  );
 }
 
 function seedFavorites(): void {

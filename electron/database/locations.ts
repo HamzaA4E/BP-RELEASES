@@ -23,7 +23,7 @@ export function getLocationsByProject(projectId: number): LocationWithStatsRow[]
           SELECT SUM(e.power_w * e.quantity)
           FROM elements e
           JOIN panels pa ON e.panel_id = pa.id
-          WHERE pa.location_id = l.id AND COALESCE(e.row_kind, 'element') = 'element'
+          WHERE pa.location_id = l.id AND e.type != 'jeu_de_barres'
         ), 0) as total_power_w
       FROM locations l
       WHERE l.project_id = ?
@@ -139,13 +139,15 @@ export function duplicateLocation(id: number): LocationRow {
     const elements = db
       .prepare('SELECT * FROM elements WHERE panel_id = ? ORDER BY order_index')
       .all(panel.id) as Array<{
-      type: 'eclairage' | 'prise';
+      type: string;
       repere: string;
       designation: string;
       type_label?: string;
       emplacement?: string;
       row_kind?: string;
       bar_set_index?: number;
+      phase_type?: string;
+      jdb_category?: string | null;
       power_w: number;
       quantity: number;
       distance_m: number;
@@ -158,14 +160,18 @@ export function duplicateLocation(id: number): LocationRow {
 
     for (const el of elements) {
       const type_label = el.type_label || el.designation;
+      const elementType =
+        el.type === 'jeu_de_barres' || el.row_kind === 'bar_set'
+          ? 'jeu_de_barres'
+          : (el.type as 'eclairage' | 'prise' | 'attente');
       createElement({
         panel_id: newPanelId,
-        type: el.type,
+        type: elementType,
         repere: el.repere,
         type_label,
         emplacement: el.emplacement ?? '',
-        row_kind: (el.row_kind as 'element' | 'bar_set') ?? 'element',
-        bar_set_index: el.bar_set_index ?? 0,
+        phase_type: (el.phase_type as 'mono' | 'tri') ?? 'mono',
+        jdb_category: (el.jdb_category as 'eclairage' | 'prise' | null) ?? null,
         power_w: el.power_w,
         quantity: el.quantity,
         distance_m: el.distance_m,

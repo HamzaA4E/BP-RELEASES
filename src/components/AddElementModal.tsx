@@ -1,8 +1,34 @@
 import { useState, useEffect, useMemo } from 'react';
-import type { Element, ElementType, Favorite } from '@/types';
+import type { Element, ElementType, ElementRowKind, Favorite, PhaseType } from '@/types';
 import { FavoriteCard } from './FavoriteCard';
-import { suggestRepere } from '@/utils/calculations';
-import { displayEmplacement, displayTypeLabel, isBarSetRow } from '@/utils/elementHelpers';
+import {
+  getNextRepere,
+  generateReperePreview,
+  defaultCoefsForType,
+  calcPuissanceUtilisee,
+} from '@/utils/calculations';
+import {
+  displayEmplacement,
+  displayTypeLabel,
+  getActiveJeuDeBarres,
+  isTypeAllowedUnderJdb,
+} from '@/utils/elementHelpers';
+
+type ElementFormType = Exclude<ElementType, 'jeu_de_barres'>;
+
+interface FormData {
+  type: ElementFormType;
+  repere: string;
+  type_label: string;
+  emplacement: string;
+  power_w: number;
+  quantity: number;
+  phase_type: PhaseType;
+  coef_ks: number;
+  coef_ku: number;
+  coef_fp: number;
+  notes: string;
+}
 
 interface AddElementModalProps {
   isOpen: boolean;
@@ -11,18 +37,64 @@ interface AddElementModalProps {
   editElement?: Element | null;
   onClose: () => void;
   onSave: (data: {
-    type: ElementType;
+    type: ElementFormType;
     repere: string;
     type_label: string;
     emplacement: string;
     power_w: number;
     quantity: number;
-    ku: number;
-    ks: number;
-    fp: number;
+    phase_type: PhaseType;
+    coef_ks: number;
+    coef_ku: number;
+    coef_fp: number;
     notes?: string;
   }) => Promise<void>;
+  onSaveMultiple?: (
+    items: Array<{
+      type: ElementFormType;
+      repere: string;
+      type_label: string;
+      emplacement: string;
+      power_w: number;
+      quantity: number;
+      phase_type: PhaseType;
+      coef_ks: number;
+      coef_ku: number;
+      coef_fp: number;
+      notes?: string;
+    }>
+  ) => Promise<void>;
   onDeleteFavorite: (id: number) => void;
+}
+
+const TYPE_OPTIONS: Array<{
+  value: ElementFormType;
+  label: string;
+  icon: string;
+  color: string;
+}> = [
+  { value: 'eclairage', label: 'Éclairage', icon: '💡', color: 'bg-blue-600' },
+  { value: 'prise', label: 'Prise', icon: '🔌', color: 'bg-emerald-600' },
+  { value: 'attente', label: 'Attente', icon: '🔌', color: 'bg-slate-500' },
+];
+
+function buildDefaultForm(
+  type: ElementFormType,
+  existingElements: Element[]
+): FormData {
+  const phase_type: PhaseType = type === 'prise' ? 'mono' : 'mono';
+  const coefs = defaultCoefsForType(type, phase_type);
+  return {
+    type,
+    repere: getNextRepere(existingElements, type),
+    type_label: type === 'prise' ? 'Monophasé' : '',
+    emplacement: '',
+    power_w: type === 'attente' ? 1000 : 0,
+    quantity: 1,
+    phase_type,
+    ...coefs,
+    notes: '',
+  };
 }
 
 export function AddElementModal({
@@ -32,103 +104,194 @@ export function AddElementModal({
   editElement,
   onClose,
   onSave,
+  onSaveMultiple,
   onDeleteFavorite,
 }: AddElementModalProps) {
-  const [type, setType] = useState<ElementType>('eclairage');
-  const [repere, setRepere] = useState('');
-  const [typeLabel, setTypeLabel] = useState('');
-  const [emplacement, setEmplacement] = useState('');
-  const [powerW, setPowerW] = useState(0);
-  const [quantity, setQuantity] = useState(1);
-  const [ku, setKu] = useState(1);
-  const [ks, setKs] = useState(1);
-  const [fp, setFp] = useState(1);
-  const [notes, setNotes] = useState('');
+  const [formData, setFormData] = useState<FormData>(() =>
+    buildDefaultForm('eclairage', existingElements)
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [duplicateCount, setDuplicateCount] = useState(1);
+  const [showCoefs, setShowCoefs] = useState(false);
+
+  const isEdit = Boolean(editElement);
+
+  const insertIndex = existingElements.length;
+  const activeJdb = getActiveJeuDeBarres(existingElements, insertIndex);
+  const typeNotAllowed =
+    !isEdit && !isTypeAllowedUnderJdb(formData.type, activeJdb);
 
   const filteredFavorites = useMemo(
-    () => favorites.filter((f) => f.type === type),
-    [favorites, type]
+    () => favorites.filter((f) => f.type === formData.type),
+    [favorites, formData.type]
   );
 
   const typeLabelSuggestions = useMemo(() => {
-    const query = typeLabel.toLowerCase();
+    const query = formData.type_label.toLowerCase();
     return favorites
-      .filter((f) => f.type === type && f.designation.toLowerCase().includes(query))
+      .filter(
+        (f) =>
+          f.type === formData.type &&
+          f.designation.toLowerCase().includes(query)
+      )
       .slice(0, 5);
-  }, [favorites, type, typeLabel]);
+  }, [favorites, formData.type, formData.type_label]);
+
+  const reperePreview = useMemo(
+    () => generateReperePreview(formData.repere.trim(), duplicateCount),
+    [formData.repere, duplicateCount]
+  );
+
+  const previewUsedPower = useMemo(() => {
+    const previewElement = {
+      id: 0,
+      panel_id: 0,
+      type: formData.type,
+      repere: formData.repere,
+      designation: formData.type_label,
+      type_label: formData.type_label,
+      emplacement: formData.emplacement,
+      row_kind: 'element' as ElementRowKind,
+      bar_set_index: 0,
+      phase_type: formData.phase_type,
+      jdb_category: null,
+      power_w: formData.power_w,
+      quantity: formData.quantity,
+      distance_m: 0,
+      ku: 1,
+      ks: 1,
+      fp: 1,
+      coef_ks: formData.coef_ks,
+      coef_ku: formData.coef_ku,
+      coef_fp: formData.coef_fp,
+      circuit: null,
+      notes: null,
+      order_index: 0,
+    };
+    return calcPuissanceUtilisee(previewElement);
+  }, [formData]);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    if (editElement && !isBarSetRow(editElement)) {
-      setType(editElement.type);
-      setRepere(editElement.repere);
-      setTypeLabel(displayTypeLabel(editElement));
-      setEmplacement(displayEmplacement(editElement));
-      setPowerW(editElement.power_w);
-      setQuantity(editElement.quantity);
-      setKu(editElement.ku ?? 1);
-      setKs(editElement.ks ?? 1);
-      setFp(editElement.fp ?? 1);
-      setNotes(editElement.notes ?? '');
+    if (editElement && editElement.type !== 'jeu_de_barres') {
+      const phase_type = editElement.phase_type ?? 'mono';
+      setFormData({
+        type: editElement.type as ElementFormType,
+        repere: editElement.repere,
+        type_label:
+          editElement.type === 'prise'
+            ? phase_type === 'tri'
+              ? 'Triphasé'
+              : 'Monophasé'
+            : displayTypeLabel(editElement),
+        emplacement: displayEmplacement(editElement),
+        power_w: editElement.power_w,
+        quantity: editElement.quantity,
+        phase_type,
+        coef_ks: editElement.coef_ks,
+        coef_ku: editElement.coef_ku,
+        coef_fp: editElement.coef_fp,
+        notes: editElement.notes ?? '',
+      });
     } else {
-      setType('eclairage');
-      const reperes = existingElements.map((e) => e.repere);
-      setRepere(suggestRepere('eclairage', reperes));
-      setTypeLabel('');
-      setEmplacement('');
-      setPowerW(0);
-      setQuantity(1);
-      setKu(1);
-      setKs(1);
-      setFp(1);
-      setNotes('');
+      setFormData(buildDefaultForm('eclairage', existingElements));
     }
     setErrors({});
+    setDuplicateCount(1);
+    setShowCoefs(false);
   }, [isOpen, editElement, existingElements]);
 
   useEffect(() => {
     if (!editElement && isOpen) {
-      const reperes = existingElements
-        .filter((e) => e.type === type)
-        .map((e) => e.repere);
-      setRepere(suggestRepere(type, reperes));
+      setFormData((p) => ({
+        ...p,
+        repere: getNextRepere(existingElements, p.type),
+      }));
     }
-  }, [type, isOpen, editElement, existingElements]);
+  }, [formData.type, isOpen, editElement, existingElements]);
+
+  const handleTypeChange = (type: ElementFormType) => {
+    setDuplicateCount(1);
+    const phase_type: PhaseType = type === 'prise' ? formData.phase_type : 'mono';
+    const coefs = defaultCoefsForType(type, phase_type);
+    setFormData((p) => ({
+      ...p,
+      type,
+      phase_type,
+      type_label:
+        type === 'prise'
+          ? phase_type === 'tri'
+            ? 'Triphasé'
+            : 'Monophasé'
+          : p.type_label,
+      power_w: type === 'attente' ? (p.power_w > 0 ? p.power_w : 1000) : p.power_w,
+      ...coefs,
+    }));
+  };
+
+  const handlePrisePhaseChange = (phase_type: PhaseType) => {
+    const coefs = defaultCoefsForType('prise', phase_type);
+    setFormData((p) => ({
+      ...p,
+      phase_type,
+      type_label: phase_type === 'tri' ? 'Triphasé' : 'Monophasé',
+      ...coefs,
+    }));
+  };
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
-    if (!repere.trim()) newErrors.repere = 'Le repère est requis';
-    if (!typeLabel.trim()) newErrors.type_label = 'Le type est requis';
-    if (powerW < 0) newErrors.power_w = 'La puissance ne peut pas être négative';
-    if (powerW === 0) newErrors.power_w = 'La puissance doit être supérieure à 0';
-    if (quantity < 1) newErrors.quantity = 'La quantité doit être au moins 1';
-    if (ku < 0) newErrors.ku = 'ku ne peut pas être négatif';
-    if (ks < 0) newErrors.ks = 'ks ne peut pas être négatif';
-    if (fp < 0) newErrors.fp = 'fp ne peut pas être négatif';
+    if (!formData.repere.trim()) newErrors.repere = 'Le repère est requis';
+    if (formData.type !== 'prise' && !formData.type_label.trim()) {
+      newErrors.type_label = 'Le type est requis';
+    }
+    if (formData.power_w < 0) newErrors.power_w = 'La puissance ne peut pas être négative';
+    if (formData.type !== 'attente' && formData.power_w === 0) {
+      newErrors.power_w = 'La puissance doit être supérieure à 0';
+    }
+    if (formData.quantity < 1) newErrors.quantity = 'La quantité doit être au moins 1';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const buildPayload = (repere: string) => ({
+    type: formData.type,
+    repere: repere.trim(),
+    type_label:
+      formData.type === 'prise'
+        ? formData.phase_type === 'tri'
+          ? 'Triphasé'
+          : 'Monophasé'
+        : formData.type_label.trim(),
+    emplacement: formData.emplacement.trim(),
+    power_w: formData.power_w,
+    quantity: formData.quantity,
+    phase_type: formData.phase_type,
+    coef_ks: formData.coef_ks,
+    coef_ku: formData.coef_ku,
+    coef_fp: formData.coef_fp,
+    notes: formData.notes.trim() || undefined,
+  });
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (typeNotAllowed) return;
     if (!validate()) return;
+
     setSaving(true);
     try {
-      await onSave({
-        type,
-        repere: repere.trim(),
-        type_label: typeLabel.trim(),
-        emplacement: emplacement.trim(),
-        power_w: powerW,
-        quantity,
-        ku,
-        ks,
-        fp,
-        notes: notes.trim() || undefined,
-      });
+      if (isEdit || duplicateCount === 1) {
+        await onSave(buildPayload(formData.repere));
+      } else if (onSaveMultiple) {
+        const items = reperePreview.map((repere) => buildPayload(repere));
+        await onSaveMultiple(items);
+      } else {
+        for (const repere of reperePreview) {
+          await onSave(buildPayload(repere));
+        }
+      }
       onClose();
     } finally {
       setSaving(false);
@@ -136,16 +299,22 @@ export function AddElementModal({
   };
 
   const handleFavoriteSelect = (fav: Favorite) => {
-    setTypeLabel(fav.designation);
-    setPowerW(fav.power_w);
-    setType(fav.type);
+    if (fav.type === 'jeu_de_barres') return;
+    const coefs = defaultCoefsForType(fav.type, formData.phase_type);
+    setFormData((p) => ({
+      ...p,
+      type_label: fav.designation,
+      power_w: fav.power_w,
+      type: fav.type,
+      ...coefs,
+    }));
   };
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
       <div className="relative ml-auto w-full max-w-2xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col h-full">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold text-primary dark:text-white">
@@ -163,54 +332,135 @@ export function AddElementModal({
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-5">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">Catégorie</label>
-              <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
-                {(['eclairage', 'prise'] as const).map((t) => (
+              <label className="block text-xs font-medium text-gray-500 mb-2">Type</label>
+              <div className="grid grid-cols-3 gap-2">
+                {TYPE_OPTIONS.map((opt) => (
                   <button
-                    key={t}
+                    key={opt.value}
                     type="button"
-                    onClick={() => setType(t)}
-                    className={`flex-1 py-2 text-sm font-medium transition-colors ${
-                      type === t
-                        ? 'bg-primary text-white'
-                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50'
+                    onClick={() => handleTypeChange(opt.value)}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                      formData.type === opt.value
+                        ? `${opt.color} text-white border-transparent shadow-sm`
+                        : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-slate-300'
                     }`}
                   >
-                    {t === 'eclairage' ? '💡 Éclairage' : '🔌 Prise'}
+                    {opt.icon}
+                    {opt.label}
                   </button>
                 ))}
               </div>
             </div>
 
+            {false && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-2 hidden">Phase</label>
+                <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600">
+                  <button
+                    type="button"
+                    onClick={() => handlePrisePhaseChange('mono')}
+                    className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
+                      formData.phase_type === 'mono'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white dark:bg-gray-800 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    🔵 Monophasé — 230V
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePrisePhaseChange('tri')}
+                    className={`flex-1 px-4 py-2 text-sm font-medium border-l border-slate-200 dark:border-slate-600 transition-colors ${
+                      formData.phase_type === 'tri'
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-white dark:bg-gray-800 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    🔴 Triphasé — 400V
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {typeNotAllowed && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
+                ⚠ Ce type d&apos;élément n&apos;est pas autorisé sous un jeu de barres &quot;
+                {activeJdb ? displayTypeLabel(activeJdb) : ''}&quot; de catégorie &quot;
+                {activeJdb?.jdb_category}&quot;. Changez la catégorie du jeu de barres ou
+                choisissez un autre type.
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Repère *</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Repère *
+                </label>
                 <input
                   type="text"
-                  value={repere}
-                  onChange={(e) => setRepere(e.target.value)}
+                  value={formData.repere}
+                  onChange={(e) => setFormData((p) => ({ ...p, repere: e.target.value }))}
                   className={`input-field ${errors.repere ? 'border-red-500' : ''}`}
-                  placeholder={type === 'eclairage' ? 'E1' : 'P1'}
+                  placeholder={
+                    formData.type === 'eclairage'
+                      ? 'E1'
+                      : formData.type === 'attente'
+                        ? 'A1'
+                        : 'P1'
+                  }
                 />
-                {errors.repere && <p className="text-red-500 text-xs mt-1">{errors.repere}</p>}
+                {errors.repere && (
+                  <p className="text-red-500 text-xs mt-1">{errors.repere}</p>
+                )}
               </div>
               <div className="relative">
                 <label className="block text-xs font-medium text-gray-500 mb-1">Type *</label>
-                <input
-                  type="text"
-                  value={typeLabel}
-                  onChange={(e) => setTypeLabel(e.target.value)}
-                  className={`input-field ${errors.type_label ? 'border-red-500' : ''}`}
-                  placeholder="Ex: Panneau LED 36W"
-                  list="type-label-suggestions"
-                />
-                <datalist id="type-label-suggestions">
-                  {typeLabelSuggestions.map((f) => (
-                    <option key={f.id} value={f.designation} />
-                  ))}
-                </datalist>
-                {errors.type_label && (
-                  <p className="text-red-500 text-xs mt-1">{errors.type_label}</p>
+                {formData.type === 'prise' ? (
+                  <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600">
+                    <button
+                      type="button"
+                      onClick={() => handlePrisePhaseChange('mono')}
+                      className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                        formData.phase_type === 'mono'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white dark:bg-gray-800 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      Monophasé
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePrisePhaseChange('tri')}
+                      className={`flex-1 px-3 py-2 text-sm font-medium border-l border-slate-200 dark:border-slate-600 transition-colors ${
+                        formData.phase_type === 'tri'
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-white dark:bg-gray-800 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      Triphasé
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={formData.type_label}
+                      onChange={(e) =>
+                        setFormData((p) => ({ ...p, type_label: e.target.value }))
+                      }
+                      className={`input-field ${errors.type_label ? 'border-red-500' : ''}`}
+                      placeholder="Ex: Panneau LED 36W"
+                      list="type-label-suggestions"
+                    />
+                    <datalist id="type-label-suggestions">
+                      {typeLabelSuggestions.map((f) => (
+                        <option key={f.id} value={f.designation} />
+                      ))}
+                    </datalist>
+                    {errors.type_label && (
+                      <p className="text-red-500 text-xs mt-1">{errors.type_label}</p>
+                    )}
+                  </>
                 )}
               </div>
               <div className="md:col-span-2">
@@ -219,21 +469,25 @@ export function AddElementModal({
                 </label>
                 <input
                   type="text"
-                  value={emplacement}
-                  onChange={(e) => setEmplacement(e.target.value)}
+                  value={formData.emplacement}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, emplacement: e.target.value }))
+                  }
                   className="input-field"
                   placeholder="Emplacement ou repère de pose"
                 />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Puissance (W) *
+                  Puissance (W) {formData.type !== 'attente' ? '*' : ''}
                 </label>
                 <input
                   type="number"
                   min={0}
-                  value={powerW}
-                  onChange={(e) => setPowerW(Number(e.target.value))}
+                  value={formData.power_w}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, power_w: Number(e.target.value) }))
+                  }
                   className={`input-field ${errors.power_w ? 'border-red-500' : ''}`}
                 />
                 {errors.power_w && (
@@ -241,64 +495,166 @@ export function AddElementModal({
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Quantité *</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Quantité *
+                </label>
                 <input
                   type="number"
                   min={1}
-                  value={quantity}
-                  onChange={(e) => setQuantity(Number(e.target.value))}
+                  value={formData.quantity}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, quantity: Number(e.target.value) }))
+                  }
                   className={`input-field ${errors.quantity ? 'border-red-500' : ''}`}
                 />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">ku</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={ku}
-                  onChange={(e) => setKu(Number(e.target.value))}
-                  className={`input-field ${errors.ku ? 'border-red-500' : ''}`}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">ks</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={ks}
-                  onChange={(e) => setKs(Number(e.target.value))}
-                  className={`input-field ${errors.ks ? 'border-red-500' : ''}`}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">fp</label>
-                <input
-                  type="number"
-                  min={0}
-                  step={0.01}
-                  value={fp}
-                  onChange={(e) => setFp(Number(e.target.value))}
-                  className={`input-field ${errors.fp ? 'border-red-500' : ''}`}
-                />
-              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowCoefs(!showCoefs)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-slate-400 transition-transform ${showCoefs ? 'rotate-90' : ''}`}
+                  >
+                    ▶
+                  </span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">
+                    Coefficients de calcul
+                  </span>
+                  <span className="text-xs text-slate-400 font-mono">
+                    Ks={formData.coef_ks} · Ku={formData.coef_ku} · FP={formData.coef_fp}
+                  </span>
+                </div>
+              </button>
+              {showCoefs && (
+                <div className="p-4 border-t border-slate-200 dark:border-slate-600 space-y-3">
+                  <div className="grid grid-cols-3 gap-3">
+                    {(
+                      [
+                        {
+                          key: 'coef_ks' as const,
+                          label: 'Ks',
+                          desc: 'Simultanéité',
+                          min: 0,
+                          max: 1,
+                          step: 0.05,
+                        },
+                        {
+                          key: 'coef_ku' as const,
+                          label: 'Ku',
+                          desc: 'Utilisation',
+                          min: 0,
+                          max: 1,
+                          step: 0.05,
+                        },
+                        {
+                          key: 'coef_fp' as const,
+                          label: 'FP',
+                          desc: 'Facteur puis.',
+                          min: 0,
+                          max: 1,
+                          step: 0.05,
+                        },
+                      ] as const
+                    ).map((coef) => (
+                      <label key={coef.key} className="block">
+                        <span className="text-xs text-slate-500">
+                          {coef.label} — {coef.desc}
+                        </span>
+                        <input
+                          type="number"
+                          step={coef.step}
+                          min={coef.min}
+                          max={coef.max}
+                          value={formData[coef.key]}
+                          onChange={(e) =>
+                            setFormData((p) => ({
+                              ...p,
+                              [coef.key]: Math.min(
+                                coef.max,
+                                Math.max(coef.min, parseFloat(e.target.value) || 0)
+                              ),
+                            }))
+                          }
+                          className="mt-1 w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-center font-mono bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
+                    Puissance utilisée = P.totale × Ks × Ku × FP ={' '}
+                    <strong className="text-primary dark:text-accent-light">
+                      {previewUsedPower.toLocaleString('fr-FR')} W
+                    </strong>
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
               <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                value={formData.notes}
+                onChange={(e) => setFormData((p) => ({ ...p, notes: e.target.value }))}
                 className="input-field resize-none"
                 rows={2}
                 placeholder="Notes optionnelles"
               />
             </div>
 
+            {!isEdit && (
+              <div className="rounded-lg border border-slate-200 dark:border-slate-600 p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Dupliquer cet élément
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDuplicateCount(Math.max(1, duplicateCount - 1))}
+                      className="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors font-bold"
+                    >
+                      −
+                    </button>
+                    <span className="w-8 text-center text-sm font-semibold">
+                      {duplicateCount}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDuplicateCount(Math.min(50, duplicateCount + 1))}
+                      className="w-7 h-7 rounded-md border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition-colors font-bold"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                {duplicateCount > 1 && (
+                  <div className="text-xs text-slate-500 space-y-1">
+                    <p className="font-medium text-slate-600 dark:text-slate-400">
+                      Aperçu des repères générés :
+                    </p>
+                    <p className="font-mono text-sm text-primary dark:text-accent-light">
+                      {reperePreview.join('  ·  ')}
+                    </p>
+                    <p>→ {duplicateCount} lignes seront ajoutées au tableau</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-2">
-                Favoris ({type === 'eclairage' ? 'Éclairage' : 'Prise'})
+                Favoris (
+                {formData.type === 'eclairage'
+                  ? 'Éclairage'
+                  : formData.type === 'prise'
+                    ? 'Prise'
+                    : '—'}
+                )
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {filteredFavorites.map((fav) => (
@@ -323,8 +679,18 @@ export function AddElementModal({
             <button type="button" onClick={onClose} className="btn-secondary">
               Annuler
             </button>
-            <button type="submit" disabled={saving} className="btn-primary">
-              {saving ? 'Enregistrement...' : editElement ? 'Mettre à jour' : 'Ajouter'}
+            <button
+              type="submit"
+              disabled={saving || typeNotAllowed}
+              className="btn-primary disabled:opacity-50"
+            >
+              {saving
+                ? 'Enregistrement...'
+                : editElement
+                  ? 'Mettre à jour'
+                  : duplicateCount > 1
+                    ? `Ajouter ${duplicateCount} éléments`
+                    : 'Ajouter'}
             </button>
           </div>
         </form>

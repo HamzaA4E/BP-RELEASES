@@ -1,3 +1,5 @@
+import type { Element, ElementType, PhaseType } from '@/types';
+
 export const DEFAULT_COS_PHI = 0.8;
 export const DEFAULT_VOLTAGE = 230;
 export const DEFAULT_SECTION_MM2 = 2.5;
@@ -5,8 +7,42 @@ export const SIMULTANEITY_COEFFICIENT = 0.8;
 
 const STANDARD_BREAKERS = [10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200] as const;
 
+export function defaultCoefsForType(
+  type: ElementType,
+  phaseType: PhaseType = 'mono'
+): { coef_ks: number; coef_ku: number; coef_fp: number } {
+  switch (type) {
+    case 'eclairage':
+      return { coef_ks: 1.0, coef_ku: 1.0, coef_fp: 1.0 };
+    case 'prise':
+      return {
+        coef_ks: 0.8,
+        coef_ku: 1.0,
+        coef_fp: phaseType === 'tri' ? 0.8 : 1.0,
+      };
+    case 'attente':
+      return { coef_ks: 0.0, coef_ku: 0.0, coef_fp: 1.0 };
+    case 'jeu_de_barres':
+      return { coef_ks: 1.0, coef_ku: 1.0, coef_fp: 1.0 };
+  }
+}
+
 export function totalInstalledPower(powerW: number, quantity: number): number {
   return powerW * quantity;
+}
+
+export function calcPuissanceUtilisee(element: Element): number {
+  if (element.type === 'attente' || element.type === 'jeu_de_barres') return 0;
+  const puissanceTotale = element.power_w * element.quantity;
+  return Math.round(
+    puissanceTotale * element.coef_ks * element.coef_ku * element.coef_fp
+  );
+}
+
+export function panelUsedPower(elements: Element[]): number {
+  return elements
+    .filter((el) => el.type !== 'jeu_de_barres' && el.type !== 'attente')
+    .reduce((sum, el) => sum + calcPuissanceUtilisee(el), 0);
 }
 
 export function voltageDropPercent(
@@ -24,11 +60,26 @@ export function voltageDropPercent(
   return (numerator / denominator) * 100;
 }
 
+export function calculateCableSection(
+  powerW: number,
+  quantity: number,
+  distanceM: number,
+  cosPhi: number = DEFAULT_COS_PHI,
+  voltageV: number = DEFAULT_VOLTAGE,
+  sectionMm2: number = DEFAULT_SECTION_MM2
+): number {
+  return voltageDropPercent(distanceM, powerW, quantity, cosPhi, voltageV, sectionMm2);
+}
+
 export function panelInstalledPower(
-  elements: Array<{ power_w: number; quantity: number; row_kind?: string }>
+  elements: Array<{ power_w: number; quantity: number; type?: string; row_kind?: string }>
 ): number {
   return elements
-    .filter((el) => el.row_kind !== 'bar_set')
+    .filter((el) => {
+      if (el.type === 'jeu_de_barres') return false;
+      if (el.row_kind === 'bar_set') return false;
+      return true;
+    })
     .reduce((sum, el) => sum + el.power_w * el.quantity, 0);
 }
 
@@ -36,8 +87,13 @@ export function panelAbsorbedPower(installedPower: number): number {
   return installedPower * SIMULTANEITY_COEFFICIENT;
 }
 
-export function calculationCurrent(absorbedPower: number): number {
-  return absorbedPower / (DEFAULT_VOLTAGE * DEFAULT_COS_PHI);
+export function calculationCurrent(
+  absorbedPower: number,
+  voltageV: number = DEFAULT_VOLTAGE,
+  cosPhi: number = DEFAULT_COS_PHI
+): number {
+  if (voltageV <= 0 || cosPhi <= 0) return 0;
+  return absorbedPower / (voltageV * cosPhi);
 }
 
 export function recommendedBreakerAmps(current: number): number {
@@ -67,11 +123,28 @@ export function formatPercent(value: number): string {
   return `${formatNumber(value, 2)} %`;
 }
 
-export function suggestRepere(
-  type: 'eclairage' | 'prise',
-  existingReperes: string[]
-): string {
-  const prefix = type === 'eclairage' ? 'E' : 'P';
+const PREFIX_MAP: Record<ElementType, string> = {
+  eclairage: 'E',
+  prise: 'P',
+  attente: 'A',
+  jeu_de_barres: 'JDB',
+};
+
+export function getNextRepere(existingElements: Element[], type: ElementType): string {
+  const prefix = PREFIX_MAP[type];
+  const existing = existingElements
+    .filter((e) => e.type === type)
+    .map((e) => {
+      const m = e.repere.match(/^[A-Za-z_\-]+(\d+)$/);
+      return m ? parseInt(m[1], 10) : 0;
+    });
+  const maxNum = existing.length > 0 ? Math.max(...existing) : 0;
+  return `${prefix}${maxNum + 1}`;
+}
+
+/** @deprecated Use getNextRepere */
+export function suggestRepere(type: ElementType, existingReperes: string[]): string {
+  const prefix = PREFIX_MAP[type];
   const numbers = existingReperes
     .filter((r) => r.toUpperCase().startsWith(prefix))
     .map((r) => {
@@ -81,4 +154,25 @@ export function suggestRepere(
     .filter((n) => !isNaN(n));
   const next = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
   return `${prefix}${next}`;
+}
+
+export function generateReperePreview(
+  baseRepere: string,
+  count: number
+): string[] {
+  if (count <= 1) return [baseRepere];
+
+  const match = baseRepere.match(/^([A-Za-z_\-]+)(\d+)$/);
+
+  if (match) {
+    const prefix = match[1];
+    const startNum = parseInt(match[2], 10);
+    return Array.from({ length: count }, (_, i) => `${prefix}${startNum + i}`);
+  }
+
+  return Array.from({ length: count }, (_, i) => `${baseRepere}_${i + 1}`);
+}
+
+export function elementVoltage(element: { phase_type?: string }): number {
+  return element.phase_type === 'tri' ? 400 : 230;
 }

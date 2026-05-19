@@ -182,6 +182,9 @@ function registerIpcHandlers(): void {
         name?: string;
         description?: string;
         general_breaker_ampere?: number;
+        coef_ks?: number;
+        coef_ku?: number;
+        coef_fp?: number;
       }
     ) => wrapHandler(() => panelsDb.updatePanel(data))
   );

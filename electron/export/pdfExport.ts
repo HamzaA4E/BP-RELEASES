@@ -203,19 +203,20 @@ function addPanelPage(
 
     const categoryLabel = el.type === 'eclairage' ? 'Écl.' : 'Prise';
     const rowKind = el.row_kind ?? 'element';
-    const total = rowKind === 'bar_set' ? '' : String(el.power_w * el.quantity);
+    const isJdb = el.type === 'jeu_de_barres' || rowKind === 'bar_set';
+    const total = isJdb ? '' : String(el.power_w * el.quantity);
     const row = [
       String(index + 1),
       categoryLabel,
       el.repere,
       (el.type_label || el.designation).slice(0, 22),
       (el.emplacement ?? '').slice(0, 16),
-      rowKind === 'bar_set' ? '' : String(el.power_w),
-      rowKind === 'bar_set' ? '' : String(el.quantity),
+      isJdb ? '' : String(el.power_w),
+      isJdb ? '' : String(el.quantity),
       total,
-      rowKind === 'bar_set' ? '' : String(el.ku ?? 1),
-      rowKind === 'bar_set' ? '' : String(el.ks ?? 1),
-      rowKind === 'bar_set' ? '' : String(el.fp ?? 1),
+      isJdb ? '' : String(el.ku ?? 1),
+      isJdb ? '' : String(el.ks ?? 1),
+      isJdb ? '' : String(el.fp ?? 1),
     ];
 
     x = 15;
