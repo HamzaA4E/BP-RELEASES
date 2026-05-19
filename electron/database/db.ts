@@ -94,9 +94,28 @@ export function getDatabase(): Database.Database {
   db.pragma('foreign_keys = ON');
 
   db.exec(MIGRATIONS);
+  migrateElementsSchema(db);
   seedFavorites();
 
   return db;
+}
+
+function migrateElementsSchema(database: Database.Database): void {
+  const cols = database.pragma('table_info(elements)') as Array<{ name: string }>;
+  const names = new Set(cols.map((c) => c.name));
+
+  if (!names.has('type_label')) {
+    database.exec(`ALTER TABLE elements ADD COLUMN type_label TEXT DEFAULT ''`);
+    database.exec(`ALTER TABLE elements ADD COLUMN emplacement TEXT DEFAULT ''`);
+    database.exec(`ALTER TABLE elements ADD COLUMN row_kind TEXT DEFAULT 'element'`);
+    database.exec(`ALTER TABLE elements ADD COLUMN bar_set_index INTEGER DEFAULT 0`);
+    database.exec(`ALTER TABLE elements ADD COLUMN ku REAL DEFAULT 1`);
+    database.exec(`ALTER TABLE elements ADD COLUMN ks REAL DEFAULT 1`);
+    database.exec(`ALTER TABLE elements ADD COLUMN fp REAL DEFAULT 1`);
+    database.exec(
+      `UPDATE elements SET type_label = designation WHERE type_label = '' OR type_label IS NULL`
+    );
+  }
 }
 
 function seedFavorites(): void {

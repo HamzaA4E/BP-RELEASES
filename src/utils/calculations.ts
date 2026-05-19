@@ -25,9 +25,11 @@ export function voltageDropPercent(
 }
 
 export function panelInstalledPower(
-  elements: Array<{ power_w: number; quantity: number }>
+  elements: Array<{ power_w: number; quantity: number; row_kind?: string }>
 ): number {
-  return elements.reduce((sum, el) => sum + el.power_w * el.quantity, 0);
+  return elements
+    .filter((el) => el.row_kind !== 'bar_set')
+    .reduce((sum, el) => sum + el.power_w * el.quantity, 0);
 }
 
 export function panelAbsorbedPower(installedPower: number): number {

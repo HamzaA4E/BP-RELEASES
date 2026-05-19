@@ -1,4 +1,5 @@
 export type ElementType = 'eclairage' | 'prise';
+export type ElementRowKind = 'element' | 'bar_set';
 
 export interface Project {
   id: number;
@@ -47,10 +48,18 @@ export interface Element {
   panel_id: number;
   type: ElementType;
   repere: string;
+  /** @deprecated Synced with type_label — kept for legacy data and exports */
   designation: string;
+  type_label: string;
+  emplacement: string;
+  row_kind: ElementRowKind;
+  bar_set_index: number;
   power_w: number;
   quantity: number;
   distance_m: number;
+  ku: number;
+  ks: number;
+  fp: number;
   circuit: string | null;
   notes: string | null;
   order_index: number;
@@ -107,10 +116,16 @@ export interface CreateElementInput {
   panel_id: number;
   type: ElementType;
   repere: string;
-  designation: string;
+  type_label: string;
+  emplacement?: string;
+  row_kind?: ElementRowKind;
+  bar_set_index?: number;
   power_w: number;
   quantity: number;
-  distance_m: number;
+  distance_m?: number;
+  ku?: number;
+  ks?: number;
+  fp?: number;
   circuit?: string;
   notes?: string;
 }
@@ -119,10 +134,14 @@ export interface UpdateElementInput {
   id: number;
   type?: ElementType;
   repere?: string;
-  designation?: string;
+  type_label?: string;
+  emplacement?: string;
   power_w?: number;
   quantity?: number;
   distance_m?: number;
+  ku?: number;
+  ks?: number;
+  fp?: number;
   circuit?: string;
   notes?: string;
 }

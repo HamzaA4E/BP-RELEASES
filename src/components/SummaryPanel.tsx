@@ -1,12 +1,5 @@
 import { useAppStore } from '@/store/useAppStore';
-import {
-  panelInstalledPower,
-  panelAbsorbedPower,
-  calculationCurrent,
-  recommendedBreakerAmps,
-  formatPower,
-  formatNumber,
-} from '@/utils/calculations';
+import { formatPower } from '@/utils/calculations';
 export function SummaryPanel() {
   const {
     selection,
@@ -15,7 +8,6 @@ export function SummaryPanel() {
     currentProject,
     locations,
     panels,
-    elements,
   } = useAppStore();
 
   if (infoPanelCollapsed) {
@@ -35,23 +27,8 @@ export function SummaryPanel() {
 
   const renderContent = () => {
     if (selection.type === 'panel' && selection.panelId) {
-      const installed = panelInstalledPower(elements);
-      const absorbed = panelAbsorbedPower(installed);
-      const current = calculationCurrent(absorbed);
-      const breaker = recommendedBreakerAmps(current);
       const panel = panels.find((p) => p.id === selection.panelId);
-
-      return (
-        <PanelSummary
-          panelName={panel?.name ?? ''}
-          elementCount={elements.length}
-          installed={installed}
-          absorbed={absorbed}
-          current={current}
-          breaker={breaker}
-          generalBreaker={panel?.general_breaker_ampere ?? 0}
-        />
-      );
+      return <PanelSummary panelName={panel?.name ?? ''} />;
     }
 
     if (selection.type === 'location' && selection.locationId) {
@@ -116,37 +93,11 @@ function StatRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function PanelSummary({
-  panelName,
-  elementCount,
-  installed,
-  absorbed,
-  current,
-  breaker,
-  generalBreaker,
-}: {
-  panelName: string;
-  elementCount: number;
-  installed: number;
-  absorbed: number;
-  current: number;
-  breaker: number;
-  generalBreaker: number;
-}) {
+function PanelSummary({ panelName }: { panelName: string }) {
   return (
-    <div className="space-y-3">
-      <div>
-        <p className="text-xs text-gray-500 uppercase tracking-wide">Tableau</p>
-        <p className="font-semibold text-primary dark:text-white">{panelName}</p>
-      </div>
-      <StatRow label="Éléments" value={String(elementCount)} />
-      <StatRow label="P. installée" value={formatPower(installed)} />
-      <StatRow label="P. absorbée (ks=0.8)" value={formatPower(absorbed)} />
-      <StatRow label="I. calcul" value={`${formatNumber(current)} A`} />
-      <StatRow label="DJ recommandé" value={`${breaker} A`} />
-      {generalBreaker > 0 && (
-        <StatRow label="DJ général" value={`${generalBreaker} A`} />
-      )}
+    <div>
+      <p className="text-xs text-gray-500 uppercase tracking-wide">Tableau</p>
+      <p className="font-semibold text-primary dark:text-white text-lg">{panelName}</p>
     </div>
   );
 }

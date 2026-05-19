@@ -1,4 +1,5 @@
 import { getDatabase } from './db';
+import { getElementsByPanel, createElement } from './elements';
 
 export interface PanelRow {
   id: number;
@@ -22,7 +23,8 @@ export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
       `SELECT p.*,
         (SELECT COUNT(*) FROM elements e WHERE e.panel_id = p.id) as element_count,
         COALESCE((
-          SELECT SUM(e.power_w * e.quantity) FROM elements e WHERE e.panel_id = p.id
+          SELECT SUM(e.power_w * e.quantity) FROM elements e
+          WHERE e.panel_id = p.id AND COALESCE(e.row_kind, 'element') = 'element'
         ), 0) as installed_power_w
       FROM panels p
       WHERE p.location_id = ?
@@ -111,7 +113,6 @@ export function deletePanel(id: number): void {
 }
 
 export function duplicatePanel(id: number): PanelRow {
-  const db = getDatabase();
   const source = getPanelById(id);
   if (!source) throw new Error('Panel not found');
 
@@ -122,27 +123,25 @@ export function duplicatePanel(id: number): PanelRow {
     general_breaker_ampere: source.general_breaker_ampere,
   });
 
-  const elements = db
-    .prepare('SELECT * FROM elements WHERE panel_id = ? ORDER BY order_index')
-    .all(id) as Array<{
-    type: string;
-    repere: string;
-    designation: string;
-    power_w: number;
-    quantity: number;
-    distance_m: number;
-    circuit: string | null;
-    notes: string | null;
-    order_index: number;
-  }>;
-
-  const insertElement = db.prepare(
-    `INSERT INTO elements (panel_id, type, repere, designation, power_w, quantity, distance_m, circuit, notes, order_index)
-     VALUES (@panel_id, @type, @repere, @designation, @power_w, @quantity, @distance_m, @circuit, @notes, @order_index)`
-  );
-
+  const elements = getElementsByPanel(id);
   for (const el of elements) {
-    insertElement.run({ ...el, panel_id: newPanel.id });
+    createElement({
+      panel_id: newPanel.id,
+      type: el.type,
+      repere: el.repere,
+      type_label: el.type_label,
+      emplacement: el.emplacement,
+      row_kind: el.row_kind,
+      bar_set_index: el.bar_set_index,
+      power_w: el.power_w,
+      quantity: el.quantity,
+      distance_m: el.distance_m,
+      ku: el.ku,
+      ks: el.ks,
+      fp: el.fp,
+      circuit: el.circuit ?? undefined,
+      notes: el.notes ?? undefined,
+    });
   }
 
   return newPanel;

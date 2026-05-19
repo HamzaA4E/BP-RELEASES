@@ -4,16 +4,14 @@ import toast from 'react-hot-toast';
 import { useAppStore } from '@/store/useAppStore';
 import { ElementTable } from '@/components/ElementTable';
 import { AddElementModal } from '@/components/AddElementModal';
+import { AddBarSetModal } from '@/components/AddBarSetModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import {
-  panelInstalledPower,
-  panelAbsorbedPower,
-  calculationCurrent,
-  recommendedBreakerAmps,
-  formatPower,
-  formatNumber,
-} from '@/utils/calculations';
-import type { Element } from '@/types';
+  barSetLabel,
+  nextBarSetIndex,
+  normalizeElement,
+} from '@/utils/elementHelpers';
+import type { Element, ElementType } from '@/types';
 
 export function PanelView() {
   const { projectId, locationId, panelId } = useParams<{
@@ -35,9 +33,8 @@ export function PanelView() {
   } = useAppStore();
 
   const [panelName, setPanelName] = useState('');
-  const [panelDescription, setPanelDescription] = useState('');
-  const [generalBreaker, setGeneralBreaker] = useState(0);
   const [showModal, setShowModal] = useState(false);
+  const [showBarSetModal, setShowBarSetModal] = useState(false);
   const [editElement, setEditElement] = useState<Element | null>(null);
   const [deleteElementId, setDeleteElementId] = useState<number | null>(null);
 
@@ -48,11 +45,9 @@ export function PanelView() {
       const panel = pnl.find((p) => p.id === panId);
       if (panel) {
         setPanelName(panel.name);
-        setPanelDescription(panel.description ?? '');
-        setGeneralBreaker(panel.general_breaker_ampere);
       }
       const els = await window.bilpow.elements.getByPanel(panId);
-      setElements(els);
+      setElements(els.map((e) => normalizeElement(e)));
       setSelection({ type: 'panel', projectId: pId, locationId: lId, panelId: panId });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
@@ -64,28 +59,24 @@ export function PanelView() {
     void window.bilpow.favorites.getAll().then(setFavorites);
   }, [loadData, setFavorites]);
 
-  const savePanelField = async (
-    field: 'name' | 'description' | 'general_breaker_ampere',
-    value: string | number
-  ) => {
+  const savePanelName = async (name: string) => {
     try {
-      await window.bilpow.panels.update({
-        id: panId,
-        [field]: value,
-      });
+      await window.bilpow.panels.update({ id: panId, name });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
     }
   };
 
   const handleSaveElement = async (data: {
-    type: 'eclairage' | 'prise';
+    type: ElementType;
     repere: string;
-    designation: string;
+    type_label: string;
+    emplacement: string;
     power_w: number;
     quantity: number;
-    distance_m: number;
-    circuit?: string;
+    ku: number;
+    ks: number;
+    fp: number;
     notes?: string;
   }) => {
     if (editElement) {
@@ -100,11 +91,55 @@ export function PanelView() {
     setPanels(pnl);
   };
 
+  const handleAddBarSet = async (type: ElementType) => {
+    setShowBarSetModal(false);
+    try {
+      const index = nextBarSetIndex(elements, type);
+      const type_label = barSetLabel(type, index);
+      const reperePrefix = type === 'eclairage' ? 'JB-E' : 'JB-P';
+      await window.bilpow.elements.create({
+        panel_id: panId,
+        type,
+        row_kind: 'bar_set',
+        bar_set_index: index,
+        type_label,
+        emplacement: '',
+        repere: `${reperePrefix}${index}`,
+        power_w: 0,
+        quantity: 1,
+        ku: 1,
+        ks: 1,
+        fp: 1,
+      });
+      toast.success(type_label);
+      await loadData();
+      const pnl = await window.bilpow.panels.getByLocation(lId);
+      setPanels(pnl);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleFieldUpdate = async (
+    id: number,
+    field: 'ku' | 'ks' | 'fp' | 'emplacement' | 'type_label',
+    value: number | string
+  ) => {
+    try {
+      await window.bilpow.elements.update({ id, [field]: value });
+      const els = await window.bilpow.elements.getByPanel(panId);
+      setElements(els.map((e) => normalizeElement(e)));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur de mise à jour');
+      await loadData();
+    }
+  };
+
   const handleDeleteElement = async () => {
     if (deleteElementId === null) return;
     try {
       await window.bilpow.elements.delete(deleteElementId);
-      toast.success('Élément supprimé');
+      toast.success('Ligne supprimée');
       await loadData();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
@@ -116,7 +151,7 @@ export function PanelView() {
     try {
       await window.bilpow.elements.reorder(panId, orderedIds);
       const els = await window.bilpow.elements.getByPanel(panId);
-      setElements(els);
+      setElements(els.map((e) => normalizeElement(e)));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur de réorganisation');
     }
@@ -133,87 +168,45 @@ export function PanelView() {
     }
   };
 
-  const installed = panelInstalledPower(elements);
-  const absorbed = panelAbsorbedPower(installed);
-  const current = calculationCurrent(absorbed);
-  const recommended = recommendedBreakerAmps(current);
-
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-full mx-auto">
-        <div className="card p-5 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                Nom du tableau
-              </label>
-              <input
-                type="text"
-                value={panelName}
-                onChange={(e) => setPanelName(e.target.value)}
-                onBlur={(e) => void savePanelField('name', e.target.value)}
-                className="input-field font-semibold"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                Disjoncteur général (A)
-              </label>
-              <input
-                type="number"
-                min={0}
-                value={generalBreaker}
-                onChange={(e) => setGeneralBreaker(Number(e.target.value))}
-                onBlur={(e) =>
-                  void savePanelField('general_breaker_ampere', Number(e.target.value))
-                }
-                className="input-field"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                Description
-              </label>
-              <input
-                type="text"
-                value={panelDescription}
-                onChange={(e) => setPanelDescription(e.target.value)}
-                onBlur={(e) => void savePanelField('description', e.target.value)}
-                className="input-field"
-                placeholder="Optionnel"
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 text-sm">
-            <span className="text-gray-600 dark:text-gray-300">
-              P. installée: <strong>{formatPower(installed)}</strong>
-            </span>
-            <span className="text-gray-600 dark:text-gray-300">
-              P. absorbée: <strong>{formatPower(absorbed)}</strong>
-            </span>
-            <span className="text-gray-600 dark:text-gray-300">
-              I. calcul: <strong>{formatNumber(current)} A</strong>
-            </span>
-            <span className="text-accent font-medium">
-              DJ recommandé: {recommended} A
-            </span>
-          </div>
+        <div className="mb-6">
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Nom du tableau
+          </label>
+          <input
+            type="text"
+            value={panelName}
+            onChange={(e) => setPanelName(e.target.value)}
+            onBlur={(e) => void savePanelName(e.target.value)}
+            className="input-field text-xl font-bold max-w-md"
+          />
         </div>
 
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-            Éléments ({elements.length})
+            Lignes ({elements.length})
           </h2>
-          <button
-            type="button"
-            onClick={() => {
-              setEditElement(null);
-              setShowModal(true);
-            }}
-            className="btn-primary"
-          >
-            + Ajouter un élément
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setShowBarSetModal(true)}
+              className="btn-secondary"
+            >
+              + Ajouter jeu de barre
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditElement(null);
+                setShowModal(true);
+              }}
+              className="btn-primary"
+            >
+              + Ajouter un élément
+            </button>
+          </div>
         </div>
 
         <ElementTable
@@ -224,12 +217,12 @@ export function PanelView() {
           }}
           onDelete={setDeleteElementId}
           onReorder={handleReorder}
+          onFieldUpdate={handleFieldUpdate}
         />
       </div>
 
       <AddElementModal
         isOpen={showModal}
-        panelId={panId}
         existingElements={elements}
         favorites={favorites}
         editElement={editElement}
@@ -241,10 +234,16 @@ export function PanelView() {
         onDeleteFavorite={handleDeleteFavorite}
       />
 
+      <AddBarSetModal
+        isOpen={showBarSetModal}
+        onClose={() => setShowBarSetModal(false)}
+        onConfirm={(type) => void handleAddBarSet(type)}
+      />
+
       <ConfirmDialog
         isOpen={deleteElementId !== null}
-        title="Supprimer l'élément"
-        message="Êtes-vous sûr de vouloir supprimer cet élément ?"
+        title="Supprimer la ligne"
+        message="Êtes-vous sûr de vouloir supprimer cette ligne ?"
         onConfirm={() => void handleDeleteElement()}
         onCancel={() => setDeleteElementId(null)}
       />

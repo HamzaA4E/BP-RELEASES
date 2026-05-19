@@ -172,8 +172,8 @@ function addPanelPage(
   doc.text(panelName, 15, 24);
 
   const startY = 32;
-  const colWidths = [10, 22, 18, 55, 22, 12, 22, 22];
-  const headers = ['N°', 'Type', 'Repère', 'Désignation', 'P.(W)', 'Qté', 'Total', 'Dist.'];
+  const colWidths = [8, 16, 14, 40, 28, 14, 10, 14, 10, 10, 10];
+  const headers = ['N°', 'Cat.', 'Rep.', 'Type', 'Désig.', 'P.(W)', 'Qté', 'Tot.', 'ku', 'ks', 'fp'];
   let x = 15;
 
   doc.setFillColor(30, 58, 95);
@@ -201,17 +201,21 @@ function addPanelPage(
       doc.rect(15, y - 4, 183, 7, 'F');
     }
 
-    const typeLabel = el.type === 'eclairage' ? 'Éclairage' : 'Prise';
-    const total = el.power_w * el.quantity;
+    const categoryLabel = el.type === 'eclairage' ? 'Écl.' : 'Prise';
+    const rowKind = el.row_kind ?? 'element';
+    const total = rowKind === 'bar_set' ? '' : String(el.power_w * el.quantity);
     const row = [
       String(index + 1),
-      typeLabel,
+      categoryLabel,
       el.repere,
-      el.designation.slice(0, 28),
-      String(el.power_w),
-      String(el.quantity),
-      String(total),
-      String(el.distance_m),
+      (el.type_label || el.designation).slice(0, 22),
+      (el.emplacement ?? '').slice(0, 16),
+      rowKind === 'bar_set' ? '' : String(el.power_w),
+      rowKind === 'bar_set' ? '' : String(el.quantity),
+      total,
+      rowKind === 'bar_set' ? '' : String(el.ku ?? 1),
+      rowKind === 'bar_set' ? '' : String(el.ks ?? 1),
+      rowKind === 'bar_set' ? '' : String(el.fp ?? 1),
     ];
 
     x = 15;

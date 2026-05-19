@@ -11,7 +11,7 @@ import type { CompanySettings, ExcelExportResult } from '../../shared/types';
 const PRIMARY_COLOR = 'FF1E3A5F';
 const ALT_ROW_COLOR = 'FFF8F9FA';
 const TOTAL_ROW_COLOR = 'FFDBEAFE';
-const COL_COUNT = 9;
+const COL_COUNT = 11;
 
 const STANDARD_BREAKERS = [10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200];
 
@@ -20,20 +20,6 @@ function recommendedBreaker(current: number): number {
   return breaker !== undefined
     ? breaker
     : STANDARD_BREAKERS[STANDARD_BREAKERS.length - 1]!;
-}
-
-function voltageDropPercent(
-  distanceM: number,
-  powerW: number,
-  quantity: number
-): number {
-  if (distanceM <= 0 || powerW <= 0 || quantity <= 0) return 0;
-  const cosPhi = 0.8;
-  const voltage = 230;
-  const sectionMm2 = 2.5;
-  const numerator = 2 * distanceM * powerW * quantity;
-  const denominator = cosPhi * voltage * sectionMm2 * 56;
-  return (numerator / denominator) * 100;
 }
 
 function sanitizeSheetName(name: string): string {
@@ -208,7 +194,9 @@ export async function exportLocationToExcel(
 
   for (const panel of panels) {
     const elements = getElementsByPanel(panel.id);
-    const installed = elements.reduce((s, e) => s + e.power_w * e.quantity, 0);
+    const installed = elements
+      .filter((e) => (e as { row_kind?: string }).row_kind !== 'bar_set')
+      .reduce((s, e) => s + e.power_w * e.quantity, 0);
     const absorbed = installed * 0.8;
     const current = absorbed / (230 * 0.8);
     const breaker = recommendedBreaker(current);
@@ -393,14 +381,16 @@ function createPanelSheet(
 
   const headers = [
     'N°',
-    'Type',
+    'Cat.',
     'Repère',
+    'Type',
     'Désignation',
     'P.unitaire (W)',
     'Qté',
     'P.totale (W)',
-    'Distance (m)',
-    'Chute de tension (%)',
+    'ku',
+    'ks',
+    'fp',
   ];
 
   const headerRowObj = sheet.getRow(headerRow);
@@ -422,21 +412,32 @@ function createPanelSheet(
   data.elements.forEach((el, index) => {
     const rowNum = headerRow + 1 + index;
     const row = sheet.getRow(rowNum);
+    const rowKind = (el as { row_kind?: string }).row_kind ?? 'element';
     const totalEl = el.power_w * el.quantity;
-    totalPower += totalEl;
-    const drop = voltageDropPercent(el.distance_m, el.power_w, el.quantity);
+    if (rowKind !== 'bar_set') {
+      totalPower += totalEl;
+    }
 
-    const typeLabel = el.type === 'eclairage' ? 'Éclairage' : 'Prise';
+    const categoryLabel = el.type === 'eclairage' ? 'Éclairage' : 'Prise';
+    const typeLabel =
+      (el as { type_label?: string }).type_label || el.designation || '';
+    const emplacement = (el as { emplacement?: string }).emplacement ?? '';
+    const ku = (el as { ku?: number }).ku ?? 1;
+    const ks = (el as { ks?: number }).ks ?? 1;
+    const fp = (el as { fp?: number }).fp ?? 1;
+
     const values = [
       index + 1,
-      typeLabel,
+      categoryLabel,
       el.repere,
-      el.designation,
+      typeLabel,
+      emplacement,
       el.power_w,
       el.quantity,
-      totalEl,
-      el.distance_m,
-      Math.round(drop * 100) / 100,
+      rowKind === 'bar_set' ? '' : totalEl,
+      ku,
+      ks,
+      fp,
     ];
 
     values.forEach((v, i) => {
@@ -484,14 +485,16 @@ function createPanelSheet(
 
   sheet.columns = [
     { width: 5 },
-    { width: 12 },
     { width: 10 },
-    { width: 35 },
-    { width: 14 },
+    { width: 10 },
+    { width: 28 },
+    { width: 22 },
+    { width: 12 },
     { width: 6 },
-    { width: 14 },
-    { width: 14 },
-    { width: 18 },
+    { width: 12 },
+    { width: 6 },
+    { width: 6 },
+    { width: 6 },
   ];
 
   sheet.views = [{ state: 'frozen', ySplit: headerRow }];

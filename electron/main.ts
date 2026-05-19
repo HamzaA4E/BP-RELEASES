@@ -17,7 +17,12 @@ import * as favoritesDb from './database/favorites';
 import { getCompanySettings, saveCompanySettings } from './database/settings';
 import { exportLocationToExcel } from './export/excelExport';
 import { exportProjectToPdf } from './export/pdfExport';
-import type { CompanySettings, UpdateCompanySettingsInput } from '../shared/types';
+import type {
+  CompanySettings,
+  UpdateCompanySettingsInput,
+  CreateElementInput,
+  UpdateElementInput,
+} from '../shared/types';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -193,39 +198,11 @@ function registerIpcHandlers(): void {
   ipcMain.handle('elements:getByPanel', (_e, panelId: number) =>
     wrapHandler(() => elementsDb.getElementsByPanel(panelId))
   );
-  ipcMain.handle(
-    'elements:create',
-    (
-      _e,
-      data: {
-        panel_id: number;
-        type: 'eclairage' | 'prise';
-        repere: string;
-        designation: string;
-        power_w: number;
-        quantity: number;
-        distance_m: number;
-        circuit?: string;
-        notes?: string;
-      }
-    ) => wrapHandler(() => elementsDb.createElement(data))
+  ipcMain.handle('elements:create', (_e, data: CreateElementInput) =>
+    wrapHandler(() => elementsDb.createElement(data))
   );
-  ipcMain.handle(
-    'elements:update',
-    (
-      _e,
-      data: {
-        id: number;
-        type?: 'eclairage' | 'prise';
-        repere?: string;
-        designation?: string;
-        power_w?: number;
-        quantity?: number;
-        distance_m?: number;
-        circuit?: string;
-        notes?: string;
-      }
-    ) => wrapHandler(() => elementsDb.updateElement(data))
+  ipcMain.handle('elements:update', (_e, data: UpdateElementInput) =>
+    wrapHandler(() => elementsDb.updateElement(data))
   );
   ipcMain.handle('elements:delete', (_e, id: number) =>
     wrapHandler(() => {

@@ -1,4 +1,5 @@
 import { getDatabase } from './db';
+import { createElement } from './elements';
 
 export interface LocationRow {
   id: number;
@@ -22,7 +23,7 @@ export function getLocationsByProject(projectId: number): LocationWithStatsRow[]
           SELECT SUM(e.power_w * e.quantity)
           FROM elements e
           JOIN panels pa ON e.panel_id = pa.id
-          WHERE pa.location_id = l.id
+          WHERE pa.location_id = l.id AND COALESCE(e.row_kind, 'element') = 'element'
         ), 0) as total_power_w
       FROM locations l
       WHERE l.project_id = ?
@@ -138,24 +139,42 @@ export function duplicateLocation(id: number): LocationRow {
     const elements = db
       .prepare('SELECT * FROM elements WHERE panel_id = ? ORDER BY order_index')
       .all(panel.id) as Array<{
-      type: string;
+      type: 'eclairage' | 'prise';
       repere: string;
       designation: string;
+      type_label?: string;
+      emplacement?: string;
+      row_kind?: string;
+      bar_set_index?: number;
       power_w: number;
       quantity: number;
       distance_m: number;
+      ku?: number;
+      ks?: number;
+      fp?: number;
       circuit: string | null;
       notes: string | null;
-      order_index: number;
     }>;
 
-    const insertElement = db.prepare(
-      `INSERT INTO elements (panel_id, type, repere, designation, power_w, quantity, distance_m, circuit, notes, order_index)
-       VALUES (@panel_id, @type, @repere, @designation, @power_w, @quantity, @distance_m, @circuit, @notes, @order_index)`
-    );
-
     for (const el of elements) {
-      insertElement.run({ ...el, panel_id: newPanelId });
+      const type_label = el.type_label || el.designation;
+      createElement({
+        panel_id: newPanelId,
+        type: el.type,
+        repere: el.repere,
+        type_label,
+        emplacement: el.emplacement ?? '',
+        row_kind: (el.row_kind as 'element' | 'bar_set') ?? 'element',
+        bar_set_index: el.bar_set_index ?? 0,
+        power_w: el.power_w,
+        quantity: el.quantity,
+        distance_m: el.distance_m,
+        ku: el.ku,
+        ks: el.ks,
+        fp: el.fp,
+        circuit: el.circuit ?? undefined,
+        notes: el.notes ?? undefined,
+      });
     }
   }
 
