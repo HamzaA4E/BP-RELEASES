@@ -10,8 +10,10 @@ import {
 import {
   displayEmplacement,
   displayTypeLabel,
+  jeuDeBarresTitle,
   getActiveJeuDeBarres,
   isTypeAllowedUnderJdb,
+  defaultElementTypeForJdb,
 } from '@/utils/elementHelpers';
 
 type ElementFormType = Exclude<ElementType, 'jeu_de_barres'>;
@@ -35,6 +37,8 @@ interface AddElementModalProps {
   existingElements: Element[];
   favorites: Favorite[];
   editElement?: Element | null;
+  /** When set, the new element is added under this jeu de barres section. */
+  contextJdb?: Element | null;
   onClose: () => void;
   onSave: (data: {
     type: ElementFormType;
@@ -102,6 +106,7 @@ export function AddElementModal({
   existingElements,
   favorites,
   editElement,
+  contextJdb = null,
   onClose,
   onSave,
   onSaveMultiple,
@@ -118,7 +123,8 @@ export function AddElementModal({
   const isEdit = Boolean(editElement);
 
   const insertIndex = existingElements.length;
-  const activeJdb = getActiveJeuDeBarres(existingElements, insertIndex);
+  const activeJdb =
+    contextJdb ?? getActiveJeuDeBarres(existingElements, insertIndex);
   const typeNotAllowed =
     !isEdit && !isTypeAllowedUnderJdb(formData.type, activeJdb);
 
@@ -195,13 +201,16 @@ export function AddElementModal({
         coef_fp: editElement.coef_fp,
         notes: editElement.notes ?? '',
       });
+    } else if (contextJdb) {
+      const defaultType = defaultElementTypeForJdb(contextJdb);
+      setFormData(buildDefaultForm(defaultType, existingElements));
     } else {
       setFormData(buildDefaultForm('eclairage', existingElements));
     }
     setErrors({});
     setDuplicateCount(1);
     setShowCoefs(false);
-  }, [isOpen, editElement, existingElements]);
+  }, [isOpen, editElement, contextJdb, existingElements]);
 
   useEffect(() => {
     if (!editElement && isOpen) {
@@ -331,6 +340,14 @@ export function AddElementModal({
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
           <div className="p-6 space-y-5">
+            {contextJdb && !editElement && (
+              <div className="rounded-lg border border-[#1E3A5F]/30 bg-[#1E3A5F]/5 dark:bg-[#1E3A5F]/20 px-4 py-3 text-sm">
+                <span className="text-slate-500 dark:text-slate-400">Section : </span>
+                <span className="font-semibold text-[#1E3A5F] dark:text-blue-300">
+                  {jeuDeBarresTitle(contextJdb)}
+                </span>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-2">Type</label>
               <div className="grid grid-cols-3 gap-2">

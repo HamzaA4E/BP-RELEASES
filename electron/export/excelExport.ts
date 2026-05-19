@@ -44,14 +44,6 @@ function stripBase64Prefix(b64: string): string {
   return idx >= 0 ? b64.slice(idx + 7) : b64;
 }
 
-interface PanelSummary {
-  name: string;
-  installed: number;
-  absorbed: number;
-  current: number;
-  breaker: number;
-}
-
 interface ProjectInfo {
   name: string;
   engineer: string | null;
@@ -182,7 +174,6 @@ export async function exportLocationToExcel(
   workbook.created = new Date();
 
   const panels = getPanelsByLocation(locationId);
-  const summaries: PanelSummary[] = [];
   const panelDataList: Array<{
     panelName: string;
     elements: ReturnType<typeof getElementsByPanel>;
@@ -204,14 +195,6 @@ export async function exportLocationToExcel(
     const current = absorbed / (230 * 0.8);
     const breaker = recommendedBreaker(current);
 
-    summaries.push({
-      name: panel.name,
-      installed,
-      absorbed,
-      current,
-      breaker,
-    });
-
     panelDataList.push({
       panelName: panel.name,
       elements,
@@ -228,16 +211,6 @@ export async function exportLocationToExcel(
   };
 
   let svgWarning = false;
-
-  const syntheseTitle = `SYNTHESE — ${location.name} — ${project.name}`;
-  const syntheseResult = createSyntheseSheet(
-    workbook,
-    summaries,
-    company,
-    syntheseTitle,
-    projectInfo
-  );
-  if (syntheseResult.svgSkipped) svgWarning = true;
 
   for (const panelData of panelDataList) {
     const sheetTitle = `BILAN DE PUISSANCE — ${panelData.panelName} — ${location.name}`;
@@ -279,80 +252,58 @@ function getProjectForLocation(locationId: number) {
   return row;
 }
 
-function createSyntheseSheet(
-  workbook: ExcelJS.Workbook,
-  summaries: PanelSummary[],
-  company: CompanySettings,
-  title: string,
-  project: ProjectInfo
-): { svgSkipped: boolean } {
-  const sheet = workbook.addWorksheet('SYNTHESE', { state: 'visible' });
-  const { headerRow, svgSkipped } = addCompanyHeader(
-    sheet,
-    workbook,
-    company,
-    title,
-    project
+function jdbCategoryLabelExcel(category: string | null | undefined): string {
+  if (category === 'eclairage') return 'Éclairage';
+  if (category === 'prise') return 'Prise de courant';
+  return 'Mixte';
+}
+
+function isJeuDeBarresRow(el: {
+  type?: string;
+  row_kind?: string;
+}): boolean {
+  return el.type === 'jeu_de_barres' || el.row_kind === 'bar_set';
+}
+
+function elementCategoryLabel(el: {
+  type: string;
+  row_kind?: string;
+}): string {
+  if (isJeuDeBarresRow(el)) return 'Jeu de barres';
+  if (el.type === 'eclairage') return 'Éclairage';
+  if (el.type === 'prise') return 'Prise';
+  if (el.type === 'attente') return 'Attente';
+  return el.type;
+}
+
+function writeJeuDeBarresExcelRow(
+  sheet: ExcelJS.Worksheet,
+  rowNum: number,
+  el: ReturnType<typeof getElementsByPanel>[number],
+  colCount: number
+): void {
+  const title =
+    (el as { type_label?: string }).type_label?.trim() ||
+    el.designation?.trim() ||
+    'Jeu de barres';
+  const category = jdbCategoryLabelExcel(
+    (el as { jdb_category?: string | null }).jdb_category
   );
 
-  const headers = [
-    'Tableau',
-    'P. installée (W)',
-    'P. absorbée (W)',
-    'I. calcul (A)',
-    'DJ général (A)',
-  ];
-
-  const headerRowObj = sheet.getRow(headerRow);
-  headers.forEach((h, i) => {
-    const cell = headerRowObj.getCell(i + 1);
-    cell.value = h;
-    cell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: PRIMARY_COLOR },
-    };
-    cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    applyBorder(cell);
-  });
-
-  summaries.forEach((s, i) => {
-    const row = sheet.getRow(headerRow + 1 + i);
-    const values = [
-      s.name,
-      Math.round(s.installed),
-      Math.round(s.absorbed),
-      Math.round(s.current * 100) / 100,
-      s.breaker,
-    ];
-    values.forEach((v, ci) => {
-      const cell = row.getCell(ci + 1);
-      cell.value = v;
-      if (i % 2 === 1) {
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: ALT_ROW_COLOR },
-        };
-      }
-      applyBorder(cell);
-    });
-  });
-
-  sheet.columns = [
-    { width: 30 },
-    { width: 18 },
-    { width: 18 },
-    { width: 14 },
-    { width: 14 },
-    { width: 12 },
-    { width: 12 },
-    { width: 12 },
-    { width: 12 },
-  ];
-
-  sheet.views = [{ state: 'frozen', ySplit: headerRow }];
-  return { svgSkipped };
+  sheet.mergeCells(rowNum, 1, rowNum, colCount);
+  const cell = sheet.getCell(rowNum, 1);
+  cell.value = `⚡  ${title}  —  Jeu de barres · ${category}`;
+  cell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: PRIMARY_COLOR },
+  };
+  cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+  cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  sheet.getRow(rowNum).height = 26;
+  for (let c = 1; c <= colCount; c++) {
+    applyBorder(sheet.getCell(rowNum, c));
+  }
 }
 
 function createPanelSheet(
@@ -412,43 +363,52 @@ function createPanelSheet(
   headerRowObj.height = 28;
 
   let totalPower = 0;
+  let dataRowIndex = 0;
   data.elements.forEach((el, index) => {
     const rowNum = headerRow + 1 + index;
-    const row = sheet.getRow(rowNum);
-    const rowKind = (el as { row_kind?: string }).row_kind ?? 'element';
-    const isJdb =
-      (el as { type?: string }).type === 'jeu_de_barres' || rowKind === 'bar_set';
-    const totalEl = el.power_w * el.quantity;
-    if (!isJdb) {
-      totalPower += totalEl;
+    const isJdb = isJeuDeBarresRow(el);
+
+    if (isJdb) {
+      writeJeuDeBarresExcelRow(sheet, rowNum, el, COL_COUNT);
+      return;
     }
 
-    const categoryLabel = el.type === 'eclairage' ? 'Éclairage' : 'Prise';
+    const row = sheet.getRow(rowNum);
+    const totalEl = el.power_w * el.quantity;
+    totalPower += totalEl;
+
     const typeLabel =
-      (el as { type_label?: string }).type_label || el.designation || '';
+      (el as { type_label?: string }).type_label ||
+      el.designation ||
+      (el.type === 'prise'
+        ? (el as { phase_type?: string }).phase_type === 'tri'
+          ? 'Triphasé'
+          : 'Monophasé'
+        : '');
     const emplacement = (el as { emplacement?: string }).emplacement ?? '';
-    const ku = (el as { ku?: number }).ku ?? 1;
-    const ks = (el as { ks?: number }).ks ?? 1;
-    const fp = (el as { fp?: number }).fp ?? 1;
+    const ku = (el as { coef_ku?: number }).coef_ku ?? (el as { ku?: number }).ku ?? 1;
+    const ks = (el as { coef_ks?: number }).coef_ks ?? (el as { ks?: number }).ks ?? 1;
+    const fp = (el as { coef_fp?: number }).coef_fp ?? (el as { fp?: number }).fp ?? 1;
 
     const values = [
-      index + 1,
-      categoryLabel,
+      dataRowIndex + 1,
+      elementCategoryLabel(el),
       el.repere,
       typeLabel,
       emplacement,
       el.power_w,
       el.quantity,
-      isJdb ? '' : totalEl,
+      totalEl,
       ku,
       ks,
       fp,
     ];
+    dataRowIndex++;
 
     values.forEach((v, i) => {
       const cell = row.getCell(i + 1);
       cell.value = v;
-      if (index % 2 === 1) {
+      if (dataRowIndex % 2 === 0) {
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',

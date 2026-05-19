@@ -60,6 +60,29 @@ export function getActiveJeuDeBarres(
   return null;
 }
 
+/** Index where a new element should be inserted at the end of a jeu de barres section. */
+export function getInsertIndexAfterJdbSection(
+  elements: Element[],
+  jdbId: number
+): number {
+  const jdbIndex = elements.findIndex((e) => e.id === jdbId);
+  if (jdbIndex < 0) return elements.length;
+
+  let insertAt = jdbIndex + 1;
+  while (insertAt < elements.length && !isJeuDeBarres(elements[insertAt]!)) {
+    insertAt++;
+  }
+  return insertAt;
+}
+
+export function defaultElementTypeForJdb(
+  jdb: Element
+): Exclude<ElementType, 'jeu_de_barres'> {
+  if (jdb.jdb_category === 'eclairage') return 'eclairage';
+  if (jdb.jdb_category === 'prise') return 'prise';
+  return 'eclairage';
+}
+
 export function isTypeAllowedUnderJdb(
   elementType: ElementType,
   jdb: Element | null

@@ -42,6 +42,7 @@ interface ElementTableProps {
   elements: Element[];
   onEdit: (element: Element) => void;
   onDelete: (id: number) => void;
+  onAddElementUnderJdb: (jdb: Element) => void;
   onReorder: (orderedIds: number[]) => void;
   onFieldUpdate: (
     id: number,
@@ -281,9 +282,11 @@ function InlinePowerCell({
 function JeuDeBarresRow({
   element,
   onDelete,
+  onAddElement,
 }: {
   element: Element;
   onDelete: (id: number) => void;
+  onAddElement: (jdb: Element) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: element.id });
@@ -321,17 +324,28 @@ function JeuDeBarresRow({
               </p>
             </div>
           </div>
-          <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-white/80 bg-white/10 px-2.5 py-1 rounded">
-            {categoryLabel}
-          </span>
-          <button
-            type="button"
-            onClick={() => onDelete(element.id)}
-            className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-red-300 p-1 rounded shrink-0 ml-2"
-            title="Supprimer ce jeu de barres"
-          >
-            ×
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs font-medium uppercase tracking-wider text-white/80 bg-white/10 px-2.5 py-1 rounded hidden sm:inline">
+              {categoryLabel}
+            </span>
+            <button
+              type="button"
+              onClick={() => onAddElement(element)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors"
+              title="Ajouter un élément dans cette section"
+            >
+              <span className="text-sm leading-none">+</span>
+              Ajouter un élément
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(element.id)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-red-300 p-1 rounded"
+              title="Supprimer ce jeu de barres"
+            >
+              ×
+            </button>
+          </div>
         </div>
       </td>
     </tr>
@@ -502,6 +516,7 @@ export function ElementTable({
   elements,
   onEdit,
   onDelete,
+  onAddElementUnderJdb,
   onReorder,
   onFieldUpdate,
 }: ElementTableProps) {
@@ -557,7 +572,7 @@ export function ElementTable({
                   title="Puiss. Utilisée = P.totale × Ks × Ku × FP"
                 >
                   Puiss. Utilisée (W)
-                  <span className="opacity-70">ℹ</span>
+                  
                 </span>
               </th>
               <th className="px-3 py-3 w-20">Actions</th>
@@ -571,7 +586,11 @@ export function ElementTable({
               {elements.map((element) => (
                 <Fragment key={element.id}>
                   {element.type === 'jeu_de_barres' ? (
-                    <JeuDeBarresRow element={element} onDelete={onDelete} />
+                    <JeuDeBarresRow
+                      element={element}
+                      onDelete={onDelete}
+                      onAddElement={onAddElementUnderJdb}
+                    />
                   ) : (
                     <SortableDataRow
                       element={element}

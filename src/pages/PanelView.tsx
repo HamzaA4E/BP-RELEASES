@@ -6,7 +6,11 @@ import { ElementTable } from '@/components/ElementTable';
 import { AddElementModal } from '@/components/AddElementModal';
 import { AddJdbModal } from '@/components/AddJdbModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { normalizeElement, isJeuDeBarres } from '@/utils/elementHelpers';
+import {
+  normalizeElement,
+  isJeuDeBarres,
+  getInsertIndexAfterJdbSection,
+} from '@/utils/elementHelpers';
 import {
   panelInstalledPower,
   panelUsedPower,
@@ -64,6 +68,7 @@ export function PanelView() {
   const [showAddElement, setShowAddElement] = useState(false);
   const [showAddJdb, setShowAddJdb] = useState(false);
   const [editElement, setEditElement] = useState<Element | null>(null);
+  const [contextJdb, setContextJdb] = useState<Element | null>(null);
   const [deleteElementId, setDeleteElementId] = useState<number | null>(null);
 
   const refreshElements = useCallback(async () => {
@@ -110,7 +115,7 @@ export function PanelView() {
   };
 
   const createElementFromPayload = async (data: ElementSavePayload) => {
-    await window.bilpow.elements.create({
+    return window.bilpow.elements.create({
       panel_id: panId,
       type: data.type,
       repere: data.repere,
@@ -126,27 +131,59 @@ export function PanelView() {
     });
   };
 
+  const insertElementInSection = async (
+    created: Element,
+    jdb: Element | null
+  ) => {
+    if (!jdb) return;
+    const insertAt = getInsertIndexAfterJdbSection(elements, jdb.id);
+    const ids = elements.map((e) => e.id);
+    const withoutNew = ids.filter((id) => id !== created.id);
+    withoutNew.splice(insertAt, 0, created.id);
+    await window.bilpow.elements.reorder(panId, withoutNew);
+  };
+
   const handleSaveElement = async (data: ElementSavePayload) => {
     if (editElement && editElement.type !== 'jeu_de_barres') {
       await window.bilpow.elements.update({ id: editElement.id, ...data });
       toast.success('Élément mis à jour');
     } else {
-      await createElementFromPayload(data);
+      const created = await createElementFromPayload(data);
+      await insertElementInSection(created, contextJdb);
       toast.success('Élément ajouté');
     }
+    setContextJdb(null);
     await refreshElements();
     const pnl = await window.bilpow.panels.getByLocation(lId);
     setPanels(pnl);
   };
 
   const handleSaveMultiple = async (items: ElementSavePayload[]) => {
+    let insertAt = contextJdb
+      ? getInsertIndexAfterJdbSection(elements, contextJdb.id)
+      : elements.length;
+    const orderedIds = elements.map((e) => e.id);
+
     for (const item of items) {
-      await createElementFromPayload(item);
+      const created = await createElementFromPayload(item);
+      orderedIds.splice(insertAt, 0, created.id);
+      insertAt++;
     }
+
+    if (contextJdb) {
+      await window.bilpow.elements.reorder(panId, orderedIds);
+    }
+    setContextJdb(null);
     toast.success(`${items.length} éléments ajoutés avec succès`);
     await refreshElements();
     const pnl = await window.bilpow.panels.getByLocation(lId);
     setPanels(pnl);
+  };
+
+  const handleAddElementUnderJdb = (jdb: Element) => {
+    setEditElement(null);
+    setContextJdb(jdb);
+    setShowAddElement(true);
   };
 
   const handleFieldUpdate = async (
@@ -246,6 +283,7 @@ export function PanelView() {
               type="button"
               onClick={() => {
                 setEditElement(null);
+                setContextJdb(null);
                 setShowAddElement(true);
               }}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-sm font-medium transition-all shadow-sm"
@@ -260,10 +298,12 @@ export function PanelView() {
           elements={elements}
           onEdit={(el) => {
             if (el.type === 'jeu_de_barres') return;
+            setContextJdb(null);
             setEditElement(el);
             setShowAddElement(true);
           }}
           onDelete={setDeleteElementId}
+          onAddElementUnderJdb={handleAddElementUnderJdb}
           onReorder={handleReorder}
           onFieldUpdate={handleFieldUpdate}
         />
@@ -276,9 +316,11 @@ export function PanelView() {
         existingElements={elements}
         favorites={favorites}
         editElement={editElement}
+        contextJdb={contextJdb}
         onClose={() => {
           setShowAddElement(false);
           setEditElement(null);
+          setContextJdb(null);
         }}
         onSave={handleSaveElement}
         onSaveMultiple={handleSaveMultiple}
