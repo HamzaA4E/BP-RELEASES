@@ -118,7 +118,7 @@ export function SettingsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           {/* Left column — form */}
           <div className="lg:col-span-3 space-y-6">
-            <section className="card p-5">
+            {/* <section className="card p-5">
               <h2 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
                 <span>🏢</span> Informations de la société
               </h2>
@@ -208,7 +208,7 @@ export function SettingsPage() {
                     ? '✓ Enregistré'
                     : 'Enregistrer les informations'}
               </button>
-            </section>
+            </section> */}
 
             <section className="card p-5">
               <h2 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
@@ -303,7 +303,7 @@ export function SettingsPage() {
                       BILAN DE PUISSANCE — NOM DU PROJET — RDC
                     </p>
                   </div>
-                  <div className="w-[32%] flex flex-col justify-center items-end p-2 text-right">
+                  {/* <div className="w-[32%] flex flex-col justify-center items-end p-2 text-right">
                     <p className="text-white font-bold text-[11px] leading-tight">
                       {settings.company_name || 'Nom de la société'}
                     </p>
@@ -317,12 +317,12 @@ export function SettingsPage() {
                       {settings.email && <p>✉ {settings.email}</p>}
                       {settings.website && <p>🌐 {settings.website}</p>}
                     </div>
-                  </div>
+                  </div> */}
                 </div>
 
                 <div className="bg-blue-100 dark:bg-blue-900/30 px-2 py-1 text-center">
                   <p className="text-[9px] text-slate-600 dark:text-slate-300 italic">
-                    Ingénieur : — | Date : {new Date().toLocaleDateString('fr-FR')}
+                    Date : {new Date().toLocaleDateString('fr-FR')}
                   </p>
                 </div>
 

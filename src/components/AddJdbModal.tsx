@@ -8,11 +8,34 @@ interface AddJdbModalProps {
   onSuccess: () => void;
 }
 
+const CATEGORY_OPTIONS: Array<{
+  value: JdbCategory;
+  label: string;
+  icon: string;
+  desc: string;
+}> = [
+  {
+    value: 'eclairage',
+    label: 'Éclairage',
+    icon: '💡',
+    desc: 'Éclairage uniquement',
+  },
+  {
+    value: 'prise',
+    label: 'Prise',
+    icon: '🔌',
+    desc: 'Prise + Attente',
+  },
+];
+
 export function AddJdbModal({ panelId, onClose, onSuccess }: AddJdbModalProps) {
   const [designation, setDesignation] = useState('');
-  const [category, setCategory] = useState<JdbCategory>(null);
+  const [category, setCategory] = useState<JdbCategory>('eclairage');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const categoryLabel =
+    category === 'eclairage' ? 'Éclairage' : 'Prise de courant';
 
   const handleSubmit = async () => {
     if (!designation.trim()) {
@@ -31,7 +54,7 @@ export function AddJdbModal({ panelId, onClose, onSuccess }: AddJdbModalProps) {
         quantity: 1,
         distance_m: 0,
         phase_type: 'mono',
-        jdb_category: category ?? undefined,
+        jdb_category: category,
         coef_ks: 1,
         coef_ku: 1,
         coef_fp: 1,
@@ -100,31 +123,15 @@ export function AddJdbModal({ panelId, onClose, onSuccess }: AddJdbModalProps) {
 
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Catégorie (optionnel)
+              Catégorie *
             </label>
             <p className="text-xs text-slate-500 mb-2">
-              Restreint les éléments pouvant être ajoutés sous ce jeu de barres
+              Définit les types d&apos;éléments autorisés sous ce jeu de barres
             </p>
-            <div className="grid grid-cols-3 gap-2">
-              {(
-                [
-                  { value: null as JdbCategory, label: 'Mixte', icon: '⚡', desc: 'Tous types' },
-                  {
-                    value: 'eclairage' as JdbCategory,
-                    label: 'Éclairage',
-                    icon: '💡',
-                    desc: 'Éclairage uniquement',
-                  },
-                  {
-                    value: 'prise' as JdbCategory,
-                    label: 'Prise',
-                    icon: '🔌',
-                    desc: 'Prise + Attente',
-                  },
-                ] as const
-              ).map((opt) => (
+            <div className="grid grid-cols-2 gap-2">
+              {CATEGORY_OPTIONS.map((opt) => (
                 <button
-                  key={opt.label}
+                  key={opt.value}
                   type="button"
                   onClick={() => setCategory(opt.value)}
                   className={`flex flex-col items-center gap-1 px-2 py-3 rounded-xl border-2 text-sm transition-all ${
@@ -156,21 +163,12 @@ export function AddJdbModal({ panelId, onClose, onSuccess }: AddJdbModalProps) {
                       {designation || 'Désignation du jeu de barres'}
                     </p>
                     <p className="text-white/60 text-xs">
-                      Jeu de barres ·{' '}
-                      {category === 'eclairage'
-                        ? 'Éclairage'
-                        : category === 'prise'
-                          ? 'Prise de courant'
-                          : 'Mixte'}
+                      Jeu de barres · {categoryLabel}
                     </p>
                   </div>
                 </div>
                 <span className="shrink-0 text-xs font-medium uppercase tracking-wider text-white/80 bg-white/10 px-2 py-0.5 rounded">
-                  {category === 'eclairage'
-                    ? 'Éclairage'
-                    : category === 'prise'
-                      ? 'Prise'
-                      : 'Mixte'}
+                  {category === 'eclairage' ? 'Éclairage' : 'Prise'}
                 </span>
               </div>
               <div className="px-4 py-2 bg-slate-50 dark:bg-gray-900/50 text-xs text-slate-400 italic">

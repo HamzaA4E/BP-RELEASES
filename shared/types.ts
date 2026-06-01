@@ -1,13 +1,18 @@
 export type ElementType = 'eclairage' | 'prise' | 'attente' | 'jeu_de_barres';
 export type ElementRowKind = 'element' | 'bar_set';
 export type PhaseType = 'mono' | 'tri';
-export type JdbCategory = 'eclairage' | 'prise' | null;
+export type JdbCategory = 'eclairage' | 'prise';
+
+export function resolveJdbCategory(
+  category: JdbCategory | null | undefined
+): JdbCategory {
+  return category === 'prise' ? 'prise' : 'eclairage';
+}
 
 export interface Project {
   id: number;
   name: string;
   client: string | null;
-  engineer: string | null;
   description: string | null;
   created_at: string;
   updated_at: string;
@@ -58,7 +63,7 @@ export interface Element {
   row_kind: ElementRowKind;
   bar_set_index: number;
   phase_type: PhaseType;
-  jdb_category: JdbCategory;
+  jdb_category: JdbCategory | null;
   power_w: number;
   quantity: number;
   distance_m: number;
@@ -84,7 +89,6 @@ export interface Favorite {
 export interface CreateProjectInput {
   name: string;
   client?: string;
-  engineer?: string;
   description?: string;
 }
 
@@ -92,7 +96,6 @@ export interface UpdateProjectInput {
   id: number;
   name?: string;
   client?: string;
-  engineer?: string;
   description?: string;
 }
 
@@ -129,7 +132,7 @@ export interface CreateElementInput {
   row_kind?: ElementRowKind;
   bar_set_index?: number;
   phase_type?: PhaseType;
-  jdb_category?: JdbCategory;
+  jdb_category?: JdbCategory | null;
   power_w: number;
   quantity: number;
   distance_m?: number;
@@ -150,7 +153,7 @@ export interface UpdateElementInput {
   type_label?: string;
   emplacement?: string;
   phase_type?: PhaseType;
-  jdb_category?: JdbCategory;
+  jdb_category?: JdbCategory | null;
   power_w?: number;
   quantity?: number;
   distance_m?: number;

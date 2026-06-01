@@ -1,4 +1,5 @@
 import type { Element, ElementType, JdbCategory } from '@/types';
+import { resolveJdbCategory } from '@/types';
 import { defaultCoefsForType } from '@/utils/calculations';
 
 export function isJeuDeBarres(element: Element): boolean {
@@ -40,9 +41,8 @@ export function jeuDeBarresTitle(element: Element): string {
 }
 
 export function jdbCategoryLabel(category: JdbCategory | null | undefined): string {
-  if (category === 'eclairage') return 'Éclairage';
-  if (category === 'prise') return 'Prise de courant';
-  return 'Mixte';
+  const resolved = resolveJdbCategory(category);
+  return resolved === 'eclairage' ? 'Éclairage' : 'Prise de courant';
 }
 
 export function displayEmplacement(element: Element): string {
@@ -78,20 +78,17 @@ export function getInsertIndexAfterJdbSection(
 export function defaultElementTypeForJdb(
   jdb: Element
 ): Exclude<ElementType, 'jeu_de_barres'> {
-  if (jdb.jdb_category === 'eclairage') return 'eclairage';
-  if (jdb.jdb_category === 'prise') return 'prise';
-  return 'eclairage';
+  return resolveJdbCategory(jdb.jdb_category) === 'prise' ? 'prise' : 'eclairage';
 }
 
 export function isTypeAllowedUnderJdb(
   elementType: ElementType,
   jdb: Element | null
 ): boolean {
-  if (!jdb || !jdb.jdb_category) return true;
-  if (jdb.jdb_category === 'eclairage') return elementType === 'eclairage';
-  if (jdb.jdb_category === 'prise')
-    return elementType === 'prise' || elementType === 'attente';
-  return true;
+  if (!jdb) return true;
+  const category = resolveJdbCategory(jdb.jdb_category);
+  if (category === 'eclairage') return elementType === 'eclairage';
+  return elementType === 'prise' || elementType === 'attente';
 }
 
 export function normalizeElement(raw: Element): Element {
@@ -114,7 +111,7 @@ export function normalizeElement(raw: Element): Element {
     emplacement: raw.emplacement ?? '',
     bar_set_index: raw.bar_set_index ?? 0,
     phase_type,
-    jdb_category: raw.jdb_category ?? null,
+    jdb_category: isJdb ? resolveJdbCategory(raw.jdb_category) : null,
     ku: raw.ku ?? 1,
     ks: raw.ks ?? 1,
     fp: raw.fp ?? 1,

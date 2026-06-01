@@ -1,5 +1,11 @@
 import { getDatabase } from './db';
-import type { ElementRowKind, ElementType, JdbCategory, PhaseType } from '../../shared/types';
+import {
+  resolveJdbCategory,
+  type ElementRowKind,
+  type ElementType,
+  type JdbCategory,
+  type PhaseType,
+} from '../../shared/types';
 
 export interface ElementRow {
   id: number;
@@ -12,7 +18,7 @@ export interface ElementRow {
   row_kind: ElementRowKind;
   bar_set_index: number;
   phase_type: PhaseType;
-  jdb_category: JdbCategory;
+  jdb_category: JdbCategory | null;
   power_w: number;
   quantity: number;
   distance_m: number;
@@ -103,7 +109,7 @@ function mapRow(raw: RawElementRow): ElementRow {
     row_kind: isJdb ? 'bar_set' : row_kind,
     bar_set_index,
     phase_type,
-    jdb_category: raw.jdb_category ?? null,
+    jdb_category: isJdb ? resolveJdbCategory(raw.jdb_category) : null,
     ku: raw.ku ?? 1,
     ks: raw.ks ?? 1,
     fp: raw.fp ?? 1,
@@ -141,7 +147,7 @@ export function createElement(data: {
   row_kind?: ElementRowKind;
   bar_set_index?: number;
   phase_type?: PhaseType;
-  jdb_category?: JdbCategory;
+  jdb_category?: JdbCategory | null;
   power_w: number;
   quantity: number;
   distance_m?: number;
@@ -194,7 +200,7 @@ export function createElement(data: {
       row_kind,
       bar_set_index: data.bar_set_index ?? 0,
       phase_type,
-      jdb_category: data.jdb_category ?? null,
+      jdb_category: isJdb ? resolveJdbCategory(data.jdb_category) : null,
       power_w: data.power_w,
       quantity: data.quantity,
       distance_m: data.distance_m ?? 0,
@@ -221,7 +227,7 @@ export function updateElement(data: {
   type_label?: string;
   emplacement?: string;
   phase_type?: PhaseType;
-  jdb_category?: JdbCategory;
+  jdb_category?: JdbCategory | null;
   power_w?: number;
   quantity?: number;
   distance_m?: number;

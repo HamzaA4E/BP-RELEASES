@@ -157,7 +157,7 @@ export function duplicatePanel(id: number): PanelRow {
       type_label: el.type_label,
       emplacement: el.emplacement,
       phase_type: el.phase_type,
-      jdb_category: el.jdb_category,
+      jdb_category: el.jdb_category ?? undefined,
       power_w: el.power_w,
       quantity: el.quantity,
       distance_m: el.distance_m,

@@ -5,6 +5,37 @@
   "main": "dist-electron/electron/main.js",
   "author": "BilPow",
   "license": "MIT",
+  "build": {
+    "appId": "com.bilpow.app",
+    "productName": "BilPow",
+    "copyright": "Copyright © 2026 BilPow",
+    "directories": {
+      "output": "dist-installer"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "node_modules/better-sqlite3/build/Release/",
+        "to": "better-sqlite3/",
+        "filter": ["**/*.node"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "public/icon.ico",
+      "signingHashAlgorithms": null,
+      "sign": null
+    }
+  },
   "scripts": {
     "dev": "npm run build:electron && concurrently -n vite,ts,electron -c blue,yellow,green \"vite\" \"npm run watch:electron\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "watch:electron": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",

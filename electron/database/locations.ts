@@ -171,7 +171,10 @@ export function duplicateLocation(id: number): LocationRow {
         type_label,
         emplacement: el.emplacement ?? '',
         phase_type: (el.phase_type as 'mono' | 'tri') ?? 'mono',
-        jdb_category: (el.jdb_category as 'eclairage' | 'prise' | null) ?? null,
+        jdb_category:
+          el.jdb_category === 'eclairage' || el.jdb_category === 'prise'
+            ? el.jdb_category
+            : undefined,
         power_w: el.power_w,
         quantity: el.quantity,
         distance_m: el.distance_m,

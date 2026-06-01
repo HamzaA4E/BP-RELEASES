@@ -85,9 +85,6 @@ function addCoverPage(
     { align: 'center' }
   );
 
-  if (project.engineer) {
-    doc.text(`Ingénieur : ${project.engineer}`, 105, 222, { align: 'center' });
-  }
 }
 
 function addPageHeader(
@@ -135,25 +132,146 @@ function addPageHeader(
   doc.setTextColor(191, 219, 254);
   doc.text(locationName, pageWidth / 2, 12, { align: 'center' });
 
-  const pageInfo = doc.getCurrentPageInfo();
-  doc.setTextColor(191, 219, 254);
-  doc.setFontSize(8);
-  doc.text(`Page ${pageInfo.pageNumber}`, pageWidth - 5, 9, { align: 'right' });
-
   doc.setFillColor(241, 245, 249);
   doc.rect(0, 285, pageWidth, 12, 'F');
   doc.setTextColor(100, 116, 139);
-  doc.setFont('helvetica', 'italic');
-  doc.setFontSize(7.5);
-  doc.text(
-    `Généré par BilPow — ${new Date().toLocaleDateString('fr-FR')}`,
-    15,
-    291
-  );
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const pageInfo = doc.getCurrentPageInfo();
+  doc.text(`Page ${pageInfo.pageNumber}`, pageWidth / 2, 291, { align: 'center' });
   if (company.email) {
-    doc.text(company.email, pageWidth / 2, 291, { align: 'center' });
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7.5);
+    doc.text(company.email, 15, 291);
   }
-  doc.text('Document confidentiel', pageWidth - 15, 291, { align: 'right' });
+}
+
+const COL_WIDTHS = [20, 12, 30, 22, 22, 12, 12, 12, 12, 22, 22];
+
+const TABLE_WIDTH = COL_WIDTHS.reduce((sum, w) => sum + w, 0);
+
+const TABLE_LEFT = (210 - TABLE_WIDTH) / 2;
+
+const TABLE_HEADERS = [
+  'Catégorie',
+  'Repère',
+  'Type',
+  'Désignation',
+  'P.Uniitaire (W)',
+  'Qté',
+  'Ks',
+  'Ku',
+  'FP',
+  'P.Totale (W)',
+  'P.Utile (W)',
+];
+
+const TABLE_HEADER_HEIGHT = 8;
+
+/** Baseline Y to vertically center single-line text in a filled band (jsPDF uses mm). */
+function bandCenterBaselineY(
+  doc: jsPDF,
+  bandTop: number,
+  bandHeight: number
+): number {
+  const fontSizeMm = doc.getFontSize() * 0.352778;
+  return bandTop + bandHeight / 2 + fontSizeMm * 0.3;
+}
+
+function isJeuDeBarresRow(el: {
+  type: string;
+  row_kind?: string;
+}): boolean {
+  return el.type === 'jeu_de_barres' || el.row_kind === 'bar_set';
+}
+
+function jdbCategoryLabelPdf(category: string | null | undefined): string {
+  if (category === 'prise') return 'Prise de courant';
+  return 'Éclairage';
+}
+
+function elementCategoryLabel(el: {
+  type: string;
+  row_kind?: string;
+}): string {
+  if (isJeuDeBarresRow(el)) return 'Jeu de barres';
+  if (el.type === 'eclairage') return 'Éclairage';
+  if (el.type === 'prise') return 'Prise';
+  if (el.type === 'attente') return 'Attente';
+  return el.type;
+}
+
+function calcUsedPower(el: ReturnType<typeof getElementsByPanel>[number]): number {
+  if (el.type === 'attente' || el.type === 'jeu_de_barres') return 0;
+  const ks = el.coef_ks ?? el.ks ?? 1;
+  const ku = el.coef_ku ?? el.ku ?? 1;
+  const fp = el.coef_fp ?? el.fp ?? 1;
+  return Math.round(el.power_w * el.quantity * ks * ku * fp);
+}
+
+function colLeft(colIndex: number): number {
+  let x = TABLE_LEFT;
+  for (let i = 0; i < colIndex; i++) {
+    x += COL_WIDTHS[i]!;
+  }
+  return x;
+}
+
+function colCenterX(colIndex: number): number {
+  return colLeft(colIndex) + COL_WIDTHS[colIndex]! / 2;
+}
+
+function maxCharsForCol(colIndex: number): number {
+  return Math.max(4, Math.floor(COL_WIDTHS[colIndex]! / 1.8));
+}
+
+function drawCenteredCell(
+  doc: jsPDF,
+  text: string,
+  colIndex: number,
+  y: number,
+  maxWidth?: number
+): void {
+  const width = maxWidth ?? COL_WIDTHS[colIndex]! - 2;
+  doc.text(text, colCenterX(colIndex), y, {
+    align: 'center',
+    maxWidth: width,
+  });
+}
+
+function drawTableHeader(doc: jsPDF, y: number): number {
+  doc.setFillColor(30, 58, 95);
+  doc.rect(TABLE_LEFT, y, TABLE_WIDTH, TABLE_HEADER_HEIGHT, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  const textY = bandCenterBaselineY(doc, y, TABLE_HEADER_HEIGHT);
+  TABLE_HEADERS.forEach((h, i) => {
+    drawCenteredCell(doc, h, i, textY);
+  });
+  return y + TABLE_HEADER_HEIGHT + 2;
+}
+
+function drawJeuDeBarresTitleRow(
+  doc: jsPDF,
+  el: ReturnType<typeof getElementsByPanel>[number],
+  y: number
+): number {
+  const title =
+    el.type_label?.trim() || el.designation?.trim() || 'Jeu de barres';
+  const category = jdbCategoryLabelPdf(el.jdb_category);
+  const label = ` ${title}  —  Jeu de barres · ${category}`;
+
+  doc.setFillColor(70, 100, 140);
+  doc.rect(TABLE_LEFT, y - 4, TABLE_WIDTH, 9, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.text(label, TABLE_LEFT + TABLE_WIDTH / 2, y + 1.5, {
+    align: 'center',
+    maxWidth: TABLE_WIDTH - 4,
+  });
+  return y + 9;
 }
 
 function addPanelPage(
@@ -169,62 +287,65 @@ function addPanelPage(
   doc.setTextColor(30, 58, 95);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text(panelName, 15, 24);
+  doc.text(panelName, TABLE_LEFT, 24);
 
-  const startY = 32;
-  const colWidths = [8, 16, 14, 40, 28, 14, 10, 14, 10, 10, 10];
-  const headers = ['N°', 'Cat.', 'Rep.', 'Type', 'Désig.', 'P.(W)', 'Qté', 'Tot.', 'ku', 'ks', 'fp'];
-  let x = 15;
+  let y = drawTableHeader(doc, 32);
+  let dataRowIndex = 0;
 
-  doc.setFillColor(30, 58, 95);
-  doc.rect(15, startY, 183, 8, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
-  headers.forEach((h, i) => {
-    doc.text(h, x + 1, startY + 5.5);
-    x += colWidths[i]!;
-  });
-
-  let y = startY + 10;
-  doc.setTextColor(30, 41, 59);
-  doc.setFont('helvetica', 'normal');
-
-  elements.forEach((el, index) => {
-    if (y > 270) {
+  elements.forEach((el) => {
+    if (y > 268) {
       doc.addPage();
       addPageHeader(doc, company, project, locationName);
-      y = 24;
+      y = drawTableHeader(doc, 24);
     }
 
-    if (index % 2 === 1) {
+    if (isJeuDeBarresRow(el)) {
+      y = drawJeuDeBarresTitleRow(doc, el, y);
+      return;
+    }
+
+    if (dataRowIndex % 2 === 1) {
       doc.setFillColor(248, 249, 250);
-      doc.rect(15, y - 4, 183, 7, 'F');
+      doc.rect(TABLE_LEFT, y - 4, TABLE_WIDTH, 7, 'F');
     }
 
-    const categoryLabel = el.type === 'eclairage' ? 'Écl.' : 'Prise';
-    const rowKind = el.row_kind ?? 'element';
-    const isJdb = el.type === 'jeu_de_barres' || rowKind === 'bar_set';
-    const total = isJdb ? '' : String(el.power_w * el.quantity);
+    const typeLabel =
+      el.type_label ||
+      el.designation ||
+      (el.type === 'prise'
+        ? el.phase_type === 'tri'
+          ? 'Triphasé'
+          : 'Monophasé'
+        : '');
+    const ks = el.coef_ks ?? el.ks ?? 1;
+    const ku = el.coef_ku ?? el.ku ?? 1;
+    const fp = el.coef_fp ?? el.fp ?? 1;
+    const totalEl = el.power_w * el.quantity;
+    const usedEl = calcUsedPower(el);
+
     const row = [
-      String(index + 1),
-      categoryLabel,
+      elementCategoryLabel(el),
       el.repere,
-      (el.type_label || el.designation).slice(0, 22),
-      (el.emplacement ?? '').slice(0, 16),
-      isJdb ? '' : String(el.power_w),
-      isJdb ? '' : String(el.quantity),
-      total,
-      isJdb ? '' : String(el.ku ?? 1),
-      isJdb ? '' : String(el.ks ?? 1),
-      isJdb ? '' : String(el.fp ?? 1),
+      typeLabel,
+      el.emplacement ?? '',
+      String(el.power_w),
+      String(el.quantity),
+      String(ks),
+      String(ku),
+      String(fp),
+      String(totalEl),
+      usedEl > 0 ? String(usedEl) : '—',
     ];
 
-    x = 15;
+    doc.setTextColor(30, 41, 59);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
     row.forEach((cell, i) => {
-      doc.text(cell, x + 1, y);
-      x += colWidths[i]!;
+      const trimmed = cell.slice(0, maxCharsForCol(i));
+      drawCenteredCell(doc, trimmed, i, y);
     });
     y += 7;
+    dataRowIndex++;
   });
 }
 

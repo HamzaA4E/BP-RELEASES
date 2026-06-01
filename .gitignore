@@ -1,8 +1,12 @@
 node_modules/
+dist-installer/
 dist/
+build/
 dist-electron/
 release/
 *.db
+*.exe
+*.asar
 .DS_Store
 Thumbs.db
 *.log

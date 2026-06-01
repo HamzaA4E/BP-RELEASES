@@ -44,17 +44,101 @@ function stripBase64Prefix(b64: string): string {
   return idx >= 0 ? b64.slice(idx + 7) : b64;
 }
 
-interface ProjectInfo {
-  name: string;
-  engineer: string | null;
+/** Strip characters illegal in OOXML shared strings. */
+function sanitizeExcelString(value: string): string {
+  return value
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '')
+    .replace(/[\uD800-\uDFFF]/g, '');
+}
+
+function toCellString(value: string): string {
+  return sanitizeExcelString(value);
+}
+
+function toCellValue(value: string | number): string | number {
+  return typeof value === 'string' ? toCellString(value) : value;
+}
+
+function buildCompanyInfoRichText(
+  company: CompanySettings
+): ExcelJS.CellValue {
+  type RichPart = ExcelJS.RichText;
+  const parts: RichPart[] = [];
+
+  const name = toCellString(company.company_name || '');
+  if (name) {
+    parts.push({
+      text: `${name}\n`,
+      font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 },
+    });
+  }
+  if (company.address) {
+    parts.push({
+      text: `${toCellString(company.address)}\n`,
+      font: { color: { argb: 'FFBFDBFE' }, size: 9 },
+    });
+  }
+  if (company.phone) {
+    parts.push({
+      text: `Tel: ${toCellString(company.phone)}   `,
+      font: { color: { argb: 'FFBFDBFE' }, size: 9 },
+    });
+  }
+  if (company.email) {
+    parts.push({
+      text: `Email: ${toCellString(company.email)}`,
+      font: { color: { argb: 'FFBFDBFE' }, size: 9 },
+    });
+  }
+
+  if (parts.length === 0) return '';
+  return { richText: parts };
+}
+
+function isValidImageBase64(b64: string): boolean {
+  try {
+    const buf = Buffer.from(stripBase64Prefix(b64), 'base64');
+    return buf.length >= 8;
+  } catch {
+    return false;
+  }
+}
+
+function addWorksheetLogo(
+  workbook: ExcelJS.Workbook,
+  worksheet: ExcelJS.Worksheet,
+  company: CompanySettings
+): boolean {
+  if (
+    !company.logo_base64 ||
+    !company.logo_mime ||
+    company.logo_mime === 'image/svg+xml' ||
+    !isValidImageBase64(company.logo_base64)
+  ) {
+    return false;
+  }
+
+  const mime = company.logo_mime.toLowerCase();
+  const ext = mime.includes('png') ? 'png' : 'jpeg';
+  const imageId = workbook.addImage({
+    base64: stripBase64Prefix(company.logo_base64),
+    extension: ext,
+  });
+
+  // tl+ext+editAs on oneCellAnchor is invalid OOXML; use twoCellAnchor (tl+br).
+  worksheet.addImage(imageId, {
+    tl: { col: 0, row: 0 },
+    br: { col: 3, row: 1 },
+    editAs: 'twoCell',
+  } as ExcelJS.ImageRange & { editAs: string });
+  return true;
 }
 
 function addCompanyHeader(
   worksheet: ExcelJS.Worksheet,
   workbook: ExcelJS.Workbook,
   company: CompanySettings,
-  title: string,
-  project: ProjectInfo
+  title: string
 ): { headerRow: number; svgSkipped: boolean } {
   worksheet.getRow(1).height = 55;
   worksheet.getRow(2).height = 16;
@@ -70,34 +154,20 @@ function addCompanyHeader(
     fgColor: { argb: PRIMARY_COLOR },
   };
 
-  const canEmbedLogo =
-    company.logo_base64 &&
-    company.logo_mime &&
-    company.logo_mime !== 'image/svg+xml';
+  const logoEmbedded = addWorksheetLogo(workbook, worksheet, company);
 
-  if (canEmbedLogo) {
-    const ext = company.logo_mime.includes('png') ? 'png' : 'jpeg';
-    const imageId = workbook.addImage({
-      base64: stripBase64Prefix(company.logo_base64),
-      extension: ext,
-    });
-    worksheet.addImage(imageId, {
-      tl: { col: 0, row: 0 },
-      ext: { width: 180, height: 52 },
-      editAs: 'oneCell',
-    });
-  } else {
+  if (!logoEmbedded) {
     if (company.logo_base64 && company.logo_mime === 'image/svg+xml') {
       svgSkipped = true;
     }
-    logoCell.value = company.company_name || 'BilPow';
+    logoCell.value = toCellString(company.company_name || 'BilPow');
     logoCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 14 };
     logoCell.alignment = { vertical: 'middle', horizontal: 'center' };
   }
 
-  worksheet.mergeCells('D1:F1');
+  worksheet.mergeCells('D1:G1');
   const titleCell = worksheet.getCell('D1');
-  titleCell.value = title;
+  titleCell.value = toCellString(title);
   titleCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 13 };
   titleCell.fill = {
     type: 'pattern',
@@ -106,28 +176,9 @@ function addCompanyHeader(
   };
   titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-  worksheet.mergeCells('G1:I1');
-  const infoCell = worksheet.getCell('G1');
-  infoCell.value = {
-    richText: [
-      {
-        text: `${company.company_name || ''}\n`,
-        font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 },
-      },
-      {
-        text: company.address ? `${company.address}\n` : '',
-        font: { color: { argb: 'FFBFDBFE' }, size: 9 },
-      },
-      {
-        text: company.phone ? `Tel: ${company.phone}   ` : '',
-        font: { color: { argb: 'FFBFDBFE' }, size: 9 },
-      },
-      {
-        text: company.email ? `Email: ${company.email}` : '',
-        font: { color: { argb: 'FFBFDBFE' }, size: 9 },
-      },
-    ],
-  };
+  worksheet.mergeCells('H1:K1');
+  const infoCell = worksheet.getCell('H1');
+  infoCell.value = buildCompanyInfoRichText(company);
   infoCell.fill = {
     type: 'pattern',
     pattern: 'solid',
@@ -135,9 +186,11 @@ function addCompanyHeader(
   };
   infoCell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true };
 
-  worksheet.mergeCells('A2:I2');
+  worksheet.mergeCells('A2:K2');
   const subCell = worksheet.getCell('A2');
-  subCell.value = `Ingénieur : ${project.engineer || '—'}   |   Date : ${new Date().toLocaleDateString('fr-FR')}   |   ${company.website || ''}`;
+  subCell.value = toCellString(
+    `Date : ${new Date().toLocaleDateString('fr-FR')}     ${company.website || ''}`
+  );
   subCell.font = { italic: true, size: 9, color: { argb: 'FF475569' } };
   subCell.fill = {
     type: 'pattern',
@@ -205,11 +258,6 @@ export async function exportLocationToExcel(
     });
   }
 
-  const projectInfo: ProjectInfo = {
-    name: project.name,
-    engineer: project.engineer,
-  };
-
   let svgWarning = false;
 
   for (const panelData of panelDataList) {
@@ -225,7 +273,6 @@ export async function exportLocationToExcel(
       breaker: panelData.breaker,
       company,
       sheetTitle,
-      projectInfo,
     });
     if (panelResult.svgSkipped) svgWarning = true;
   }
@@ -253,9 +300,8 @@ function getProjectForLocation(locationId: number) {
 }
 
 function jdbCategoryLabelExcel(category: string | null | undefined): string {
-  if (category === 'eclairage') return 'Éclairage';
   if (category === 'prise') return 'Prise de courant';
-  return 'Mixte';
+  return 'Éclairage';
 }
 
 function isJeuDeBarresRow(el: {
@@ -276,6 +322,24 @@ function elementCategoryLabel(el: {
   return el.type;
 }
 
+function calcUsedPower(el: {
+  type: string;
+  power_w: number;
+  quantity: number;
+  coef_ks?: number;
+  coef_ku?: number;
+  coef_fp?: number;
+  ks?: number;
+  ku?: number;
+  fp?: number;
+}): number {
+  if (el.type === 'attente' || el.type === 'jeu_de_barres') return 0;
+  const ks = el.coef_ks ?? el.ks ?? 1;
+  const ku = el.coef_ku ?? el.ku ?? 1;
+  const fp = el.coef_fp ?? el.fp ?? 1;
+  return Math.round(el.power_w * el.quantity * ks * ku * fp);
+}
+
 function writeJeuDeBarresExcelRow(
   sheet: ExcelJS.Worksheet,
   rowNum: number,
@@ -292,18 +356,16 @@ function writeJeuDeBarresExcelRow(
 
   sheet.mergeCells(rowNum, 1, rowNum, colCount);
   const cell = sheet.getCell(rowNum, 1);
-  cell.value = `⚡  ${title}  —  Jeu de barres · ${category}`;
+  cell.value = toCellString(`${title}  —  Jeu de barres · ${category}`);
   cell.fill = {
     type: 'pattern',
     pattern: 'solid',
     fgColor: { argb: PRIMARY_COLOR },
   };
-  cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+  cell.font = { bold: true, color: { argb: 'FF4A6B8A' }, size: 11 };
   cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
   sheet.getRow(rowNum).height = 26;
-  for (let c = 1; c <= colCount; c++) {
-    applyBorder(sheet.getCell(rowNum, c));
-  }
+  applyBorder(cell);
 }
 
 function createPanelSheet(
@@ -319,7 +381,6 @@ function createPanelSheet(
     breaker: number;
     company: CompanySettings;
     sheetTitle: string;
-    projectInfo: ProjectInfo;
   }
 ): { svgSkipped: boolean } {
   const sheetName = sanitizeSheetName(data.panelName);
@@ -329,28 +390,27 @@ function createPanelSheet(
     sheet,
     workbook,
     data.company,
-    data.sheetTitle,
-    data.projectInfo
+    data.sheetTitle
   );
 
   const headers = [
-    'N°',
-    'Cat.',
+    'Catégorie',
     'Repère',
     'Type',
     'Désignation',
-    'P.unitaire (W)',
+    'P. Unitaire (W)',
     'Qté',
-    'P.totale (W)',
-    'ku',
-    'ks',
-    'fp',
+    'Ks',
+    'Ku',
+    'FP',
+    'P. totale (W)',
+    'P. Utile (W)',
   ];
 
   const headerRowObj = sheet.getRow(headerRow);
   headers.forEach((h, i) => {
     const cell = headerRowObj.getCell(i + 1);
-    cell.value = h;
+    cell.value = toCellString(h);
     cell.fill = {
       type: 'pattern',
       pattern: 'solid',
@@ -363,6 +423,7 @@ function createPanelSheet(
   headerRowObj.height = 28;
 
   let totalPower = 0;
+  let totalUsed = 0;
   let dataRowIndex = 0;
   data.elements.forEach((el, index) => {
     const rowNum = headerRow + 1 + index;
@@ -375,7 +436,9 @@ function createPanelSheet(
 
     const row = sheet.getRow(rowNum);
     const totalEl = el.power_w * el.quantity;
+    const usedEl = calcUsedPower(el);
     totalPower += totalEl;
+    totalUsed += usedEl;
 
     const typeLabel =
       (el as { type_label?: string }).type_label ||
@@ -386,28 +449,28 @@ function createPanelSheet(
           : 'Monophasé'
         : '');
     const emplacement = (el as { emplacement?: string }).emplacement ?? '';
-    const ku = (el as { coef_ku?: number }).coef_ku ?? (el as { ku?: number }).ku ?? 1;
     const ks = (el as { coef_ks?: number }).coef_ks ?? (el as { ks?: number }).ks ?? 1;
+    const ku = (el as { coef_ku?: number }).coef_ku ?? (el as { ku?: number }).ku ?? 1;
     const fp = (el as { coef_fp?: number }).coef_fp ?? (el as { fp?: number }).fp ?? 1;
 
     const values = [
-      dataRowIndex + 1,
       elementCategoryLabel(el),
       el.repere,
       typeLabel,
       emplacement,
       el.power_w,
       el.quantity,
-      totalEl,
-      ku,
       ks,
+      ku,
       fp,
+      totalEl,
+      usedEl > 0 ? usedEl : '',
     ];
     dataRowIndex++;
 
     values.forEach((v, i) => {
       const cell = row.getCell(i + 1);
-      cell.value = v;
+      cell.value = toCellValue(v);
       if (dataRowIndex % 2 === 0) {
         cell.fill = {
           type: 'pattern',
@@ -421,9 +484,11 @@ function createPanelSheet(
 
   const totalRowNum = headerRow + 1 + data.elements.length;
   const totalRow = sheet.getRow(totalRowNum);
+  sheet.mergeCells(totalRowNum, 1, totalRowNum, 9);
   totalRow.getCell(1).value = 'TOTAL';
-  totalRow.getCell(7).value = totalPower;
-  for (let c = 1; c <= COL_COUNT; c++) {
+  totalRow.getCell(10).value = totalPower;
+  totalRow.getCell(11).value = totalUsed;
+  for (const c of [1, 10, 11]) {
     const cell = totalRow.getCell(c);
     cell.fill = {
       type: 'pattern',
@@ -437,29 +502,29 @@ function createPanelSheet(
   const summaryStart = totalRowNum + 2;
   const summaryLines = [
     `Puissance installée totale: ${Math.round(data.installed)} W`,
-    `Puissance absorbée (ks=0.8): ${Math.round(data.absorbed)} W`,
-    `Intensité de calcul: ${Math.round(data.current * 100) / 100} A`,
-    `Disjoncteur général recommandé: ${data.breaker} A`,
+    // `Puissance absorbée (ks=0.8): ${Math.round(data.absorbed)} W`,
+    // `Intensité de calcul: ${Math.round(data.current * 100) / 100} A`,
+    // `Disjoncteur général recommandé: ${data.breaker} A`,
   ];
 
   summaryLines.forEach((line, i) => {
     const cell = sheet.getCell(summaryStart + i, 1);
-    cell.value = line;
+    cell.value = toCellString(line);
     cell.font = { bold: i === summaryLines.length - 1, size: 10 };
   });
 
   sheet.columns = [
-    { width: 5 },
     { width: 10 },
     { width: 10 },
     { width: 28 },
     { width: 22 },
     { width: 12 },
     { width: 6 },
+    { width: 6 },
+    { width: 6 },
+    { width: 6 },
     { width: 12 },
-    { width: 6 },
-    { width: 6 },
-    { width: 6 },
+    { width: 12 },
   ];
 
   sheet.views = [{ state: 'frozen', ySplit: headerRow }];

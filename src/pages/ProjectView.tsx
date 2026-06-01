@@ -23,7 +23,6 @@ export function ProjectView() {
   const [editFields, setEditFields] = useState({
     name: '',
     client: '',
-    engineer: '',
     description: '',
   });
   const [newLocationName, setNewLocationName] = useState('');
@@ -40,7 +39,6 @@ export function ProjectView() {
       setEditFields({
         name: project.name,
         client: project.client ?? '',
-        engineer: project.engineer ?? '',
         description: project.description ?? '',
       });
       const locs = await window.bilpow.locations.getByProject(id);
@@ -135,16 +133,6 @@ export function ProjectView() {
                 value={editFields.client}
                 onChange={(e) => setEditFields((f) => ({ ...f, client: e.target.value }))}
                 onBlur={(e) => void saveField('client', e.target.value)}
-                className="input-field"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Ingénieur</label>
-              <input
-                type="text"
-                value={editFields.engineer}
-                onChange={(e) => setEditFields((f) => ({ ...f, engineer: e.target.value }))}
-                onBlur={(e) => void saveField('engineer', e.target.value)}
                 className="input-field"
               />
             </div>

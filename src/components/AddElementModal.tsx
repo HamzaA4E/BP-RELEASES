@@ -11,6 +11,7 @@ import {
   displayEmplacement,
   displayTypeLabel,
   jeuDeBarresTitle,
+  jdbCategoryLabel,
   getActiveJeuDeBarres,
   isTypeAllowedUnderJdb,
   defaultElementTypeForJdb,
@@ -403,8 +404,8 @@ export function AddElementModal({
               <div className="rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
                 ⚠ Ce type d&apos;élément n&apos;est pas autorisé sous un jeu de barres &quot;
                 {activeJdb ? displayTypeLabel(activeJdb) : ''}&quot; de catégorie &quot;
-                {activeJdb?.jdb_category}&quot;. Changez la catégorie du jeu de barres ou
-                choisissez un autre type.
+                {activeJdb ? jdbCategoryLabel(activeJdb.jdb_category) : ''}&quot;. Choisissez un
+                autre type d&apos;élément.
               </div>
             )}
 

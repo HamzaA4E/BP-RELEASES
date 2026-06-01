@@ -8,7 +8,7 @@ import {
 } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import { getDatabase, closeDatabase } from './database/db';
+import { getDatabase, getDatabasePath, closeDatabase } from './database/db';
 import * as projectsDb from './database/projects';
 import * as locationsDb from './database/locations';
 import * as panelsDb from './database/panels';
@@ -102,7 +102,6 @@ function registerIpcHandlers(): void {
       data: {
         name: string;
         client?: string;
-        engineer?: string;
         description?: string;
       }
     ) => wrapHandler(() => projectsDb.createProject(data))
@@ -115,7 +114,6 @@ function registerIpcHandlers(): void {
         id: number;
         name?: string;
         client?: string;
-        engineer?: string;
         description?: string;
       }
     ) => wrapHandler(() => projectsDb.updateProject(data))
@@ -332,6 +330,11 @@ function registerIpcHandlers(): void {
 }
 
 app.whenReady().then(() => {
+  // Base SQLite dans userData — valide en dev et en production
+  // path.join(app.getPath('userData'), 'bilpow.db') — voir database/db.ts
+  if (isDev) {
+    console.log('[BilPow] Database path:', getDatabasePath());
+  }
   getDatabase();
   registerIpcHandlers();
   createWindow();

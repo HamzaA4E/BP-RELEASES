@@ -4,7 +4,6 @@ export interface ProjectRow {
   id: number;
   name: string;
   client: string | null;
-  engineer: string | null;
   description: string | null;
   created_at: string;
   updated_at: string;
@@ -44,19 +43,17 @@ export function getProjectById(id: number): ProjectRow | undefined {
 export function createProject(data: {
   name: string;
   client?: string;
-  engineer?: string;
   description?: string;
 }): ProjectRow {
   const db = getDatabase();
   const result = db
     .prepare(
-      `INSERT INTO projects (name, client, engineer, description)
-       VALUES (@name, @client, @engineer, @description)`
+      `INSERT INTO projects (name, client, description)
+       VALUES (@name, @client, @description)`
     )
     .run({
       name: data.name,
       client: data.client ?? null,
-      engineer: data.engineer ?? null,
       description: data.description ?? null,
     });
 
@@ -69,7 +66,6 @@ export function updateProject(data: {
   id: number;
   name?: string;
   client?: string;
-  engineer?: string;
   description?: string;
 }): ProjectRow {
   const db = getDatabase();
@@ -80,7 +76,6 @@ export function updateProject(data: {
     `UPDATE projects SET
       name = @name,
       client = @client,
-      engineer = @engineer,
       description = @description,
       updated_at = datetime('now')
     WHERE id = @id`
@@ -88,7 +83,6 @@ export function updateProject(data: {
     id: data.id,
     name: data.name ?? existing.name,
     client: data.client !== undefined ? data.client : existing.client,
-    engineer: data.engineer !== undefined ? data.engineer : existing.engineer,
     description:
       data.description !== undefined ? data.description : existing.description,
   });

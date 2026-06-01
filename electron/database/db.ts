@@ -5,12 +5,34 @@ import fs from 'fs';
 
 let db: Database.Database | null = null;
 
+/** Chemin DB — userData fonctionne en dev et en production (pas __dirname). */
+export function getDatabasePath(): string {
+  return path.join(app.getPath('userData'), 'bilpow.db');
+}
+
+function resolveDatabasePath(): string {
+  const dbPath = getDatabasePath();
+  const legacyPath = path.join(app.getPath('userData'), 'bilpow', 'bilpow.db');
+
+  if (!fs.existsSync(dbPath) && fs.existsSync(legacyPath)) {
+    fs.copyFileSync(legacyPath, dbPath);
+    for (const suffix of ['-wal', '-shm']) {
+      const legacySidecar = `${legacyPath}${suffix}`;
+      if (fs.existsSync(legacySidecar)) {
+        fs.copyFileSync(legacySidecar, `${dbPath}${suffix}`);
+      }
+    }
+    console.log('[BilPow] Base migrée vers', dbPath);
+  }
+
+  return dbPath;
+}
+
 const MIGRATIONS = `
 CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   client TEXT,
-  engineer TEXT,
   description TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
@@ -144,13 +166,7 @@ const RECREATE_ELEMENTS_SQL = `
 export function getDatabase(): Database.Database {
   if (db) return db;
 
-  const userDataPath = app.getPath('userData');
-  const dbDir = path.join(userDataPath, 'bilpow');
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
-  }
-
-  const dbPath = path.join(dbDir, 'bilpow.db');
+  const dbPath = resolveDatabasePath();
   db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
@@ -285,6 +301,10 @@ function migrateElementsTable(database: Database.Database): void {
     `UPDATE elements SET jdb_category = 'prise'
      WHERE type = 'jeu_de_barres' AND jdb_category IS NULL
        AND (designation LIKE '%Prise%' OR type_label LIKE '%Prise%')`
+  );
+  database.exec(
+    `UPDATE elements SET jdb_category = 'eclairage'
+     WHERE type = 'jeu_de_barres' AND jdb_category IS NULL`
   );
 }
 

@@ -34,7 +34,7 @@ import {
 /** drag + Cat + Repère + Type + Désignation + Puiss + Qté + Ks + Ku + FP + P.totale + Puiss.utilisée + Actions */
 const TOTAL_COLUMN_COUNT = 13;
 
-type EditableField = 'emplacement' | 'power_w' | 'repere' | 'quantity';
+type EditableField = 'emplacement' | 'power_w' | 'repere' | 'quantity' | 'type_label';
 
 type CoefField = 'coef_ks' | 'coef_ku' | 'coef_fp';
 
@@ -283,10 +283,16 @@ function JeuDeBarresRow({
   element,
   onDelete,
   onAddElement,
+  onFieldUpdate,
+  editingField,
+  setEditingField,
 }: {
   element: Element;
   onDelete: (id: number) => void;
   onAddElement: (jdb: Element) => void;
+  onFieldUpdate: ElementTableProps['onFieldUpdate'];
+  editingField: { id: number; field: EditableField | CoefField } | null;
+  setEditingField: (v: { id: number; field: EditableField | CoefField } | null) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: element.id });
@@ -315,11 +321,24 @@ function JeuDeBarresRow({
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/15 text-base">
               ⚡
             </span>
-            <div className="min-w-0">
-              <p className="text-white font-semibold text-sm tracking-wide truncate">
-                {title}
-              </p>
-              <p className="text-white/60 text-xs mt-0.5">
+            <div className="min-w-0 flex-1">
+              <InlineTextCell
+                elementId={element.id}
+                field="type_label"
+                value={title}
+                editingField={editingField}
+                setEditingField={setEditingField}
+                onCommit={(v) =>
+                  void onFieldUpdate(
+                    element.id,
+                    'type_label',
+                    v.trim() || 'Jeu de barres'
+                  )
+                }
+                className="block text-white font-semibold text-sm tracking-wide truncate hover:bg-white/15 hover:text-white px-2 py-0.5 rounded"
+                inputClassName="w-full min-w-[12rem] bg-white/20 text-white border border-white/40 rounded px-2 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/50"
+              />
+              <p className="text-white/60 text-xs mt-0.5 px-2">
                 Jeu de barres · {categoryLabel}
               </p>
             </div>
@@ -554,7 +573,7 @@ export function ElementTable({
               <th className="px-3 py-3">Repère</th>
               <th className="px-3 py-3 min-w-[100px]">Type</th>
               <th className="px-3 py-3 min-w-[100px]">Désignation</th>
-              <th className="px-3 py-3 text-right">Puiss. (W)</th>
+              <th className="px-3 py-3 text-right">P. Uniitaire (W)</th>
               <th className="px-3 py-3 text-center">Qté</th>
               <th className="px-3 py-3 text-center w-14" title="Coefficient de simultanéité">
                 Ks
@@ -571,7 +590,7 @@ export function ElementTable({
                   className="inline-flex items-center gap-1"
                   title="Puiss. Utilisée = P.totale × Ks × Ku × FP"
                 >
-                  Puiss. Utilisée (W)
+                  P. Utile (W)
                   
                 </span>
               </th>
@@ -590,6 +609,9 @@ export function ElementTable({
                       element={element}
                       onDelete={onDelete}
                       onAddElement={onAddElementUnderJdb}
+                      onFieldUpdate={onFieldUpdate}
+                      editingField={editingField}
+                      setEditingField={setEditingField}
                     />
                   ) : (
                     <SortableDataRow
