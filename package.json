@@ -21,14 +21,26 @@
       {
         "from": "node_modules/better-sqlite3/build/Release/",
         "to": "better-sqlite3/",
-        "filter": ["**/*.node"]
+        "filter": [
+          "**/*.node"
+        ]
+      }
+    ],
+    "fileAssociations": [
+      {
+        "ext": "bilpow",
+        "name": "Projet BilPow",
+        "description": "Fichier de projet BilPow",
+        "role": "Editor"
       }
     ],
     "win": {
       "target": [
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "public/icon.ico",
@@ -52,6 +64,7 @@
     "better-sqlite3": "^11.7.0",
     "exceljs": "^4.4.0",
     "jspdf": "^4.2.1",
+    "lucide-react": "^0.468.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.4.1",

@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Share2, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
+import { ShareExportModal } from '@/components/ShareExportModal';
 import { formatPower } from '@/utils/calculations';
 import { exportProjectToPdf } from '@/utils/export';
 
@@ -20,6 +22,11 @@ export function ProjectView() {
   } = useAppStore();
 
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingShare, setExportingShare] = useState(false);
+  const [shareModal, setShareModal] = useState<{
+    projectName: string;
+    filePath: string;
+  } | null>(null);
   const [editFields, setEditFields] = useState({
     name: '',
     client: '',
@@ -79,6 +86,25 @@ export function ProjectView() {
       toast.success('Localisation ajoutée');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleExportShare = async () => {
+    setExportingShare(true);
+    try {
+      const result = await window.bilpow.project.export(id);
+      if (result.success && result.filePath) {
+        setShareModal({
+          projectName: currentProject?.name ?? 'projet',
+          filePath: result.filePath,
+        });
+      } else if (result.error && result.error !== 'Export annulé') {
+        toast.error(result.error);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur d'export");
+    } finally {
+      setExportingShare(false);
     }
   };
 
@@ -155,7 +181,25 @@ export function ProjectView() {
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
             Localisations ({locations.length})
           </h2>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => void handleExportShare()}
+              disabled={exportingShare}
+              className="btn-outline text-sm py-2"
+            >
+              {exportingShare ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Export...
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-4 h-4" />
+                  Partager
+                </>
+              )}
+            </button>
             <button
               type="button"
               onClick={() => void handleExportPdf()}
@@ -229,6 +273,15 @@ export function ProjectView() {
               </div>
             </div>
           </div>
+        )}
+
+        {shareModal && (
+          <ShareExportModal
+            isOpen
+            projectName={shareModal.projectName}
+            filePath={shareModal.filePath}
+            onClose={() => setShareModal(null)}
+          />
         )}
       </div>
     </div>

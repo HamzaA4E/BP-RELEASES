@@ -17,6 +17,12 @@ import * as favoritesDb from './database/favorites';
 import { getCompanySettings, saveCompanySettings } from './database/settings';
 import { exportLocationToExcel } from './export/excelExport';
 import { exportProjectToPdf } from './export/pdfExport';
+import {
+  exportProjectForBilpow,
+  importProjectFromBilpow,
+  validateBilpowElements,
+} from './database/projectShare';
+import { isBilpowFile } from '../shared/bilpow';
 import type {
   CompanySettings,
   UpdateCompanySettingsInput,
@@ -27,6 +33,35 @@ import type {
 const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow: BrowserWindow | null = null;
+let pendingBilpowImportPath: string | null = null;
+
+function sanitizeFileName(name: string): string {
+  return name.replace(/[<>:"/\\|?*]/g, '_').trim() || 'projet';
+}
+
+function findBilpowArgPath(argv: string[]): string | null {
+  for (const arg of argv) {
+    if (arg.toLowerCase().endsWith('.bilpow') && fs.existsSync(arg)) {
+      return path.resolve(arg);
+    }
+  }
+  return null;
+}
+
+function scheduleAutoImport(filePath: string): void {
+  const send = (): void => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('auto-import', filePath);
+    }
+  };
+  if (mainWindow?.webContents.isLoading()) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      setTimeout(send, 1500);
+    });
+  } else {
+    setTimeout(send, 1500);
+  }
+}
 
 function createWindow(): void {
   const isMac = process.platform === 'darwin';
@@ -327,6 +362,78 @@ function registerIpcHandlers(): void {
   ipcMain.handle('shell:openPath', (_e, filePath: string) =>
     shell.openPath(filePath)
   );
+
+  ipcMain.handle('project:export', async (_e, projectId: number) => {
+    try {
+      const data = exportProjectForBilpow(projectId);
+      const defaultName = `${sanitizeFileName(data.project.name)}.bilpow`;
+
+      const { filePath, canceled } = await dialog.showSaveDialog({
+        title: 'Exporter le projet pour partage',
+        defaultPath: defaultName,
+        filters: [{ name: 'Projet BilPow', extensions: ['bilpow'] }],
+      });
+
+      if (canceled || !filePath) {
+        return { success: false, error: 'Export annulé' };
+      }
+
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      shell.showItemInFolder(filePath);
+      return { success: true, filePath };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      console.error('[project:export]', message);
+      return { success: false, error: message };
+    }
+  });
+
+  ipcMain.handle('project:import', async (_e, filePathArg?: string) => {
+    try {
+      let filePath = filePathArg;
+
+      if (!filePath) {
+        const { filePaths, canceled } = await dialog.showOpenDialog({
+          title: 'Importer un projet BilPow',
+          filters: [{ name: 'Projet BilPow', extensions: ['bilpow'] }],
+          properties: ['openFile'],
+        });
+        if (canceled || filePaths.length === 0) {
+          return { success: false, error: 'Import annulé' };
+        }
+        filePath = filePaths[0];
+      }
+
+      if (!filePath || !fs.existsSync(filePath)) {
+        return { success: false, error: 'Fichier introuvable' };
+      }
+
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const parsed: unknown = JSON.parse(raw);
+
+      if (!isBilpowFile(parsed)) {
+        return {
+          success: false,
+          error: "Fichier invalide — ce n'est pas un fichier BilPow.",
+        };
+      }
+
+      if (!parsed.project?.name) {
+        return {
+          success: false,
+          error: 'Fichier invalide — données de projet manquantes.',
+        };
+      }
+
+      validateBilpowElements(parsed.locations ?? []);
+      const { projectId, projectName } = importProjectFromBilpow(parsed);
+      return { success: true, projectId, projectName };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      console.error('[project:import]', message);
+      return { success: false, error: message };
+    }
+  });
 }
 
 app.whenReady().then(() => {
@@ -335,9 +442,17 @@ app.whenReady().then(() => {
   if (isDev) {
     console.log('[BilPow] Database path:', getDatabasePath());
   }
+
+  pendingBilpowImportPath = findBilpowArgPath(process.argv);
+
   getDatabase();
   registerIpcHandlers();
   createWindow();
+
+  if (pendingBilpowImportPath) {
+    scheduleAutoImport(pendingBilpowImportPath);
+    pendingBilpowImportPath = null;
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

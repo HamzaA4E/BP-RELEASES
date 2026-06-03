@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { Layout } from '@/components/Layout';
 import { Dashboard } from '@/pages/Dashboard';
 import { ProjectView } from '@/pages/ProjectView';
@@ -8,6 +9,29 @@ import { PanelView } from '@/pages/PanelView';
 import { Favorites } from '@/pages/Favorites';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { useAppStore } from '@/store/useAppStore';
+import { importBilpowProject } from '@/utils/projectShare';
+
+function AutoImportListener() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsubscribe = window.bilpow.project.onAutoImport((filePath) => {
+      void (async () => {
+        try {
+          const ok = await importBilpowProject(filePath);
+          if (ok) {
+            navigate('/');
+          }
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Erreur d'import");
+        }
+      })();
+    });
+    return unsubscribe;
+  }, [navigate]);
+
+  return null;
+}
 
 export default function App() {
   const { darkMode, setProjects, loadCompanySettings } = useAppStore();
@@ -34,6 +58,7 @@ export default function App() {
 
   return (
     <HashRouter>
+      <AutoImportListener />
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Dashboard />} />

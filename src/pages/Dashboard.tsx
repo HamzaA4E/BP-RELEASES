@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Share2, Download, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ShareExportModal } from '@/components/ShareExportModal';
 import { formatPower } from '@/utils/calculations';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { importBilpowProject } from '@/utils/projectShare';
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -15,6 +18,12 @@ export function Dashboard() {
   const [newName, setNewName] = useState('');
   const [newClient, setNewClient] = useState('');
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [exportingId, setExportingId] = useState<number | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [shareModal, setShareModal] = useState<{
+    projectName: string;
+    filePath: string;
+  } | null>(null);
 
   const loadProjects = async () => {
     try {
@@ -85,6 +94,34 @@ export function Dashboard() {
     setDeleteId(null);
   };
 
+  const handleExport = async (projectId: number, projectName: string) => {
+    setExportingId(projectId);
+    try {
+      const result = await window.bilpow.project.export(projectId);
+      if (result.success && result.filePath) {
+        setShareModal({ projectName, filePath: result.filePath });
+      } else if (result.error && result.error !== 'Export annulé') {
+        toast.error(result.error);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur d'export");
+    } finally {
+      setExportingId(null);
+    }
+  };
+
+  const handleImport = async (filePath?: string) => {
+    setImporting(true);
+    try {
+      const ok = await importBilpowProject(filePath);
+      if (ok) await loadProjects();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur d'import");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('fr-FR', {
       day: '2-digit',
@@ -96,7 +133,7 @@ export function Dashboard() {
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-bold text-primary dark:text-white">
               Tableau de bord
@@ -105,9 +142,24 @@ export function Dashboard() {
               Gérez vos projets de bilan de puissance
             </p>
           </div>
-          <button type="button" onClick={() => setShowNewProject(true)} className="btn-primary">
-            + Nouveau projet
-          </button>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => void handleImport()}
+              disabled={importing}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              {importing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              {importing ? 'Import...' : 'Importer (.bilpow)'}
+            </button>
+            <button type="button" onClick={() => setShowNewProject(true)} className="btn-primary">
+              + Nouveau projet
+            </button>
+          </div>
         </div>
 
         <div className="mb-6">
@@ -148,13 +200,31 @@ export function Dashboard() {
                 <p className="text-xs text-gray-400 mb-4">
                   Créé le {formatDate(project.created_at)}
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => void openProject(project.id)}
-                    className="btn-primary flex-1 text-xs py-1.5"
+                    className="btn-primary flex-1 min-w-[80px] text-xs py-1.5"
                   >
                     Ouvrir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleExport(project.id, project.name)}
+                    disabled={exportingId === project.id}
+                    className="btn-outline flex-1 min-w-[80px]"
+                  >
+                    {exportingId === project.id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Export...
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="w-3.5 h-3.5" />
+                        Partager
+                      </>
+                    )}
                   </button>
                   <button
                     type="button"
@@ -220,6 +290,15 @@ export function Dashboard() {
         onConfirm={() => void handleDelete()}
         onCancel={() => setDeleteId(null)}
       />
+
+      {shareModal && (
+        <ShareExportModal
+          isOpen
+          projectName={shareModal.projectName}
+          filePath={shareModal.filePath}
+          onClose={() => setShareModal(null)}
+        />
+      )}
     </div>
   );
 }

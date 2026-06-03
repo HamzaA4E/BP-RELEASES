@@ -1,4 +1,8 @@
 import type {
+  ProjectExportResult,
+  ProjectImportResult,
+} from '../shared/bilpow';
+import type {
   Project,
   ProjectWithStats,
   Location,
@@ -80,6 +84,11 @@ export interface BilPowAPI {
   };
   shell: {
     openPath: (filePath: string) => Promise<string>;
+  };
+  project: {
+    export: (projectId: number) => Promise<ProjectExportResult>;
+    import: (filePath?: string) => Promise<ProjectImportResult>;
+    onAutoImport: (callback: (filePath: string) => void) => () => void;
   };
 }
 

@@ -1,5 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type {
+  ProjectExportResult,
+  ProjectImportResult,
+} from '../shared/bilpow';
+import type {
   Project,
   ProjectWithStats,
   Location,
@@ -112,6 +116,21 @@ const api = {
   shell: {
     openPath: (filePath: string): Promise<string> =>
       invoke('shell:openPath', filePath),
+  },
+  project: {
+    export: (projectId: number): Promise<ProjectExportResult> =>
+      ipcRenderer.invoke('project:export', projectId) as Promise<ProjectExportResult>,
+    import: (filePath?: string): Promise<ProjectImportResult> =>
+      ipcRenderer.invoke('project:import', filePath) as Promise<ProjectImportResult>,
+    onAutoImport: (callback: (filePath: string) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, filePath: string): void => {
+        callback(filePath);
+      };
+      ipcRenderer.on('auto-import', listener);
+      return () => {
+        ipcRenderer.removeListener('auto-import', listener);
+      };
+    },
   },
 };
 
