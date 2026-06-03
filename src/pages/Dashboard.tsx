@@ -4,7 +4,6 @@ import toast from 'react-hot-toast';
 import { Share2, Download, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { ShareExportModal } from '@/components/ShareExportModal';
 import { formatPower } from '@/utils/calculations';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { importBilpowProject } from '@/utils/projectShare';
@@ -20,11 +19,6 @@ export function Dashboard() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [exportingId, setExportingId] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
-  const [shareModal, setShareModal] = useState<{
-    projectName: string;
-    filePath: string;
-  } | null>(null);
-
   const loadProjects = async () => {
     try {
       const data = await window.bilpow.projects.getAll();
@@ -94,12 +88,14 @@ export function Dashboard() {
     setDeleteId(null);
   };
 
-  const handleExport = async (projectId: number, projectName: string) => {
+  const handleExport = async (projectId: number) => {
     setExportingId(projectId);
     try {
       const result = await window.bilpow.project.export(projectId);
       if (result.success && result.filePath) {
-        setShareModal({ projectName, filePath: result.filePath });
+        toast.success(
+          'Fichier enregistré !'
+        );
       } else if (result.error && result.error !== 'Export annulé') {
         toast.error(result.error);
       }
@@ -210,7 +206,7 @@ export function Dashboard() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => void handleExport(project.id, project.name)}
+                    onClick={() => void handleExport(project.id)}
                     disabled={exportingId === project.id}
                     className="btn-outline flex-1 min-w-[80px]"
                   >
@@ -291,14 +287,6 @@ export function Dashboard() {
         onCancel={() => setDeleteId(null)}
       />
 
-      {shareModal && (
-        <ShareExportModal
-          isOpen
-          projectName={shareModal.projectName}
-          filePath={shareModal.filePath}
-          onClose={() => setShareModal(null)}
-        />
-      )}
     </div>
   );
 }

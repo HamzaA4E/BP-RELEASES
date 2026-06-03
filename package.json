@@ -8,6 +8,7 @@
   "build": {
     "appId": "com.bilpow.app",
     "productName": "BilPow",
+    "artifactName": "BilPow.exe",
     "copyright": "Copyright © 2026 BilPow",
     "directories": {
       "output": "dist-installer"

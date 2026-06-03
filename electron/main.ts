@@ -379,7 +379,7 @@ function registerIpcHandlers(): void {
       }
 
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-      shell.showItemInFolder(filePath);
+      // shell.showItemInFolder(filePath);
       return { success: true, filePath };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue';

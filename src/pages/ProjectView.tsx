@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Share2, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
-import { ShareExportModal } from '@/components/ShareExportModal';
 import { formatPower } from '@/utils/calculations';
 import { exportProjectToPdf } from '@/utils/export';
 
@@ -23,10 +22,6 @@ export function ProjectView() {
 
   const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingShare, setExportingShare] = useState(false);
-  const [shareModal, setShareModal] = useState<{
-    projectName: string;
-    filePath: string;
-  } | null>(null);
   const [editFields, setEditFields] = useState({
     name: '',
     client: '',
@@ -94,10 +89,9 @@ export function ProjectView() {
     try {
       const result = await window.bilpow.project.export(id);
       if (result.success && result.filePath) {
-        setShareModal({
-          projectName: currentProject?.name ?? 'projet',
-          filePath: result.filePath,
-        });
+        toast.success(
+          'Fichier enregistré !'
+        );
       } else if (result.error && result.error !== 'Export annulé') {
         toast.error(result.error);
       }
@@ -275,14 +269,6 @@ export function ProjectView() {
           </div>
         )}
 
-        {shareModal && (
-          <ShareExportModal
-            isOpen
-            projectName={shareModal.projectName}
-            filePath={shareModal.filePath}
-            onClose={() => setShareModal(null)}
-          />
-        )}
       </div>
     </div>
   );
