@@ -7,6 +7,7 @@ import { getElementsByPanel } from '../database/elements';
 import { getCompanySettings } from '../database/settings';
 import type { CompanySettings } from '../../shared/types';
 import type { ProjectRow } from '../database/projects';
+import { calcPuissanceUtilisee, resolveElementCoefs } from '../../shared/powerCalculations';
 
 function sanitizeFileName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '_');
@@ -201,14 +202,6 @@ function elementCategoryLabel(el: {
   return el.type;
 }
 
-function calcUsedPower(el: ReturnType<typeof getElementsByPanel>[number]): number {
-  if (el.type === 'attente' || el.type === 'jeu_de_barres') return 0;
-  const ks = el.coef_ks ?? el.ks ?? 1;
-  const ku = el.coef_ku ?? el.ku ?? 1;
-  const fp = el.coef_fp ?? el.fp ?? 1;
-  return Math.round(el.power_w * el.quantity * ks * ku * fp);
-}
-
 function colLeft(colIndex: number): number {
   let x = TABLE_LEFT;
   for (let i = 0; i < colIndex; i++) {
@@ -317,11 +310,9 @@ function addPanelPage(
           ? 'Triphasé'
           : 'Monophasé'
         : '');
-    const ks = el.coef_ks ?? el.ks ?? 1;
-    const ku = el.coef_ku ?? el.ku ?? 1;
-    const fp = el.coef_fp ?? el.fp ?? 1;
+    const { ks, ku, fp } = resolveElementCoefs(el);
     const totalEl = el.power_w * el.quantity;
-    const usedEl = calcUsedPower(el);
+    const usedEl = calcPuissanceUtilisee(el);
 
     const row = [
       elementCategoryLabel(el),

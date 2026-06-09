@@ -44,7 +44,7 @@
           ]
         }
       ],
-      "icon": "public/icon.ico",
+      "icon": "public/logo.ico",
       "signingHashAlgorithms": null,
       "sign": null
     }

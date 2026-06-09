@@ -7,20 +7,16 @@ import { getPanelsByLocation } from '../database/panels';
 import { getElementsByPanel } from '../database/elements';
 import { getCompanySettings } from '../database/settings';
 import type { CompanySettings, ExcelExportResult } from '../../shared/types';
+import {
+  calcPuissanceUtilisee,
+  panelPowerSummary,
+  resolveElementCoefs,
+} from '../../shared/powerCalculations';
 
 const PRIMARY_COLOR = 'FF1E3A5F';
 const ALT_ROW_COLOR = 'FFF8F9FA';
 const TOTAL_ROW_COLOR = 'FFDBEAFE';
 const COL_COUNT = 11;
-
-const STANDARD_BREAKERS = [10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200];
-
-function recommendedBreaker(current: number): number {
-  const breaker = STANDARD_BREAKERS.find((b) => b >= current);
-  return breaker !== undefined
-    ? breaker
-    : STANDARD_BREAKERS[STANDARD_BREAKERS.length - 1]!;
-}
 
 function sanitizeSheetName(name: string): string {
   return name.replace(/[\\/*?:\[\]]/g, '_').slice(0, 31);
@@ -238,23 +234,15 @@ export async function exportLocationToExcel(
 
   for (const panel of panels) {
     const elements = getElementsByPanel(panel.id);
-    const installed = elements
-      .filter((e) => {
-        const el = e as { row_kind?: string; type?: string };
-        return el.type !== 'jeu_de_barres' && el.row_kind !== 'bar_set';
-      })
-      .reduce((s, e) => s + e.power_w * e.quantity, 0);
-    const absorbed = installed * 0.8;
-    const current = absorbed / (230 * 0.8);
-    const breaker = recommendedBreaker(current);
+    const summary = panelPowerSummary(elements);
 
     panelDataList.push({
       panelName: panel.name,
       elements,
-      installed,
-      absorbed,
-      current,
-      breaker,
+      installed: summary.installed,
+      absorbed: summary.used,
+      current: summary.current,
+      breaker: summary.breaker,
     });
   }
 
@@ -320,24 +308,6 @@ function elementCategoryLabel(el: {
   if (el.type === 'prise') return 'Prise';
   if (el.type === 'attente') return 'Attente';
   return el.type;
-}
-
-function calcUsedPower(el: {
-  type: string;
-  power_w: number;
-  quantity: number;
-  coef_ks?: number;
-  coef_ku?: number;
-  coef_fp?: number;
-  ks?: number;
-  ku?: number;
-  fp?: number;
-}): number {
-  if (el.type === 'attente' || el.type === 'jeu_de_barres') return 0;
-  const ks = el.coef_ks ?? el.ks ?? 1;
-  const ku = el.coef_ku ?? el.ku ?? 1;
-  const fp = el.coef_fp ?? el.fp ?? 1;
-  return Math.round(el.power_w * el.quantity * ks * ku * fp);
 }
 
 function writeJeuDeBarresExcelRow(
@@ -436,7 +406,7 @@ function createPanelSheet(
 
     const row = sheet.getRow(rowNum);
     const totalEl = el.power_w * el.quantity;
-    const usedEl = calcUsedPower(el);
+    const usedEl = calcPuissanceUtilisee(el);
     totalPower += totalEl;
     totalUsed += usedEl;
 
@@ -449,9 +419,7 @@ function createPanelSheet(
           : 'Monophasé'
         : '');
     const emplacement = (el as { emplacement?: string }).emplacement ?? '';
-    const ks = (el as { coef_ks?: number }).coef_ks ?? (el as { ks?: number }).ks ?? 1;
-    const ku = (el as { coef_ku?: number }).coef_ku ?? (el as { ku?: number }).ku ?? 1;
-    const fp = (el as { coef_fp?: number }).coef_fp ?? (el as { fp?: number }).fp ?? 1;
+    const { ks, ku, fp } = resolveElementCoefs(el);
 
     const values = [
       elementCategoryLabel(el),

@@ -25,14 +25,14 @@ win:
     - target: nsis
       arch:
         - x64
-  icon: build/icon.ico
+  icon: build/logo.ico
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  installerIcon: build/icon.ico
-  uninstallerIcon: build/icon.ico
-  installerHeaderIcon: build/icon.ico
+  installerIcon: build/logo.ico
+  uninstallerIcon: build/logo.ico
+  installerHeaderIcon: build/logo.ico
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: BilPow
@@ -40,7 +40,7 @@ nsis:
 mac:
   target:
     - dmg
-  icon: build/icon.icns
+  icon: build/logo.icns
   category: public.app-category.productivity
 
 linux:

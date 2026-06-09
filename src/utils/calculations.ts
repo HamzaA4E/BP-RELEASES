@@ -1,11 +1,25 @@
 import type { Element, ElementType, PhaseType } from '@/types';
+import {
+  DEFAULT_COS_PHI,
+  DEFAULT_VOLTAGE,
+  calcPuissanceUtilisee,
+  panelUsedPower,
+  panelInstalledPower,
+  calculationCurrent,
+  recommendedBreakerAmps,
+} from '../../shared/powerCalculations';
 
-export const DEFAULT_COS_PHI = 0.8;
-export const DEFAULT_VOLTAGE = 230;
+export {
+  DEFAULT_COS_PHI,
+  DEFAULT_VOLTAGE,
+  calcPuissanceUtilisee,
+  panelUsedPower,
+  panelInstalledPower,
+  calculationCurrent,
+  recommendedBreakerAmps,
+};
+
 export const DEFAULT_SECTION_MM2 = 2.5;
-export const SIMULTANEITY_COEFFICIENT = 0.8;
-
-const STANDARD_BREAKERS = [10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200] as const;
 
 export function defaultCoefsForType(
   type: ElementType,
@@ -29,20 +43,6 @@ export function defaultCoefsForType(
 
 export function totalInstalledPower(powerW: number, quantity: number): number {
   return powerW * quantity;
-}
-
-export function calcPuissanceUtilisee(element: Element): number {
-  if (element.type === 'attente' || element.type === 'jeu_de_barres') return 0;
-  const puissanceTotale = element.power_w * element.quantity;
-  return Math.round(
-    puissanceTotale * element.coef_ks * element.coef_ku * element.coef_fp
-  );
-}
-
-export function panelUsedPower(elements: Element[]): number {
-  return elements
-    .filter((el) => el.type !== 'jeu_de_barres' && el.type !== 'attente')
-    .reduce((sum, el) => sum + calcPuissanceUtilisee(el), 0);
 }
 
 export function voltageDropPercent(
@@ -69,37 +69,6 @@ export function calculateCableSection(
   sectionMm2: number = DEFAULT_SECTION_MM2
 ): number {
   return voltageDropPercent(distanceM, powerW, quantity, cosPhi, voltageV, sectionMm2);
-}
-
-export function panelInstalledPower(
-  elements: Array<{ power_w: number; quantity: number; type?: string; row_kind?: string }>
-): number {
-  return elements
-    .filter((el) => {
-      if (el.type === 'jeu_de_barres') return false;
-      if (el.row_kind === 'bar_set') return false;
-      return true;
-    })
-    .reduce((sum, el) => sum + el.power_w * el.quantity, 0);
-}
-
-export function panelAbsorbedPower(installedPower: number): number {
-  return installedPower * SIMULTANEITY_COEFFICIENT;
-}
-
-export function calculationCurrent(
-  absorbedPower: number,
-  voltageV: number = DEFAULT_VOLTAGE,
-  cosPhi: number = DEFAULT_COS_PHI
-): number {
-  if (voltageV <= 0 || cosPhi <= 0) return 0;
-  return absorbedPower / (voltageV * cosPhi);
-}
-
-export function recommendedBreakerAmps(current: number): number {
-  const breaker = STANDARD_BREAKERS.find((b) => b >= current);
-  if (breaker !== undefined) return breaker;
-  return STANDARD_BREAKERS[STANDARD_BREAKERS.length - 1] ?? 200;
 }
 
 export function voltageDropColorClass(percent: number): string {

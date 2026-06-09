@@ -1,5 +1,6 @@
 import { getDatabase } from './db';
 import { getElementsByPanel, createElement } from './elements';
+import { panelUsedPower } from '../../shared/powerCalculations';
 import type { ElementType } from '../../shared/types';
 
 export interface PanelRow {
@@ -16,19 +17,6 @@ export interface PanelWithStatsRow extends PanelRow {
   installed_power_w: number;
   absorbed_power_w: number;
   used_power_w: number;
-}
-
-function calcUsedPowerFromElement(el: {
-  type: string;
-  power_w: number;
-  quantity: number;
-  coef_ks: number;
-  coef_ku: number;
-  coef_fp: number;
-}): number {
-  if (el.type === 'attente' || el.type === 'jeu_de_barres') return 0;
-  const puissanceTotale = el.power_w * el.quantity;
-  return Math.round(puissanceTotale * el.coef_ks * el.coef_ku * el.coef_fp);
 }
 
 export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
@@ -51,10 +39,7 @@ export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
 
   return panels.map((p) => {
     const elements = getElementsByPanel(p.id);
-    const used_power_w = elements.reduce(
-      (sum, e) => sum + calcUsedPowerFromElement(e),
-      0
-    );
+    const used_power_w = panelUsedPower(elements);
     return {
       ...p,
       absorbed_power_w: used_power_w,
