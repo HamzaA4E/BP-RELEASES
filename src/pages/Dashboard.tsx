@@ -190,7 +190,7 @@ export function Dashboard() {
                   </p>
                 )}
                 <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400 mb-4">
-                  <span>📍 {project.location_count} loc.</span>
+                  <span>📍 {project.location_count} empl.</span>
                   <span>⚡ {formatPower(project.total_power_w)}</span>
                 </div>
                 <p className="text-xs text-gray-400 mb-4">

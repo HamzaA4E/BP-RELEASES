@@ -7,7 +7,12 @@ import { getElementsByPanel } from '../database/elements';
 import { getCompanySettings } from '../database/settings';
 import type { CompanySettings } from '../../shared/types';
 import type { ProjectRow } from '../database/projects';
-import { calcPuissanceUtilisee, resolveElementCoefs } from '../../shared/powerCalculations';
+import type { ElementRow } from '../database/elements';
+import {
+  calcPuissanceTotale,
+  resolveElementCoefs,
+  formatCoefsLine,
+} from '../../shared/powerCalculations';
 
 function sanitizeFileName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '_');
@@ -85,7 +90,6 @@ function addCoverPage(
     212,
     { align: 'center' }
   );
-
 }
 
 function addPageHeader(
@@ -147,29 +151,26 @@ function addPageHeader(
   }
 }
 
-const COL_WIDTHS = [20, 12, 30, 22, 22, 12, 12, 12, 12, 22, 22];
+const COL_WIDTHS = [20, 32, 22, 12, 12, 12, 12, 22, 22];
 
 const TABLE_WIDTH = COL_WIDTHS.reduce((sum, w) => sum + w, 0);
 
 const TABLE_LEFT = (210 - TABLE_WIDTH) / 2;
 
 const TABLE_HEADERS = [
-  'Catégorie',
   'Repère',
-  'Type',
   'Désignation',
   'P.Uniitaire (W)',
   'Qté',
   'Ks',
   'Ku',
-  'FP',
   'P.Totale (W)',
-  'P.Utile (W)',
+  'Coefficients',
+  'Chute (%)',
 ];
 
 const TABLE_HEADER_HEIGHT = 8;
 
-/** Baseline Y to vertically center single-line text in a filled band (jsPDF uses mm). */
 function bandCenterBaselineY(
   doc: jsPDF,
   bandTop: number,
@@ -189,17 +190,6 @@ function isJeuDeBarresRow(el: {
 function jdbCategoryLabelPdf(category: string | null | undefined): string {
   if (category === 'prise') return 'Prise de courant';
   return 'Éclairage';
-}
-
-function elementCategoryLabel(el: {
-  type: string;
-  row_kind?: string;
-}): string {
-  if (isJeuDeBarresRow(el)) return 'Jeu de barres';
-  if (el.type === 'eclairage') return 'Éclairage';
-  if (el.type === 'prise') return 'Prise';
-  if (el.type === 'attente') return 'Attente';
-  return el.type;
 }
 
 function colLeft(colIndex: number): number {
@@ -247,11 +237,10 @@ function drawTableHeader(doc: jsPDF, y: number): number {
 
 function drawJeuDeBarresTitleRow(
   doc: jsPDF,
-  el: ReturnType<typeof getElementsByPanel>[number],
+  el: ElementRow,
   y: number
 ): number {
-  const title =
-    el.type_label?.trim() || el.designation?.trim() || 'Jeu de barres';
+  const title = el.type_label?.trim() || el.designation?.trim() || 'Jeu de barres';
   const category = jdbCategoryLabelPdf(el.jdb_category);
   const label = ` ${title}  —  Jeu de barres · ${category}`;
 
@@ -267,13 +256,29 @@ function drawJeuDeBarresTitleRow(
   return y + 9;
 }
 
+function drawSubtotalRow(
+  doc: jsPDF,
+  label: string,
+  totalPower: number,
+  y: number
+): number {
+  doc.setFillColor(239, 246, 255);
+  doc.rect(TABLE_LEFT, y - 4, TABLE_WIDTH, 7, 'F');
+  doc.setTextColor(30, 58, 95);
+  doc.setFont('helvetica', 'bolditalic');
+  doc.setFontSize(7);
+  doc.text(label, TABLE_LEFT + 2, y);
+  doc.text(String(totalPower), colCenterX(6), y, { align: 'center' });
+  return y + 7;
+}
+
 function addPanelPage(
   doc: jsPDF,
   company: CompanySettings,
   project: ProjectRow,
   locationName: string,
   panelName: string,
-  elements: ReturnType<typeof getElementsByPanel>
+  elements: ElementRow[]
 ): void {
   addPageHeader(doc, company, project, locationName);
 
@@ -284,6 +289,19 @@ function addPanelPage(
 
   let y = drawTableHeader(doc, 32);
   let dataRowIndex = 0;
+  let currentJdb: ElementRow | null = null;
+  let groupElements: ElementRow[] = [];
+
+  const flushSubtotal = (): void => {
+    if (!currentJdb || groupElements.length === 0) return;
+    const total = groupElements.reduce((sum, el) => sum + calcPuissanceTotale(el), 0);
+    const jdbTitle =
+      currentJdb.type_label?.trim() ||
+      currentJdb.designation?.trim() ||
+      'Jeu de barres';
+    y = drawSubtotalRow(doc, `Sous-total ${jdbTitle}`, total, y);
+    groupElements = [];
+  };
 
   elements.forEach((el) => {
     if (y > 268) {
@@ -293,6 +311,8 @@ function addPanelPage(
     }
 
     if (isJeuDeBarresRow(el)) {
+      flushSubtotal();
+      currentJdb = el;
       y = drawJeuDeBarresTitleRow(doc, el, y);
       return;
     }
@@ -302,30 +322,21 @@ function addPanelPage(
       doc.rect(TABLE_LEFT, y - 4, TABLE_WIDTH, 7, 'F');
     }
 
-    const typeLabel =
-      el.type_label ||
-      el.designation ||
-      (el.type === 'prise'
-        ? el.phase_type === 'tri'
-          ? 'Triphasé'
-          : 'Monophasé'
-        : '');
-    const { ks, ku, fp } = resolveElementCoefs(el);
-    const totalEl = el.power_w * el.quantity;
-    const usedEl = calcPuissanceUtilisee(el);
+    const designation = el.emplacement?.trim() || el.type_label || '';
+    const { ks, ku } = resolveElementCoefs(el);
+    const totalEl = calcPuissanceTotale(el);
+    const coefsLine = formatCoefsLine(ks, ku);
 
     const row = [
-      elementCategoryLabel(el),
       el.repere,
-      typeLabel,
-      el.emplacement ?? '',
+      designation,
       String(el.power_w),
       String(el.quantity),
       String(ks),
-      String(ku),
-      String(fp),
+      ku === 1 ? '' : String(ku),
       String(totalEl),
-      usedEl > 0 ? String(usedEl) : '—',
+      coefsLine,
+      '—',
     ];
 
     doc.setTextColor(30, 41, 59);
@@ -337,7 +348,11 @@ function addPanelPage(
     });
     y += 7;
     dataRowIndex++;
+
+    if (currentJdb) groupElements.push(el);
   });
+
+  flushSubtotal();
 }
 
 export async function exportProjectToPdf(

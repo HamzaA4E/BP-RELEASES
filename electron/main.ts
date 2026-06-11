@@ -15,7 +15,8 @@ import * as panelsDb from './database/panels';
 import * as elementsDb from './database/elements';
 import * as favoritesDb from './database/favorites';
 import { getCompanySettings, saveCompanySettings } from './database/settings';
-import { exportLocationToExcel } from './export/excelExport';
+import { exportLocationToExcel, exportProjectToExcel } from './export/excelExport';
+import type { ProjectExcelExportPayload } from '../shared/types';
 import { exportProjectToPdf } from './export/pdfExport';
 import {
   exportProjectForBilpow,
@@ -217,7 +218,6 @@ function registerIpcHandlers(): void {
         general_breaker_ampere?: number;
         coef_ks?: number;
         coef_ku?: number;
-        coef_fp?: number;
       }
     ) => wrapHandler(() => panelsDb.updatePanel(data))
   );
@@ -285,6 +285,12 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle('export:exportProjectToPdf', (_e, projectId: number, company?: CompanySettings) =>
     wrapAsyncHandler(() => exportProjectToPdf(projectId, company))
+  );
+
+  ipcMain.handle(
+    'export:projectExcel',
+    (_e, payload: ProjectExcelExportPayload, company?: CompanySettings) =>
+      wrapAsyncHandler(() => exportProjectToExcel(payload, company))
   );
 
   ipcMain.handle('settings:get', () => wrapHandler(() => getCompanySettings()));

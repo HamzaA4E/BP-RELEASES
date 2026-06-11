@@ -32,23 +32,22 @@ export function AddJdbModal({ panelId, onClose, onSuccess }: AddJdbModalProps) {
   const [designation, setDesignation] = useState('');
   const [category, setCategory] = useState<JdbCategory>('eclairage');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
 
   const categoryLabel =
     category === 'eclairage' ? 'Éclairage' : 'Prise de courant';
 
   const handleSubmit = async () => {
-    if (!designation.trim()) {
-      setError('La désignation est obligatoire.');
-      return;
-    }
     setIsLoading(true);
     try {
+      const elements = await window.bilpow.elements.getByPanel(panelId);
+      const jdbCount = elements.filter((e) => e.type === 'jeu_de_barres').length;
+      const typeLabel = designation.trim() || `JD${jdbCount + 1}`;
+
       await window.bilpow.elements.create({
         panel_id: panelId,
         type: 'jeu_de_barres',
         repere: '',
-        type_label: designation.trim(),
+        type_label: typeLabel,
         emplacement: '',
         power_w: 0,
         quantity: 1,
@@ -57,7 +56,6 @@ export function AddJdbModal({ panelId, onClose, onSuccess }: AddJdbModalProps) {
         jdb_category: category,
         coef_ks: 1,
         coef_ku: 1,
-        coef_fp: 1,
       });
       toast.success('Jeu de barres ajouté');
       onSuccess();
@@ -103,22 +101,18 @@ export function AddJdbModal({ panelId, onClose, onSuccess }: AddJdbModalProps) {
         <div className="p-5 space-y-5">
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-              Désignation *
+              Désignation
             </label>
             <input
               type="text"
               value={designation}
-              onChange={(e) => {
-                setDesignation(e.target.value);
-                setError('');
-              }}
+              onChange={(e) => setDesignation(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void handleSubmit();
               }}
-              placeholder="ex: Jeu de barres 1, Arrivée TGBT, Départs éclairage..."
+              placeholder="ex: Jeu de barres 1, Arrivée TGBT, Départs éclairage... (JD1 par défaut)"
               className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent transition-all"
             />
-            {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
           </div>
 
           <div>
@@ -160,7 +154,7 @@ export function AddJdbModal({ panelId, onClose, onSuccess }: AddJdbModalProps) {
                   <span className="text-base">⚡</span>
                   <div className="min-w-0">
                     <p className="text-white font-semibold text-sm truncate">
-                      {designation || 'Désignation du jeu de barres'}
+                      {designation || 'JD1'}
                     </p>
                     <p className="text-white/60 text-xs">
                       Jeu de barres · {categoryLabel}

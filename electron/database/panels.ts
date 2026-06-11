@@ -1,6 +1,6 @@
 import { getDatabase } from './db';
 import { getElementsByPanel, createElement } from './elements';
-import { panelUsedPower } from '../../shared/powerCalculations';
+import { panelTotalPower } from '../../shared/powerCalculations';
 import type { ElementType } from '../../shared/types';
 
 export interface PanelRow {
@@ -26,8 +26,8 @@ export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
       `SELECT p.*,
         (SELECT COUNT(*) FROM elements e WHERE e.panel_id = p.id) as element_count,
         COALESCE((
-          SELECT SUM(e.power_w * e.quantity) FROM elements e
-          WHERE e.panel_id = p.id AND e.type != 'jeu_de_barres'
+          SELECT SUM(e.power_w * e.quantity * COALESCE(e.coef_ks, e.ks, 1)) FROM elements e
+          WHERE e.panel_id = p.id AND e.type != 'jeu_de_barres' AND e.type != 'attente'
         ), 0) as installed_power_w
       FROM panels p
       WHERE p.location_id = ?
@@ -39,7 +39,7 @@ export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
 
   return panels.map((p) => {
     const elements = getElementsByPanel(p.id);
-    const used_power_w = panelUsedPower(elements);
+    const used_power_w = panelTotalPower(elements);
     return {
       ...p,
       absorbed_power_w: used_power_w,
@@ -148,10 +148,8 @@ export function duplicatePanel(id: number): PanelRow {
       distance_m: el.distance_m,
       ku: el.ku,
       ks: el.ks,
-      fp: el.fp,
       coef_ks: el.coef_ks,
       coef_ku: el.coef_ku,
-      coef_fp: el.coef_fp,
       circuit: el.circuit ?? undefined,
       notes: el.notes ?? undefined,
     });

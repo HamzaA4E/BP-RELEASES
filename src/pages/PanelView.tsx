@@ -12,12 +12,10 @@ import {
   getInsertIndexAfterJdbSection,
 } from '@/utils/elementHelpers';
 import {
-  panelInstalledPower,
-  panelUsedPower,
+  panelTotalPower,
   calculationCurrent,
-  formatPower,
-  formatNumber,
 } from '@/utils/calculations';
+import { LoadGauge } from '@/components/LoadGauge';
 import type { Element, Panel, PhaseType } from '@/types';
 
 type ElementFormType = Exclude<Element['type'], 'jeu_de_barres'>;
@@ -41,7 +39,6 @@ type ElementSavePayload = {
   phase_type: PhaseType;
   coef_ks: number;
   coef_ku: number;
-  coef_fp: number;
   notes?: string;
 };
 
@@ -96,11 +93,10 @@ export function PanelView() {
     void window.bilpow.favorites.getAll().then(setFavorites);
   }, [loadData, setFavorites]);
 
-  const installedPower = useMemo(() => panelInstalledPower(elements), [elements]);
-  const usedPower = useMemo(() => panelUsedPower(elements), [elements]);
+  const totalPower = useMemo(() => panelTotalPower(elements), [elements]);
   const calcCurrent = useMemo(
-    () => calculationCurrent(usedPower, 230, 0.8),
-    [usedPower]
+    () => calculationCurrent(totalPower, 230, 0.8),
+    [totalPower]
   );
 
   const savePanelName = async (name: string) => {
@@ -126,7 +122,6 @@ export function PanelView() {
       quantity: data.quantity,
       coef_ks: data.coef_ks,
       coef_ku: data.coef_ku,
-      coef_fp: data.coef_fp,
       notes: data.notes,
     });
   };
@@ -195,8 +190,7 @@ export function PanelView() {
       | 'repere'
       | 'quantity'
       | 'coef_ks'
-      | 'coef_ku'
-      | 'coef_fp',
+      | 'coef_ku',
     value: number | string
   ) => {
     setElements(
@@ -293,6 +287,12 @@ export function PanelView() {
             </button>
           </div>
         </div>
+
+        <LoadGauge
+          totalPowerW={totalPower}
+          calcCurrentA={calcCurrent}
+          breakerAmpere={panel.general_breaker_ampere}
+        />
 
         <ElementTable
           elements={elements}

@@ -156,7 +156,7 @@ export function Sidebar() {
       if (type === 'location') {
         await window.bilpow.locations.duplicate(id);
         if (selection.projectId) await loadTreeForProject(selection.projectId);
-        toast.success('Localisation dupliquée');
+        toast.success('Emplacement dupliqué');
       } else if (type === 'panel') {
         await window.bilpow.panels.duplicate(id);
         if (selection.projectId) await loadTreeForProject(selection.projectId);

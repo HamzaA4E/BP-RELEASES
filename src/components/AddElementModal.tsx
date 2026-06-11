@@ -5,7 +5,8 @@ import {
   getNextRepere,
   generateReperePreview,
   defaultCoefsForType,
-  calcPuissanceUtilisee,
+  calcPuissanceTotale,
+  formatCoefsLine,
 } from '@/utils/calculations';
 import {
   displayEmplacement,
@@ -29,7 +30,6 @@ interface FormData {
   phase_type: PhaseType;
   coef_ks: number;
   coef_ku: number;
-  coef_fp: number;
   notes: string;
 }
 
@@ -51,7 +51,6 @@ interface AddElementModalProps {
     phase_type: PhaseType;
     coef_ks: number;
     coef_ku: number;
-    coef_fp: number;
     notes?: string;
   }) => Promise<void>;
   onSaveMultiple?: (
@@ -65,7 +64,6 @@ interface AddElementModalProps {
       phase_type: PhaseType;
       coef_ks: number;
       coef_ku: number;
-      coef_fp: number;
       notes?: string;
     }>
   ) => Promise<void>;
@@ -168,15 +166,13 @@ export function AddElementModal({
       distance_m: 0,
       ku: 1,
       ks: 1,
-      fp: 1,
       coef_ks: formData.coef_ks,
       coef_ku: formData.coef_ku,
-      coef_fp: formData.coef_fp,
       circuit: null,
       notes: null,
       order_index: 0,
     };
-    return calcPuissanceUtilisee(previewElement);
+    return calcPuissanceTotale(previewElement);
   }, [formData]);
 
   useEffect(() => {
@@ -199,7 +195,6 @@ export function AddElementModal({
         phase_type,
         coef_ks: editElement.coef_ks,
         coef_ku: editElement.coef_ku,
-        coef_fp: editElement.coef_fp,
         notes: editElement.notes ?? '',
       });
     } else if (contextJdb) {
@@ -281,7 +276,6 @@ export function AddElementModal({
     phase_type: formData.phase_type,
     coef_ks: formData.coef_ks,
     coef_ku: formData.coef_ku,
-    coef_fp: formData.coef_fp,
     notes: formData.notes.trim() || undefined,
   });
 
@@ -544,13 +538,13 @@ export function AddElementModal({
                     Coefficients de calcul
                   </span>
                   <span className="text-xs text-slate-400 font-mono">
-                    Ks={formData.coef_ks} · Ku={formData.coef_ku} · FP={formData.coef_fp}
+                    {formatCoefsLine(formData.coef_ks, formData.coef_ku)}
                   </span>
                 </div>
               </button>
               {showCoefs && (
                 <div className="p-4 border-t border-slate-200 dark:border-slate-600 space-y-3">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {(
                       [
                         {
@@ -565,14 +559,6 @@ export function AddElementModal({
                           key: 'coef_ku' as const,
                           label: 'Ku',
                           desc: 'Utilisation',
-                          min: 0,
-                          max: 1,
-                          step: 0.05,
-                        },
-                        {
-                          key: 'coef_fp' as const,
-                          label: 'FP',
-                          desc: 'Facteur puis.',
                           min: 0,
                           max: 1,
                           step: 0.05,
@@ -604,10 +590,12 @@ export function AddElementModal({
                     ))}
                   </div>
                   <p className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
-                    Puissance utilisée = P.totale × Ks × Ku × FP ={' '}
+                    Puissance totale = P. unitaire × Qté × Ks ={' '}
                     <strong className="text-primary dark:text-accent-light">
                       {previewUsedPower.toLocaleString('fr-FR')} W
                     </strong>
+                    {' · '}
+                    {formatCoefsLine(formData.coef_ks, formData.coef_ku)}
                   </p>
                 </div>
               )}

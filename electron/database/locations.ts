@@ -20,10 +20,10 @@ export function getLocationsByProject(projectId: number): LocationWithStatsRow[]
       `SELECT l.*,
         (SELECT COUNT(*) FROM panels p WHERE p.location_id = l.id) as panel_count,
         COALESCE((
-          SELECT SUM(e.power_w * e.quantity)
+          SELECT SUM(e.power_w * e.quantity * COALESCE(e.coef_ks, e.ks, 1))
           FROM elements e
           JOIN panels pa ON e.panel_id = pa.id
-          WHERE pa.location_id = l.id AND e.type != 'jeu_de_barres'
+          WHERE pa.location_id = l.id AND e.type NOT IN ('jeu_de_barres', 'attente')
         ), 0) as total_power_w
       FROM locations l
       WHERE l.project_id = ?
@@ -153,7 +153,8 @@ export function duplicateLocation(id: number): LocationRow {
       distance_m: number;
       ku?: number;
       ks?: number;
-      fp?: number;
+      coef_ks?: number;
+      coef_ku?: number;
       circuit: string | null;
       notes: string | null;
     }>;
@@ -180,7 +181,8 @@ export function duplicateLocation(id: number): LocationRow {
         distance_m: el.distance_m,
         ku: el.ku,
         ks: el.ks,
-        fp: el.fp,
+        coef_ks: el.coef_ks,
+        coef_ku: el.coef_ku,
         circuit: el.circuit ?? undefined,
         notes: el.notes ?? undefined,
       });

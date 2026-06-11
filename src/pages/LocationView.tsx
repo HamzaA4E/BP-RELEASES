@@ -42,7 +42,7 @@ export function LocationView() {
   const saveLocationName = async (name: string) => {
     try {
       await window.bilpow.locations.update({ id: lId, name });
-      toast.success('Localisation mise à jour');
+      toast.success('Emplacement mis à jour');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
     }

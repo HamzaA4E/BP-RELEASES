@@ -2,73 +2,96 @@ import type { Element, ElementType, PhaseType } from '@/types';
 import {
   DEFAULT_COS_PHI,
   DEFAULT_VOLTAGE,
-  calcPuissanceUtilisee,
+  calcPuissanceTotale,
+  panelTotalPower,
   panelUsedPower,
   panelInstalledPower,
   calculationCurrent,
   recommendedBreakerAmps,
+  formatCoefsLine,
+  resolveElementCoefs,
 } from '../../shared/powerCalculations';
 
 export {
   DEFAULT_COS_PHI,
   DEFAULT_VOLTAGE,
-  calcPuissanceUtilisee,
+  calcPuissanceTotale,
+  panelTotalPower,
   panelUsedPower,
   panelInstalledPower,
   calculationCurrent,
   recommendedBreakerAmps,
+  formatCoefsLine,
+  resolveElementCoefs,
 };
 
 export const DEFAULT_SECTION_MM2 = 2.5;
 
+const STANDARD_SECTIONS = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50] as const;
+
 export function defaultCoefsForType(
   type: ElementType,
   phaseType: PhaseType = 'mono'
-): { coef_ks: number; coef_ku: number; coef_fp: number } {
+): { coef_ks: number; coef_ku: number } {
   switch (type) {
     case 'eclairage':
-      return { coef_ks: 1.0, coef_ku: 1.0, coef_fp: 1.0 };
+      return { coef_ks: 1.0, coef_ku: 1.0 };
     case 'prise':
-      return {
-        coef_ks: 0.8,
-        coef_ku: 1.0,
-        coef_fp: phaseType === 'tri' ? 0.8 : 1.0,
-      };
+      return { coef_ks: 0.8, coef_ku: 1.0 };
     case 'attente':
-      return { coef_ks: 0.0, coef_ku: 0.0, coef_fp: 1.0 };
+      return { coef_ks: 0.0, coef_ku: 0.0 };
     case 'jeu_de_barres':
-      return { coef_ks: 1.0, coef_ku: 1.0, coef_fp: 1.0 };
+      return { coef_ks: 1.0, coef_ku: 1.0 };
   }
 }
 
-export function totalInstalledPower(powerW: number, quantity: number): number {
-  return powerW * quantity;
+export function totalInstalledPower(
+  powerW: number,
+  quantity: number,
+  coefKs: number = 1
+): number {
+  return Math.round(powerW * quantity * coefKs);
 }
 
 export function voltageDropPercent(
   distanceM: number,
   powerW: number,
   quantity: number,
-  cosPhi: number = DEFAULT_COS_PHI,
+  ks: number = 1,
   voltage: number = DEFAULT_VOLTAGE,
   sectionMm2: number = DEFAULT_SECTION_MM2
 ): number {
   if (distanceM <= 0 || powerW <= 0 || quantity <= 0) return 0;
-  const numerator = 2 * distanceM * powerW * quantity;
-  const denominator = cosPhi * voltage * sectionMm2 * 56;
+  const effectivePower = powerW * quantity * ks;
+  const numerator = 2 * distanceM * effectivePower;
+  const denominator = voltage * sectionMm2 * 56 * voltage;
   if (denominator === 0) return 0;
   return (numerator / denominator) * 100;
+}
+
+export function recommendedCableSection(
+  distanceM: number,
+  powerW: number,
+  quantity: number,
+  ks: number = 1,
+  voltage: number = DEFAULT_VOLTAGE
+): number {
+  if (distanceM <= 0 || powerW <= 0 || quantity <= 0) return DEFAULT_SECTION_MM2;
+  for (const section of STANDARD_SECTIONS) {
+    const drop = voltageDropPercent(distanceM, powerW, quantity, ks, voltage, section);
+    if (drop <= 3) return section;
+  }
+  return STANDARD_SECTIONS[STANDARD_SECTIONS.length - 1] ?? 50;
 }
 
 export function calculateCableSection(
   powerW: number,
   quantity: number,
   distanceM: number,
-  cosPhi: number = DEFAULT_COS_PHI,
-  voltageV: number = DEFAULT_VOLTAGE,
-  sectionMm2: number = DEFAULT_SECTION_MM2
+  ks: number = 1,
+  voltageV: number = DEFAULT_VOLTAGE
 ): number {
-  return voltageDropPercent(distanceM, powerW, quantity, cosPhi, voltageV, sectionMm2);
+  return recommendedCableSection(distanceM, powerW, quantity, ks, voltageV);
 }
 
 export function voltageDropColorClass(percent: number): string {
@@ -140,6 +163,10 @@ export function generateReperePreview(
   }
 
   return Array.from({ length: count }, (_, i) => `${baseRepere}_${i + 1}`);
+}
+
+export function formatKuDisplay(ku: number): string {
+  return ku === 1 ? '' : ku.toFixed(2);
 }
 
 export function elementVoltage(element: { phase_type?: string }): number {

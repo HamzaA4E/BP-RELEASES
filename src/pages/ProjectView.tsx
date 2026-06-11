@@ -5,6 +5,8 @@ import { Share2, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/useAppStore';
 import { formatPower } from '@/utils/calculations';
 import { exportProjectToPdf } from '@/utils/export';
+import { exportProjectToExcel } from '@/utils/exportExcel';
+import type { PanelWithStats, Element } from '@/types';
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -21,6 +23,7 @@ export function ProjectView() {
   } = useAppStore();
 
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [exportingShare, setExportingShare] = useState(false);
   const [editFields, setEditFields] = useState({
     name: '',
@@ -78,7 +81,7 @@ export function ProjectView() {
       setNewLocationName('');
       setShowAddLocation(false);
       await loadData();
-      toast.success('Localisation ajoutée');
+      toast.success('Emplacement ajouté');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
     }
@@ -99,6 +102,45 @@ export function ProjectView() {
       toast.error(err instanceof Error ? err.message : "Erreur d'export");
     } finally {
       setExportingShare(false);
+    }
+  };
+
+  const handleExportProjectExcel = async () => {
+    if (!currentProject) return;
+    setExportingExcel(true);
+    try {
+      const panelsByLocation: Record<number, PanelWithStats[]> = {};
+      const elementsByPanel: Record<number, Element[]> = {};
+
+      for (const loc of locations) {
+        const panels = await window.bilpow.panels.getByLocation(loc.id);
+        panelsByLocation[loc.id] = panels;
+        for (const panel of panels) {
+          elementsByPanel[panel.id] = await window.bilpow.elements.getByPanel(panel.id);
+        }
+      }
+
+      const result = await exportProjectToExcel(
+        {
+          project: currentProject,
+          locations,
+          panelsByLocation,
+          elementsByPanel,
+        },
+        company ?? undefined
+      );
+
+      if (result.filePath) {
+        toast.success(`Export réussi: ${result.filePath}`);
+        if (result.warning) {
+          toast(result.warning, { icon: 'ℹ️', duration: 6000 });
+        }
+        await window.bilpow.shell.openPath(result.filePath);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur d'export Excel");
+    } finally {
+      setExportingExcel(false);
     }
   };
 
@@ -173,7 +215,7 @@ export function ProjectView() {
 
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
-            Localisations ({locations.length})
+            Emplacements ({locations.length})
           </h2>
           <div className="flex gap-2 flex-wrap">
             <button
@@ -196,6 +238,14 @@ export function ProjectView() {
             </button>
             <button
               type="button"
+              onClick={() => void handleExportProjectExcel()}
+              disabled={exportingExcel || locations.length === 0}
+              className="btn-secondary text-sm"
+            >
+              {exportingExcel ? 'Export...' : '📊 Exporter le projet complet'}
+            </button>
+            <button
+              type="button"
               onClick={() => void handleExportPdf()}
               disabled={exportingPdf || locations.length === 0}
               className="btn-secondary text-sm"
@@ -207,14 +257,14 @@ export function ProjectView() {
               onClick={() => setShowAddLocation(true)}
               className="btn-primary text-sm"
             >
-              + Ajouter une localisation
+              + Ajouter un emplacement
             </button>
           </div>
         </div>
 
         {locations.length === 0 ? (
           <div className="card p-8 text-center text-gray-400">
-            Aucune localisation. Ajoutez-en une pour commencer.
+            Aucun emplacement. Ajoutez-en un pour commencer.
           </div>
         ) : (
           <div className="space-y-3">
@@ -240,7 +290,7 @@ export function ProjectView() {
         {showAddLocation && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="card p-6 w-full max-w-sm mx-4">
-              <h3 className="font-semibold mb-3">Nouvelle localisation</h3>
+              <h3 className="font-semibold mb-3">Nouvel emplacement</h3>
               <input
                 type="text"
                 value={newLocationName}

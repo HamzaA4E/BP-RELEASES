@@ -1,4 +1,4 @@
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -18,10 +18,11 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { Element } from '@/types';
 import {
-  totalInstalledPower,
-  panelInstalledPower,
-  panelUsedPower,
-  calcPuissanceUtilisee,
+  calcPuissanceTotale,
+  panelTotalPower,
+  formatCoefsLine,
+  resolveElementCoefs,
+  formatKuDisplay,
 } from '@/utils/calculations';
 import {
   displayTypeLabel,
@@ -29,14 +30,15 @@ import {
   typeBadge,
   jeuDeBarresTitle,
   jdbCategoryLabel,
+  buildElementTableRows,
 } from '@/utils/elementHelpers';
 
-/** drag + Cat + Repère + Type + Désignation + Puiss + Qté + Ks + Ku + FP + P.totale + Puiss.utilisée + Actions */
-const TOTAL_COLUMN_COUNT = 13;
+/** drag + Cat + Repère + Type + Désignation + Puiss + Qté + Ks + Ku + P.totale + Actions */
+const TOTAL_COLUMN_COUNT = 11;
 
 type EditableField = 'emplacement' | 'power_w' | 'repere' | 'quantity' | 'type_label';
 
-type CoefField = 'coef_ks' | 'coef_ku' | 'coef_fp';
+type CoefField = 'coef_ks' | 'coef_ku';
 
 interface ElementTableProps {
   elements: Element[];
@@ -124,6 +126,7 @@ function InlineNumberCell({
   max,
   step = 1,
   format,
+  title,
 }: {
   elementId: number;
   field: EditableField | CoefField;
@@ -135,6 +138,7 @@ function InlineNumberCell({
   max?: number;
   step?: number;
   format?: (v: number) => string;
+  title?: string;
 }) {
   const isEditing = editingField?.id === elementId && editingField?.field === field;
   const display = format ? format(value) : String(value);
@@ -171,7 +175,7 @@ function InlineNumberCell({
         if (e.key === 'Enter') setEditingField({ id: elementId, field });
       }}
       className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors font-mono text-sm"
-      title="Cliquer pour modifier"
+      title={title ?? 'Cliquer pour modifier'}
     >
       {display}
     </span>
@@ -371,6 +375,22 @@ function JeuDeBarresRow({
   );
 }
 
+function SubtotalRow({ label, totalPower }: { label: string; totalPower: number }) {
+  return (
+    <tr className="bg-blue-50/80 dark:bg-blue-900/15">
+      <td />
+      <td colSpan={2} className="px-3 py-2 text-sm font-bold italic text-primary dark:text-blue-300">
+        {label}
+      </td>
+      <td colSpan={6} />
+      <td className="px-3 py-2 text-sm text-right font-bold italic text-primary dark:text-white">
+        {totalPower.toLocaleString('fr-FR')} W
+      </td>
+      <td />
+    </tr>
+  );
+}
+
 function SortableDataRow({
   element,
   onEdit,
@@ -396,138 +416,136 @@ function SortableDataRow({
   };
 
   const isAttente = element.type === 'attente';
-  const totalPower = totalInstalledPower(element.power_w, element.quantity);
-  const usedPower = calcPuissanceUtilisee(element);
+  const totalPower = calcPuissanceTotale(element);
   const badge = typeBadge(element);
   const typeLabel = displayTypeLabel(element);
   const emplacement = displayEmplacement(element);
-  const showUsed = usedPower > 0;
+  const { ks, ku } = resolveElementCoefs(element);
+  const coefsLine = formatCoefsLine(ks, ku);
 
   const coefFields: Array<{ key: CoefField; label: string }> = [
     { key: 'coef_ks', label: 'Ks' },
     { key: 'coef_ku', label: 'Ku' },
-    { key: 'coef_fp', label: 'FP' },
   ];
 
   return (
-    <tr
-      ref={setNodeRef}
-      style={style}
-      className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 ${
-        isAttente ? 'opacity-60' : ''
-      }`}
-    >
-      <td className="px-2 py-2 text-center text-gray-400 cursor-grab" {...attributes} {...listeners}>
-        ⋮⋮
-      </td>
-      <td className="px-3 py-2">
-        <span
-          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${badge.className}`}
-        >
-          {badge.label}
-        </span>
-      </td>
-      <td className="px-3 py-2">
-        <InlineRepereCell
-          element={element}
-          editingField={editingField}
-          setEditingField={setEditingField}
-          onCommit={(v) => void onFieldUpdate(element.id, 'repere', v)}
-        />
-      </td>
-      <td className="px-3 py-2 text-sm max-w-[140px]" title={typeLabel}>
-        {typeLabel}
-      </td>
-      <td
-        className={`px-3 py-2 text-sm max-w-[140px] ${isAttente ? 'italic text-gray-500' : ''}`}
+    <>
+      <tr
+        ref={setNodeRef}
+        style={style}
+        className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 ${
+          isAttente ? 'opacity-60' : ''
+        }`}
       >
-        <InlineTextCell
-          elementId={element.id}
-          field="emplacement"
-          value={emplacement}
-          editingField={editingField}
-          setEditingField={setEditingField}
-          onCommit={(v) => void onFieldUpdate(element.id, 'emplacement', v)}
-        />
-      </td>
-      <td className="px-3 py-2 text-sm text-right">
-        <InlinePowerCell
-          element={element}
-          editingField={editingField}
-          setEditingField={setEditingField}
-          onCommit={(v) => void onFieldUpdate(element.id, 'power_w', v)}
-        />
-      </td>
-      <td className="px-3 py-2 text-sm text-center">
-        <InlineNumberCell
-          elementId={element.id}
-          field="quantity"
-          value={element.quantity}
-          editingField={editingField}
-          setEditingField={setEditingField}
-          min={1}
-          step={1}
-          onCommit={(v) => {
-            const q = Math.max(1, Math.round(v));
-            void onFieldUpdate(element.id, 'quantity', q);
-          }}
-        />
-      </td>
-      {coefFields.map((c) => (
-        <td key={c.key} className="px-2 py-2 text-sm text-center">
-          <InlineNumberCell
-            elementId={element.id}
-            field={c.key}
-            value={element[c.key]}
+        <td className="px-2 py-2 text-center text-gray-400 cursor-grab" {...attributes} {...listeners}>
+          ⋮⋮
+        </td>
+        <td className="px-3 py-2">
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${badge.className}`}
+          >
+            {badge.label}
+          </span>
+        </td>
+        <td className="px-3 py-2">
+          <InlineRepereCell
+            element={element}
             editingField={editingField}
             setEditingField={setEditingField}
-            min={0}
-            max={1}
-            step={0.05}
-            format={(v) => v.toFixed(2)}
+            onCommit={(v) => void onFieldUpdate(element.id, 'repere', v)}
+          />
+        </td>
+        <td className="px-3 py-2 text-sm max-w-[140px]" title={typeLabel}>
+          {typeLabel}
+        </td>
+        <td
+          className={`px-3 py-2 text-sm max-w-[140px] ${isAttente ? 'italic text-gray-500' : ''}`}
+        >
+          <InlineTextCell
+            elementId={element.id}
+            field="emplacement"
+            value={emplacement}
+            editingField={editingField}
+            setEditingField={setEditingField}
+            onCommit={(v) => void onFieldUpdate(element.id, 'emplacement', v)}
+          />
+        </td>
+        <td className="px-3 py-2 text-sm text-right">
+          <InlinePowerCell
+            element={element}
+            editingField={editingField}
+            setEditingField={setEditingField}
+            onCommit={(v) => void onFieldUpdate(element.id, 'power_w', v)}
+          />
+        </td>
+        <td className="px-3 py-2 text-sm text-center">
+          <InlineNumberCell
+            elementId={element.id}
+            field="quantity"
+            value={element.quantity}
+            editingField={editingField}
+            setEditingField={setEditingField}
+            min={1}
+            step={1}
             onCommit={(v) => {
-              const clamped = Math.min(1, Math.max(0, v));
-              void onFieldUpdate(element.id, c.key, clamped);
+              const q = Math.max(1, Math.round(v));
+              void onFieldUpdate(element.id, 'quantity', q);
             }}
           />
         </td>
-      ))}
-      <td className="px-3 py-2 text-sm text-right font-medium">
-        {totalPower.toLocaleString('fr-FR')}
-      </td>
-      <td className="px-3 py-2 text-sm text-right">
-        {showUsed ? (
-          <span
-            className="font-bold text-slate-700 dark:text-slate-300"
-            title={`Puiss. Utilisée = P.totale × Ks × Ku × FP`}
-          >
-            {usedPower.toLocaleString('fr-FR')} W
-          </span>
-        ) : (
-          <span className="text-gray-400">—</span>
-        )}
-      </td>
-      <td className="px-3 py-2">
-        <div className="flex gap-1">
-          <button
-            type="button"
-            onClick={() => onEdit(element)}
-            className="p-1 text-accent hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
-            title="Modifier"
-          >
-            ✏️
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(element.id)}
-            className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
-            title="Supprimer"
-          >
-            🗑️
-          </button>
-        </div>
-      </td>
-    </tr>
+        {coefFields.map((c) => (
+          <td key={c.key} className="px-2 py-2 text-sm text-center">
+            <InlineNumberCell
+              elementId={element.id}
+              field={c.key}
+              value={element[c.key]}
+              editingField={editingField}
+              setEditingField={setEditingField}
+              min={0}
+              max={1}
+              step={0.05}
+              format={(v) =>
+                c.key === 'coef_ku' ? formatKuDisplay(v) || '—' : v.toFixed(2)
+              }
+              title={coefsLine}
+              onCommit={(v) => {
+                const clamped = Math.min(1, Math.max(0, v));
+                void onFieldUpdate(element.id, c.key, clamped);
+              }}
+            />
+          </td>
+        ))}
+        <td className="px-3 py-2 text-sm text-right font-medium">
+          {totalPower.toLocaleString('fr-FR')}
+        </td>
+        <td className="px-3 py-2">
+          <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={() => onEdit(element)}
+              className="p-1 text-accent hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
+              title="Modifier"
+            >
+              ✏️
+            </button>
+            <button
+              type="button"
+              onClick={() => onDelete(element.id)}
+              className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+              title="Supprimer"
+            >
+              🗑️
+            </button>
+          </div>
+        </td>
+      </tr>
+      <tr className="border-b border-gray-50 dark:border-gray-800">
+        <td />
+        <td colSpan={TOTAL_COLUMN_COUNT - 1} className="px-3 py-0.5 text-xs text-gray-400 italic">
+          {coefsLine}
+        </td>
+      </tr>
+    </>
   );
 }
 
@@ -559,13 +577,13 @@ export function ElementTable({
     onReorder(reordered.map((e) => e.id));
   };
 
-  const totalInstalled = panelInstalledPower(elements);
-  const totalUsed = panelUsedPower(elements);
+  const totalPower = panelTotalPower(elements);
+  const tableRows = buildElementTableRows(elements);
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <table className="w-full text-left min-w-[1100px]">
+        <table className="w-full text-left min-w-[1000px]">
           <thead>
             <tr className="bg-primary text-white text-xs uppercase tracking-wide">
               <th className="w-8 px-2 py-3" />
@@ -581,19 +599,7 @@ export function ElementTable({
               <th className="px-3 py-3 text-center w-14" title="Coefficient d'utilisation">
                 Ku
               </th>
-              <th className="px-3 py-3 text-center w-14" title="Facteur de puissance">
-                FP
-              </th>
               <th className="px-3 py-3 text-right">P. totale (W)</th>
-              <th className="px-3 py-3 text-right">
-                <span
-                  className="inline-flex items-center gap-1"
-                  title="Puiss. Utilisée = P.totale × Ks × Ku × FP"
-                >
-                  P. Utile (W)
-                  
-                </span>
-              </th>
               <th className="px-3 py-3 w-20">Actions</th>
             </tr>
           </thead>
@@ -602,29 +608,41 @@ export function ElementTable({
               items={elements.map((e) => e.id)}
               strategy={verticalListSortingStrategy}
             >
-              {elements.map((element) => (
-                <Fragment key={element.id}>
-                  {element.type === 'jeu_de_barres' ? (
+              {tableRows.map((row, idx) => {
+                if (row.kind === 'jdb') {
+                  return (
                     <JeuDeBarresRow
-                      element={element}
+                      key={`jdb-${row.element.id}`}
+                      element={row.element}
                       onDelete={onDelete}
                       onAddElement={onAddElementUnderJdb}
                       onFieldUpdate={onFieldUpdate}
                       editingField={editingField}
                       setEditingField={setEditingField}
                     />
-                  ) : (
-                    <SortableDataRow
-                      element={element}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                      onFieldUpdate={onFieldUpdate}
-                      editingField={editingField}
-                      setEditingField={setEditingField}
+                  );
+                }
+                if (row.kind === 'subtotal') {
+                  return (
+                    <SubtotalRow
+                      key={`subtotal-${idx}`}
+                      label={row.label}
+                      totalPower={row.totalPower}
                     />
-                  )}
-                </Fragment>
-              ))}
+                  );
+                }
+                return (
+                  <SortableDataRow
+                    key={row.element.id}
+                    element={row.element}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    onFieldUpdate={onFieldUpdate}
+                    editingField={editingField}
+                    setEditingField={setEditingField}
+                  />
+                );
+              })}
             </SortableContext>
             {elements.length === 0 && (
               <tr>
@@ -639,16 +657,13 @@ export function ElementTable({
             {elements.length > 0 && (
               <tr className="bg-blue-50 dark:bg-blue-900/20 font-bold">
                 <td
-                  colSpan={10}
+                  colSpan={9}
                   className="px-3 py-3 text-sm text-right text-primary dark:text-accent-light"
                 >
                   TOTAL
                 </td>
                 <td className="px-3 py-3 text-sm text-right text-primary dark:text-white">
-                  {totalInstalled.toLocaleString('fr-FR')} W
-                </td>
-                <td className="px-3 py-3 text-sm text-right text-primary dark:text-white">
-                  {totalUsed.toLocaleString('fr-FR')} W
+                  {totalPower.toLocaleString('fr-FR')} W
                 </td>
                 <td />
               </tr>

@@ -1,6 +1,6 @@
 import type { Element, ElementType, JdbCategory } from '@/types';
 import { resolveJdbCategory } from '@/types';
-import { defaultCoefsForType } from '@/utils/calculations';
+import { calcPuissanceTotale, defaultCoefsForType } from '@/utils/calculations';
 
 export function isJeuDeBarres(element: Element): boolean {
   return element.type === 'jeu_de_barres' || element.row_kind === 'bar_set';
@@ -114,11 +114,48 @@ export function normalizeElement(raw: Element): Element {
     jdb_category: isJdb ? resolveJdbCategory(raw.jdb_category) : null,
     ku: raw.ku ?? 1,
     ks: raw.ks ?? 1,
-    fp: raw.fp ?? 1,
     coef_ks: raw.coef_ks ?? coefDefaults.coef_ks,
     coef_ku: raw.coef_ku ?? coefDefaults.coef_ku,
-    coef_fp: raw.coef_fp ?? coefDefaults.coef_fp,
   };
+}
+
+export type ElementTableRow =
+  | { kind: 'jdb'; element: Element }
+  | { kind: 'element'; element: Element }
+  | { kind: 'subtotal'; label: string; totalPower: number };
+
+/** Construit les lignes du tableau avec sous-totaux par jeu de barres. */
+export function buildElementTableRows(elements: Element[]): ElementTableRow[] {
+  const rows: ElementTableRow[] = [];
+  let currentJdb: Element | null = null;
+  let groupElements: Element[] = [];
+
+  const flushSubtotal = (): void => {
+    if (!currentJdb || groupElements.length === 0) return;
+    const totalPower = groupElements.reduce(
+      (sum, el) => sum + calcPuissanceTotale(el),
+      0
+    );
+    rows.push({
+      kind: 'subtotal',
+      label: `Sous-total ${jeuDeBarresTitle(currentJdb)}`,
+      totalPower,
+    });
+    groupElements = [];
+  };
+
+  for (const el of elements) {
+    if (isJeuDeBarres(el)) {
+      flushSubtotal();
+      currentJdb = el;
+      rows.push({ kind: 'jdb', element: el });
+    } else {
+      if (currentJdb) groupElements.push(el);
+      rows.push({ kind: 'element', element: el });
+    }
+  }
+  flushSubtotal();
+  return rows;
 }
 
 export function typeBadge(element: Element): {

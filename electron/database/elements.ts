@@ -24,10 +24,8 @@ export interface ElementRow {
   distance_m: number;
   ku: number;
   ks: number;
-  fp: number;
   coef_ks: number;
   coef_ku: number;
-  coef_fp: number;
   circuit: string | null;
   notes: string | null;
   order_index: number;
@@ -43,10 +41,8 @@ type RawElementRow = Omit<
   | 'jdb_category'
   | 'ku'
   | 'ks'
-  | 'fp'
   | 'coef_ks'
   | 'coef_ku'
-  | 'coef_fp'
 > &
   Partial<
     Pick<
@@ -59,30 +55,24 @@ type RawElementRow = Omit<
       | 'jdb_category'
       | 'ku'
       | 'ks'
-      | 'fp'
       | 'coef_ks'
       | 'coef_ku'
-      | 'coef_fp'
     >
   >;
 
 export function defaultCoefsForType(
   type: ElementType,
-  phaseType: PhaseType = 'mono'
-): { coef_ks: number; coef_ku: number; coef_fp: number } {
+  _phaseType: PhaseType = 'mono'
+): { coef_ks: number; coef_ku: number } {
   switch (type) {
     case 'eclairage':
-      return { coef_ks: 1.0, coef_ku: 1.0, coef_fp: 1.0 };
+      return { coef_ks: 1.0, coef_ku: 1.0 };
     case 'prise':
-      return {
-        coef_ks: 0.8,
-        coef_ku: 1.0,
-        coef_fp: phaseType === 'tri' ? 0.8 : 1.0,
-      };
+      return { coef_ks: 0.8, coef_ku: 1.0 };
     case 'attente':
-      return { coef_ks: 0.0, coef_ku: 0.0, coef_fp: 1.0 };
+      return { coef_ks: 0.0, coef_ku: 0.0 };
     case 'jeu_de_barres':
-      return { coef_ks: 1.0, coef_ku: 1.0, coef_fp: 1.0 };
+      return { coef_ks: 1.0, coef_ku: 1.0 };
   }
 }
 
@@ -112,10 +102,8 @@ function mapRow(raw: RawElementRow): ElementRow {
     jdb_category: isJdb ? resolveJdbCategory(raw.jdb_category) : null,
     ku: raw.ku ?? 1,
     ks: raw.ks ?? 1,
-    fp: raw.fp ?? 1,
     coef_ks: raw.coef_ks ?? defaults.coef_ks,
     coef_ku: raw.coef_ku ?? defaults.coef_ku,
-    coef_fp: raw.coef_fp ?? defaults.coef_fp,
     designation: type_label,
   };
 }
@@ -124,7 +112,11 @@ export function getElementsByPanel(panelId: number): ElementRow[] {
   const db = getDatabase();
   const rows = db
     .prepare(
-      'SELECT * FROM elements WHERE panel_id = ? ORDER BY order_index, id'
+      `SELECT id, panel_id, type, repere, designation, type_label, emplacement,
+        row_kind, bar_set_index, phase_type, jdb_category,
+        power_w, quantity, distance_m, ku, ks, coef_ks, coef_ku,
+        circuit, notes, order_index
+       FROM elements WHERE panel_id = ? ORDER BY order_index, id`
     )
     .all(panelId) as RawElementRow[];
   return rows.map(mapRow);
@@ -132,10 +124,27 @@ export function getElementsByPanel(panelId: number): ElementRow[] {
 
 export function getElementById(id: number): ElementRow | undefined {
   const db = getDatabase();
-  const row = db.prepare('SELECT * FROM elements WHERE id = ?').get(id) as
-    | RawElementRow
-    | undefined;
+  const row = db
+    .prepare(
+      `SELECT id, panel_id, type, repere, designation, type_label, emplacement,
+        row_kind, bar_set_index, phase_type, jdb_category,
+        power_w, quantity, distance_m, ku, ks, coef_ks, coef_ku,
+        circuit, notes, order_index
+       FROM elements WHERE id = ?`
+    )
+    .get(id) as RawElementRow | undefined;
   return row ? mapRow(row) : undefined;
+}
+
+export function countJeuDeBarresInPanel(panelId: number): number {
+  const db = getDatabase();
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) as count FROM elements
+       WHERE panel_id = ? AND type = 'jeu_de_barres'`
+    )
+    .get(panelId) as { count: number };
+  return row.count;
 }
 
 export function createElement(data: {
@@ -153,10 +162,8 @@ export function createElement(data: {
   distance_m?: number;
   ku?: number;
   ks?: number;
-  fp?: number;
   coef_ks?: number;
   coef_ku?: number;
-  coef_fp?: number;
   circuit?: string;
   notes?: string;
 }): ElementRow {
@@ -186,7 +193,7 @@ export function createElement(data: {
         @panel_id, @type, @repere, @designation, @type_label, @emplacement,
         @row_kind, @bar_set_index, @phase_type, @jdb_category,
         @power_w, @quantity, @distance_m,
-        @ku, @ks, @fp, @coef_ks, @coef_ku, @coef_fp,
+        @ku, @ks, 1, @coef_ks, @coef_ku, 1,
         @circuit, @notes, @order_index
       )`
     )
@@ -206,10 +213,8 @@ export function createElement(data: {
       distance_m: data.distance_m ?? 0,
       ku: data.ku ?? 1,
       ks: data.ks ?? 1,
-      fp: data.fp ?? 1,
       coef_ks: data.coef_ks ?? coefDefaults.coef_ks,
       coef_ku: data.coef_ku ?? coefDefaults.coef_ku,
-      coef_fp: data.coef_fp ?? coefDefaults.coef_fp,
       circuit: data.circuit ?? null,
       notes: data.notes ?? null,
       order_index: maxOrder.max_order + 1,
@@ -233,10 +238,8 @@ export function updateElement(data: {
   distance_m?: number;
   ku?: number;
   ks?: number;
-  fp?: number;
   coef_ks?: number;
   coef_ku?: number;
-  coef_fp?: number;
   circuit?: string;
   notes?: string;
 }): ElementRow {
@@ -266,10 +269,8 @@ export function updateElement(data: {
       distance_m = @distance_m,
       ku = @ku,
       ks = @ks,
-      fp = @fp,
       coef_ks = @coef_ks,
       coef_ku = @coef_ku,
-      coef_fp = @coef_fp,
       circuit = @circuit,
       notes = @notes
     WHERE id = @id`
@@ -289,10 +290,8 @@ export function updateElement(data: {
     distance_m: data.distance_m ?? existing.distance_m,
     ku: data.ku ?? existing.ku,
     ks: data.ks ?? existing.ks,
-    fp: data.fp ?? existing.fp,
     coef_ks: data.coef_ks ?? existing.coef_ks,
     coef_ku: data.coef_ku ?? existing.coef_ku,
-    coef_fp: data.coef_fp ?? existing.coef_fp,
     circuit: data.circuit !== undefined ? data.circuit : existing.circuit,
     notes: data.notes !== undefined ? data.notes : existing.notes,
   });

@@ -69,10 +69,8 @@ export interface Element {
   distance_m: number;
   ku: number;
   ks: number;
-  fp: number;
   coef_ks: number;
   coef_ku: number;
-  coef_fp: number;
   circuit: string | null;
   notes: string | null;
   order_index: number;
@@ -138,10 +136,8 @@ export interface CreateElementInput {
   distance_m?: number;
   ku?: number;
   ks?: number;
-  fp?: number;
   coef_ks?: number;
   coef_ku?: number;
-  coef_fp?: number;
   circuit?: string;
   notes?: string;
 }
@@ -159,10 +155,8 @@ export interface UpdateElementInput {
   distance_m?: number;
   ku?: number;
   ks?: number;
-  fp?: number;
   coef_ks?: number;
   coef_ku?: number;
-  coef_fp?: number;
   circuit?: string;
   notes?: string;
 }
@@ -200,6 +194,13 @@ export interface UploadLogoResult {
 export interface ExcelExportResult {
   filePath: string | null;
   warning?: string;
+}
+
+export interface ProjectExcelExportPayload {
+  project: Project;
+  locations: Location[];
+  panelsByLocation: Record<number, PanelWithStats[]>;
+  elementsByPanel: Record<number, Element[]>;
 }
 
 export interface IpcResponse<T> {

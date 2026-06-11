@@ -24,6 +24,7 @@ import type {
   UpdateCompanySettingsInput,
   UploadLogoResult,
   ExcelExportResult,
+  ProjectExcelExportPayload,
 } from '../shared/types';
 
 export interface BilPowAPI {
@@ -70,6 +71,10 @@ export interface BilPowAPI {
       projectId: number,
       company?: CompanySettings
     ) => Promise<string | null>;
+    exportProjectExcel: (
+      payload: ProjectExcelExportPayload,
+      company?: CompanySettings
+    ) => Promise<ExcelExportResult>;
   };
   settings: {
     get: () => Promise<CompanySettings>;

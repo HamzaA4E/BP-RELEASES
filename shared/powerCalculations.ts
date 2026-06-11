@@ -5,17 +5,15 @@ export const DEFAULT_VOLTAGE = 230;
 
 const STANDARD_BREAKERS = [10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200] as const;
 
-/** Champs minimaux pour calculer la puissance utile d’un élément. */
+/** Champs minimaux pour calculer la puissance totale d'un élément. */
 export interface PowerElementInput {
   type: string;
   power_w: number;
   quantity: number;
   coef_ks?: number;
   coef_ku?: number;
-  coef_fp?: number;
   ks?: number;
   ku?: number;
-  fp?: number;
   row_kind?: string;
 }
 
@@ -29,41 +27,47 @@ export function isInstalledPowerRow(el: {
 export function resolveElementCoefs(el: PowerElementInput): {
   ks: number;
   ku: number;
-  fp: number;
 } {
   return {
     ks: el.coef_ks ?? el.ks ?? 1,
     ku: el.coef_ku ?? el.ku ?? 1,
-    fp: el.coef_fp ?? el.fp ?? 1,
   };
 }
 
-/** Puissance utile d’un élément : P × Qté × Ks × Ku × Fp (arrondi). */
-export function calcPuissanceUtilisee(el: PowerElementInput): number {
-  if (el.type === 'attente' || el.type === 'jeu_de_barres') return 0;
-  const { ks, ku, fp } = resolveElementCoefs(el);
-  return Math.round(el.power_w * el.quantity * ks * ku * fp);
+/** Affiche Ks=x ou Ks=x · Ku=y (Ku omis si égal à 1). */
+export function formatCoefsLine(ks: number, ku: number): string {
+  if (ku === 1) return `Ks=${ks}`;
+  return `Ks=${ks} · Ku=${ku}`;
 }
 
-/** Somme des puissances utiles du tableau (hors attente et jeux de barres). */
-export function panelUsedPower(elements: PowerElementInput[]): number {
+/** Puissance totale d'un élément : P × Qté × Ks (arrondi). */
+export function calcPuissanceTotale(el: PowerElementInput): number {
+  if (el.type === 'attente' || el.type === 'jeu_de_barres') return 0;
+  const { ks } = resolveElementCoefs(el);
+  return Math.round(el.power_w * el.quantity * ks);
+}
+
+/** Somme des puissances totales du tableau (hors attente et jeux de barres). */
+export function panelTotalPower(elements: PowerElementInput[]): number {
   return elements
     .filter((el) => el.type !== 'jeu_de_barres' && el.type !== 'attente')
-    .reduce((sum, el) => sum + calcPuissanceUtilisee(el), 0);
+    .reduce((sum, el) => sum + calcPuissanceTotale(el), 0);
 }
 
-/** Puissance installée : somme P × Qté (hors JDB / bar_set). */
-export function panelInstalledPower(
-  elements: Array<{ power_w: number; quantity: number; type?: string; row_kind?: string }>
-): number {
+/** @deprecated Utiliser panelTotalPower */
+export function panelUsedPower(elements: PowerElementInput[]): number {
+  return panelTotalPower(elements);
+}
+
+/** Puissance installée : somme P × Qté × Ks (hors JDB / bar_set). */
+export function panelInstalledPower(elements: PowerElementInput[]): number {
   return elements
     .filter(isInstalledPowerRow)
-    .reduce((sum, el) => sum + el.power_w * el.quantity, 0);
+    .reduce((sum, el) => sum + calcPuissanceTotale(el), 0);
 }
 
 export interface PanelPowerSummary {
   installed: number;
-  /** Puissance utile (même valeur que used_power_w / P. absorbée en UI). */
   used: number;
   current: number;
   breaker: number;
@@ -71,7 +75,7 @@ export interface PanelPowerSummary {
 
 export function panelPowerSummary(elements: PowerElementInput[]): PanelPowerSummary {
   const installed = panelInstalledPower(elements);
-  const used = panelUsedPower(elements);
+  const used = panelTotalPower(elements);
   const current = calculationCurrent(used);
   const breaker = recommendedBreakerAmps(current);
   return { installed, used, current, breaker };

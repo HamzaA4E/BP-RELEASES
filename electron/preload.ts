@@ -25,6 +25,7 @@ import type {
   UpdateCompanySettingsInput,
   UploadLogoResult,
   ExcelExportResult,
+  ProjectExcelExportPayload,
   IpcResponse,
 } from '../shared/types';
 
@@ -99,6 +100,11 @@ const api = {
       company?: CompanySettings
     ): Promise<string | null> =>
       invoke('export:exportProjectToPdf', projectId, company),
+    exportProjectExcel: (
+      payload: ProjectExcelExportPayload,
+      company?: CompanySettings
+    ): Promise<ExcelExportResult> =>
+      invoke('export:projectExcel', payload, company),
   },
   settings: {
     get: (): Promise<CompanySettings> => invoke('settings:get'),
