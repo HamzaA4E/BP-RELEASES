@@ -94,10 +94,7 @@ export function PanelView() {
   }, [loadData, setFavorites]);
 
   const totalPower = useMemo(() => panelTotalPower(elements), [elements]);
-  const calcCurrent = useMemo(
-    () => calculationCurrent(totalPower, 230, 0.8),
-    [totalPower]
-  );
+  const calcCurrent = useMemo(() => calculationCurrent(totalPower), [totalPower]);
 
   const savePanelName = async (name: string) => {
     try {
@@ -288,11 +285,7 @@ export function PanelView() {
           </div>
         </div>
 
-        <LoadGauge
-          totalPowerW={totalPower}
-          calcCurrentA={calcCurrent}
-          breakerAmpere={panel.general_breaker_ampere}
-        />
+        <LoadGauge totalPowerW={totalPower} calcCurrentA={calcCurrent} />
 
         <ElementTable
           elements={elements}

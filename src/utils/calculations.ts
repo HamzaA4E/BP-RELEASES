@@ -1,33 +1,25 @@
 import type { Element, ElementType, PhaseType } from '@/types';
 import {
-  DEFAULT_COS_PHI,
-  DEFAULT_VOLTAGE,
   calcPuissanceTotale,
   panelTotalPower,
   panelUsedPower,
   panelInstalledPower,
   calculationCurrent,
-  recommendedBreakerAmps,
   formatCoefsLine,
   resolveElementCoefs,
+  wattsToKw,
 } from '../../shared/powerCalculations';
 
 export {
-  DEFAULT_COS_PHI,
-  DEFAULT_VOLTAGE,
   calcPuissanceTotale,
   panelTotalPower,
   panelUsedPower,
   panelInstalledPower,
   calculationCurrent,
-  recommendedBreakerAmps,
   formatCoefsLine,
   resolveElementCoefs,
+  wattsToKw,
 };
-
-export const DEFAULT_SECTION_MM2 = 2.5;
-
-const STANDARD_SECTIONS = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50] as const;
 
 export function defaultCoefsForType(
   type: ElementType,
@@ -53,53 +45,6 @@ export function totalInstalledPower(
   return Math.round(powerW * quantity * coefKs);
 }
 
-export function voltageDropPercent(
-  distanceM: number,
-  powerW: number,
-  quantity: number,
-  ks: number = 1,
-  voltage: number = DEFAULT_VOLTAGE,
-  sectionMm2: number = DEFAULT_SECTION_MM2
-): number {
-  if (distanceM <= 0 || powerW <= 0 || quantity <= 0) return 0;
-  const effectivePower = powerW * quantity * ks;
-  const numerator = 2 * distanceM * effectivePower;
-  const denominator = voltage * sectionMm2 * 56 * voltage;
-  if (denominator === 0) return 0;
-  return (numerator / denominator) * 100;
-}
-
-export function recommendedCableSection(
-  distanceM: number,
-  powerW: number,
-  quantity: number,
-  ks: number = 1,
-  voltage: number = DEFAULT_VOLTAGE
-): number {
-  if (distanceM <= 0 || powerW <= 0 || quantity <= 0) return DEFAULT_SECTION_MM2;
-  for (const section of STANDARD_SECTIONS) {
-    const drop = voltageDropPercent(distanceM, powerW, quantity, ks, voltage, section);
-    if (drop <= 3) return section;
-  }
-  return STANDARD_SECTIONS[STANDARD_SECTIONS.length - 1] ?? 50;
-}
-
-export function calculateCableSection(
-  powerW: number,
-  quantity: number,
-  distanceM: number,
-  ks: number = 1,
-  voltageV: number = DEFAULT_VOLTAGE
-): number {
-  return recommendedCableSection(distanceM, powerW, quantity, ks, voltageV);
-}
-
-export function voltageDropColorClass(percent: number): string {
-  if (percent > 3) return 'text-red-600 dark:text-red-400 font-semibold';
-  if (percent >= 1.5) return 'text-amber-600 dark:text-amber-400 font-medium';
-  return 'text-gray-700 dark:text-gray-300';
-}
-
 export function formatNumber(value: number, decimals = 2): string {
   return value.toLocaleString('fr-FR', {
     minimumFractionDigits: decimals,
@@ -107,12 +52,13 @@ export function formatNumber(value: number, decimals = 2): string {
   });
 }
 
-export function formatPower(value: number): string {
-  return `${formatNumber(value, 0)} W`;
+/** Affiche une puissance stockée en W sous forme kW. */
+export function formatPower(powerW: number): string {
+  return `${formatNumber(wattsToKw(powerW), 3)} kW`;
 }
 
-export function formatPercent(value: number): string {
-  return `${formatNumber(value, 2)} %`;
+export function formatPowerKwFromWatts(powerW: number, decimals = 3): string {
+  return `${formatNumber(wattsToKw(powerW), decimals)} kW`;
 }
 
 const PREFIX_MAP: Record<ElementType, string> = {
@@ -134,20 +80,6 @@ export function getNextRepere(existingElements: Element[], type: ElementType): s
   return `${prefix}${maxNum + 1}`;
 }
 
-/** @deprecated Use getNextRepere */
-export function suggestRepere(type: ElementType, existingReperes: string[]): string {
-  const prefix = PREFIX_MAP[type];
-  const numbers = existingReperes
-    .filter((r) => r.toUpperCase().startsWith(prefix))
-    .map((r) => {
-      const match = r.match(new RegExp(`^${prefix}(\\d+)$`, 'i'));
-      return match?.[1] ? parseInt(match[1], 10) : 0;
-    })
-    .filter((n) => !isNaN(n));
-  const next = numbers.length > 0 ? Math.max(...numbers) + 1 : 1;
-  return `${prefix}${next}`;
-}
-
 export function generateReperePreview(
   baseRepere: string,
   count: number
@@ -166,9 +98,5 @@ export function generateReperePreview(
 }
 
 export function formatKuDisplay(ku: number): string {
-  return ku === 1 ? '' : ku.toFixed(2);
-}
-
-export function elementVoltage(element: { phase_type?: string }): number {
-  return element.phase_type === 'tri' ? 400 : 230;
+  return ku.toFixed(2);
 }

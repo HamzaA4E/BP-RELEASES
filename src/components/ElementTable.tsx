@@ -23,6 +23,8 @@ import {
   formatCoefsLine,
   resolveElementCoefs,
   formatKuDisplay,
+  wattsToKw,
+  formatNumber,
 } from '@/utils/calculations';
 import {
   displayTypeLabel,
@@ -252,10 +254,11 @@ function InlinePowerCell({
         type="number"
         autoFocus
         min={0}
-        defaultValue={element.power_w}
+        defaultValue={wattsToKw(element.power_w)}
+        step={0.001}
         onBlur={(e) => {
           const val = parseFloat(e.target.value);
-          if (!Number.isNaN(val) && val >= 0) onCommit(val);
+          if (!Number.isNaN(val) && val >= 0) onCommit(Math.round(val * 1000));
           setEditingField(null);
         }}
         onKeyDown={(e) => {
@@ -278,7 +281,7 @@ function InlinePowerCell({
       className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors"
       title="Cliquer pour modifier"
     >
-      {element.power_w.toLocaleString('fr-FR')} W
+      {formatNumber(wattsToKw(element.power_w), 3)} kW
     </span>
   );
 }
@@ -384,7 +387,7 @@ function SubtotalRow({ label, totalPower }: { label: string; totalPower: number 
       </td>
       <td colSpan={6} />
       <td className="px-3 py-2 text-sm text-right font-bold italic text-primary dark:text-white">
-        {totalPower.toLocaleString('fr-FR')} W
+        {formatNumber(wattsToKw(totalPower), 3)} kW
       </td>
       <td />
     </tr>
@@ -505,7 +508,7 @@ function SortableDataRow({
               max={1}
               step={0.05}
               format={(v) =>
-                c.key === 'coef_ku' ? formatKuDisplay(v) || '—' : v.toFixed(2)
+                c.key === 'coef_ku' ? formatKuDisplay(v) : v.toFixed(2)
               }
               title={coefsLine}
               onCommit={(v) => {
@@ -515,9 +518,9 @@ function SortableDataRow({
             />
           </td>
         ))}
-        <td className="px-3 py-2 text-sm text-right font-medium">
-          {totalPower.toLocaleString('fr-FR')}
-        </td>
+      <td className="px-3 py-2 text-sm text-right font-medium">
+          {formatNumber(wattsToKw(totalPower), 3)}
+      </td>
         <td className="px-3 py-2">
           <div className="flex gap-1">
             <button
@@ -591,7 +594,7 @@ export function ElementTable({
               <th className="px-3 py-3">Repère</th>
               <th className="px-3 py-3 min-w-[100px]">Type</th>
               <th className="px-3 py-3 min-w-[100px]">Désignation</th>
-              <th className="px-3 py-3 text-right">P. Uniitaire (W)</th>
+              <th className="px-3 py-3 text-right">P. Unitaire (kW)</th>
               <th className="px-3 py-3 text-center">Qté</th>
               <th className="px-3 py-3 text-center w-14" title="Coefficient de simultanéité">
                 Ks
@@ -599,7 +602,7 @@ export function ElementTable({
               <th className="px-3 py-3 text-center w-14" title="Coefficient d'utilisation">
                 Ku
               </th>
-              <th className="px-3 py-3 text-right">P. totale (W)</th>
+              <th className="px-3 py-3 text-right">P. totale (kW)</th>
               <th className="px-3 py-3 w-20">Actions</th>
             </tr>
           </thead>
@@ -663,7 +666,7 @@ export function ElementTable({
                   TOTAL
                 </td>
                 <td className="px-3 py-3 text-sm text-right text-primary dark:text-white">
-                  {totalPower.toLocaleString('fr-FR')} W
+                  {formatNumber(wattsToKw(totalPower), 3)} kW
                 </td>
                 <td />
               </tr>

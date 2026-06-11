@@ -7,6 +7,8 @@ import {
   defaultCoefsForType,
   calcPuissanceTotale,
   formatCoefsLine,
+  wattsToKw,
+  formatNumber,
 } from '@/utils/calculations';
 import {
   displayEmplacement,
@@ -491,14 +493,18 @@ export function AddElementModal({
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Puissance (W) {formData.type !== 'attente' ? '*' : ''}
+                  Puissance (kW) {formData.type !== 'attente' ? '*' : ''}
                 </label>
                 <input
                   type="number"
                   min={0}
-                  value={formData.power_w}
+                  step={0.001}
+                  value={wattsToKw(formData.power_w)}
                   onChange={(e) =>
-                    setFormData((p) => ({ ...p, power_w: Number(e.target.value) }))
+                    setFormData((p) => ({
+                      ...p,
+                      power_w: Math.round(Number(e.target.value) * 1000),
+                    }))
                   }
                   className={`input-field ${errors.power_w ? 'border-red-500' : ''}`}
                 />
@@ -592,7 +598,7 @@ export function AddElementModal({
                   <p className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
                     Puissance totale = P. unitaire × Qté × Ks ={' '}
                     <strong className="text-primary dark:text-accent-light">
-                      {previewUsedPower.toLocaleString('fr-FR')} W
+                      {formatNumber(wattsToKw(previewUsedPower), 3)} kW
                     </strong>
                     {' · '}
                     {formatCoefsLine(formData.coef_ks, formData.coef_ku)}

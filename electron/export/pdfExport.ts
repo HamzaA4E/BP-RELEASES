@@ -12,10 +12,18 @@ import {
   calcPuissanceTotale,
   resolveElementCoefs,
   formatCoefsLine,
+  wattsToKw,
 } from '../../shared/powerCalculations';
 
 function sanitizeFileName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '_');
+}
+
+function formatKw(powerW: number): string {
+  return wattsToKw(powerW).toLocaleString('fr-FR', {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  });
 }
 
 function addCoverPage(
@@ -151,7 +159,7 @@ function addPageHeader(
   }
 }
 
-const COL_WIDTHS = [20, 32, 22, 12, 12, 12, 12, 22, 22];
+const COL_WIDTHS = [20, 38, 24, 12, 12, 12, 24, 28];
 
 const TABLE_WIDTH = COL_WIDTHS.reduce((sum, w) => sum + w, 0);
 
@@ -160,13 +168,12 @@ const TABLE_LEFT = (210 - TABLE_WIDTH) / 2;
 const TABLE_HEADERS = [
   'Repère',
   'Désignation',
-  'P.Uniitaire (W)',
+  'P.Unitaire (kW)',
   'Qté',
   'Ks',
   'Ku',
-  'P.Totale (W)',
+  'P.Totale (kW)',
   'Coefficients',
-  'Chute (%)',
 ];
 
 const TABLE_HEADER_HEIGHT = 8;
@@ -259,7 +266,7 @@ function drawJeuDeBarresTitleRow(
 function drawSubtotalRow(
   doc: jsPDF,
   label: string,
-  totalPower: number,
+  totalPowerW: number,
   y: number
 ): number {
   doc.setFillColor(239, 246, 255);
@@ -268,7 +275,7 @@ function drawSubtotalRow(
   doc.setFont('helvetica', 'bolditalic');
   doc.setFontSize(7);
   doc.text(label, TABLE_LEFT + 2, y);
-  doc.text(String(totalPower), colCenterX(6), y, { align: 'center' });
+  doc.text(`${formatKw(totalPowerW)} kW`, colCenterX(6), y, { align: 'center' });
   return y + 7;
 }
 
@@ -330,13 +337,12 @@ function addPanelPage(
     const row = [
       el.repere,
       designation,
-      String(el.power_w),
+      formatKw(el.power_w),
       String(el.quantity),
       String(ks),
-      ku === 1 ? '' : String(ku),
-      String(totalEl),
+      ku.toFixed(2),
+      formatKw(totalEl),
       coefsLine,
-      '—',
     ];
 
     doc.setTextColor(30, 41, 59);

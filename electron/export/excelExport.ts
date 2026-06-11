@@ -13,7 +13,11 @@ import type {
   PanelWithStats,
 } from '../../shared/types';
 import type { ElementRow } from '../database/elements';
-import { panelPowerSummary, resolveElementCoefs } from '../../shared/powerCalculations';
+import {
+  excelCurrentFormula,
+  resolveElementCoefs,
+  wattsToKw,
+} from '../../shared/powerCalculations';
 
 const PRIMARY_COLOR = 'FF1E3A5F';
 const ALT_ROW_COLOR = 'FFF8F9FA';
@@ -29,14 +33,9 @@ const COL = {
   KS: 5,
   KU: 6,
   TOTAL: 7,
-  DISTANCE: 8,
-  DROP: 9,
-  SECTION: 10,
 } as const;
 
-const COL_COUNT = 10;
-
-const STANDARD_SECTIONS = [1.5, 2.5, 4, 6, 10, 16, 25, 35, 50] as const;
+const COL_COUNT = 7;
 
 interface PanelSheetMeta {
   sheetName: string;
@@ -213,9 +212,9 @@ function addCompanyHeader(
   let svgSkipped = false;
 
   // Toutes les fusions d'en-tête avant l'image (l'ancrage image peut fusionner des cellules).
-  safeMergeCells(worksheet, 1, 1, 1, 3);
-  safeMergeCells(worksheet, 1, 4, 1, 7);
-  safeMergeCells(worksheet, 1, 8, 1, COL_COUNT);
+  safeMergeCells(worksheet, 1, 1, 1, 2);
+  safeMergeCells(worksheet, 1, 3, 1, 5);
+  safeMergeCells(worksheet, 1, 6, 1, COL_COUNT);
   safeMergeCells(worksheet, 2, 1, 2, COL_COUNT);
 
   const logoCell = worksheet.getCell(1, 1);
@@ -235,7 +234,7 @@ function addCompanyHeader(
     logoCell.alignment = { vertical: 'middle', horizontal: 'center' };
   }
 
-  const titleCell = worksheet.getCell(1, 4);
+  const titleCell = worksheet.getCell(1, 3);
   titleCell.value = toCellString(title);
   titleCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 13 };
   titleCell.fill = {
@@ -245,7 +244,7 @@ function addCompanyHeader(
   };
   titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-  const infoCell = worksheet.getCell(1, 8);
+  const infoCell = worksheet.getCell(1, 6);
   infoCell.value = buildCompanyInfoRichText(company);
   infoCell.fill = {
     type: 'pattern',
@@ -277,22 +276,6 @@ function isJeuDeBarresRow(el: { type?: string; row_kind?: string }): boolean {
 function jdbCategoryLabelExcel(category: string | null | undefined): string {
   if (category === 'prise') return 'Prise de courant';
   return 'Éclairage';
-}
-
-function recommendedCableSection(
-  distanceM: number,
-  powerW: number,
-  quantity: number,
-  ks: number
-): number {
-  if (distanceM <= 0 || powerW <= 0 || quantity <= 0) return 2.5;
-  const effectivePower = powerW * quantity * ks;
-  for (const section of STANDARD_SECTIONS) {
-    const drop =
-      ((2 * distanceM * effectivePower) / (56 * 230 * section * 230)) * 100;
-    if (drop <= 3) return section;
-  }
-  return STANDARD_SECTIONS[STANDARD_SECTIONS.length - 1] ?? 50;
 }
 
 function writeJeuDeBarresExcelRow(
@@ -385,14 +368,11 @@ function createPanelSheet(
   const headers = [
     'Repère',
     'Désignation',
-    'P. Unitaire (W)',
+    'P. Unitaire (kW)',
     'Qté',
     'Ks',
     'Ku',
-    'P. totale (W)',
-    'Distance (m)',
-    'Chute de tension (%)',
-    'Section câble',
+    'P. totale (kW)',
   ];
 
   const headerRowObj = sheet.getRow(headerRow);
@@ -443,27 +423,16 @@ function createPanelSheet(
     const row = sheet.getRow(rowNum);
     const { ks, ku } = resolveElementCoefs(el);
     const designation = el.emplacement?.trim() || el.type_label || '';
-    const section = recommendedCableSection(
-      el.distance_m,
-      el.power_w,
-      el.quantity,
-      ks
-    );
 
     row.getCell(COL.REPERE).value = toCellValue(el.repere);
     row.getCell(COL.DESIGNATION).value = toCellValue(designation);
-    row.getCell(COL.POWER).value = el.power_w;
+    row.getCell(COL.POWER).value = wattsToKw(el.power_w);
     row.getCell(COL.QTY).value = el.quantity;
     row.getCell(COL.KS).value = ks;
-    row.getCell(COL.KU).value = ku === 1 ? '' : ku;
+    row.getCell(COL.KU).value = ku;
     row.getCell(COL.TOTAL).value = {
       formula: `${colLetter(COL.POWER)}${rowNum}*${colLetter(COL.QTY)}${rowNum}*${colLetter(COL.KS)}${rowNum}`,
     };
-    row.getCell(COL.DISTANCE).value = el.distance_m;
-    row.getCell(COL.DROP).value = {
-      formula: `(2*${colLetter(COL.DISTANCE)}${rowNum}*${colLetter(COL.POWER)}${rowNum}*${colLetter(COL.QTY)}${rowNum}*${colLetter(COL.KS)}${rowNum})/(56*230*${colLetter(COL.SECTION)}${rowNum}*230)*100`,
-    };
-    row.getCell(COL.SECTION).value = section;
 
     dataRowIndex++;
     if (dataRowIndex % 2 === 0) {
@@ -518,23 +487,16 @@ function createPanelSheet(
   sheet.getCell(summaryStart, 1).value = 'Puissance installée :';
   sheet.getCell(summaryStart, 1).font = { bold: true, size: 10 };
   sheet.getCell(summaryStart, 2).value = { formula: totalPowerCell };
-  sheet.getCell(summaryStart, 3).value = 'W';
+  sheet.getCell(summaryStart, 3).value = 'kW';
 
   const currentRowNum = summaryStart + 1;
   sheet.getCell(currentRowNum, 1).value = 'Intensité de calcul :';
   sheet.getCell(currentRowNum, 1).font = { bold: true, size: 10 };
   const currentCellAddress = `${colLetter(2)}${currentRowNum}`;
   sheet.getCell(currentRowNum, 2).value = {
-    formula: `${totalPowerCell}/(230*0.8)`,
+    formula: excelCurrentFormula(totalPowerCell),
   };
   sheet.getCell(currentRowNum, 3).value = 'A';
-
-  const summary = panelPowerSummary(data.elements);
-  const breakerRow = currentRowNum + 1;
-  sheet.getCell(breakerRow, 1).value = 'DJ recommandé :';
-  sheet.getCell(breakerRow, 1).font = { bold: true, size: 10 };
-  sheet.getCell(breakerRow, 2).value = summary.breaker;
-  sheet.getCell(breakerRow, 3).value = 'A';
 
   sheet.columns = [
     { width: 10 },
@@ -544,9 +506,6 @@ function createPanelSheet(
     { width: 6 },
     { width: 6 },
     { width: 14 },
-    { width: 12 },
-    { width: 16 },
-    { width: 12 },
   ];
 
   sheet.views = [{ state: 'frozen', ySplit: headerRow }];
@@ -588,9 +547,8 @@ function createSyntheseSheet(
   const headers = [
     'Emplacement',
     'Tableau',
-    'P. installée (W)',
+    'P. installée (kW)',
     'Intensité (A)',
-    'DJ recommandé (A)',
   ];
   const headerRowObj = sheet.getRow(headerRow);
   headers.forEach((h, i) => {
@@ -614,11 +572,7 @@ function createSyntheseSheet(
     row.getCell(2).value = toCellString(meta.panelName);
     row.getCell(3).value = { formula: meta.totalPowerCell };
     row.getCell(4).value = { formula: meta.currentCell };
-    const currentFormula = meta.currentCell;
-    row.getCell(5).value = {
-      formula: `IF(${currentFormula}<=10,10,IF(${currentFormula}<=16,16,IF(${currentFormula}<=20,20,IF(${currentFormula}<=25,25,IF(${currentFormula}<=32,32,IF(${currentFormula}<=40,40,IF(${currentFormula}<=50,50,IF(${currentFormula}<=63,63,IF(${currentFormula}<=80,80,IF(${currentFormula}<=100,100,IF(${currentFormula}<=125,125,IF(${currentFormula}<=160,160,200))))))))))))`,
-    };
-    for (let c = 1; c <= 5; c++) applyBorder(row.getCell(c));
+    for (let c = 1; c <= 4; c++) applyBorder(row.getCell(c));
   }
 
   sheet.columns = [
@@ -626,7 +580,6 @@ function createSyntheseSheet(
     { width: 22 },
     { width: 18 },
     { width: 14 },
-    { width: 16 },
   ];
 }
 
