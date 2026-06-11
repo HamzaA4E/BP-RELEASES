@@ -40,9 +40,10 @@ export function defaultCoefsForType(
 export function totalInstalledPower(
   powerW: number,
   quantity: number,
-  coefKs: number = 1
+  coefKs: number = 1,
+  coefKu: number = 1
 ): number {
-  return Math.round(powerW * quantity * coefKs);
+  return Math.round(powerW * quantity * coefKs * coefKu);
 }
 
 export function formatNumber(value: number, decimals = 2): string {

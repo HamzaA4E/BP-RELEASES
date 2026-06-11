@@ -43,11 +43,11 @@ export function wattsToKw(powerW: number): number {
   return powerW / 1000;
 }
 
-/** Puissance totale d'un élément en W : P × Qté × Ks (arrondi). */
+/** Puissance totale d'un élément en W : P × Qté × Ks × Ku (arrondi). */
 export function calcPuissanceTotale(el: PowerElementInput): number {
   if (el.type === 'attente' || el.type === 'jeu_de_barres') return 0;
-  const { ks } = resolveElementCoefs(el);
-  return Math.round(el.power_w * el.quantity * ks);
+  const { ks, ku } = resolveElementCoefs(el);
+  return Math.round(el.power_w * el.quantity * ks * ku);
 }
 
 /** Somme des puissances totales du tableau en W (hors attente et jeux de barres). */
@@ -62,7 +62,7 @@ export function panelUsedPower(elements: PowerElementInput[]): number {
   return panelTotalPower(elements);
 }
 
-/** Puissance installée en W : somme P × Qté × Ks (hors JDB / bar_set). */
+/** Puissance installée en W : somme P × Qté × Ks × Ku (hors JDB / bar_set). */
 export function panelInstalledPower(elements: PowerElementInput[]): number {
   return elements
     .filter(isInstalledPowerRow)

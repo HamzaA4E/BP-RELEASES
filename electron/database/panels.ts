@@ -26,7 +26,7 @@ export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
       `SELECT p.*,
         (SELECT COUNT(*) FROM elements e WHERE e.panel_id = p.id) as element_count,
         COALESCE((
-          SELECT SUM(e.power_w * e.quantity * COALESCE(e.coef_ks, e.ks, 1)) FROM elements e
+          SELECT SUM(e.power_w * e.quantity * COALESCE(e.coef_ks, e.ks, 1) * COALESCE(e.coef_ku, e.ku, 1)) FROM elements e
           WHERE e.panel_id = p.id AND e.type != 'jeu_de_barres' AND e.type != 'attente'
         ), 0) as installed_power_w
       FROM panels p

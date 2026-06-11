@@ -596,7 +596,7 @@ export function AddElementModal({
                     ))}
                   </div>
                   <p className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
-                    Puissance totale = P. unitaire × Qté × Ks ={' '}
+                    Puissance totale = P. unitaire × Qté × Ks × Ku ={' '}
                     <strong className="text-primary dark:text-accent-light">
                       {formatNumber(wattsToKw(previewUsedPower), 3)} kW
                     </strong>

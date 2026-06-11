@@ -332,7 +332,7 @@ function addPanelPage(
     const designation = el.emplacement?.trim() || el.type_label || '';
     const { ks, ku } = resolveElementCoefs(el);
     const totalEl = calcPuissanceTotale(el);
-    const coefsLine = formatCoefsLine(ks, ku);
+    const coefsLine = ku === 1 ? `Ks=${ks}` : formatCoefsLine(ks, ku);
 
     const row = [
       el.repere,
@@ -340,7 +340,7 @@ function addPanelPage(
       formatKw(el.power_w),
       String(el.quantity),
       String(ks),
-      ku.toFixed(2),
+      ku === 1 ? '' : ku.toFixed(2),
       formatKw(totalEl),
       coefsLine,
     ];

@@ -429,9 +429,10 @@ function createPanelSheet(
     row.getCell(COL.POWER).value = wattsToKw(el.power_w);
     row.getCell(COL.QTY).value = el.quantity;
     row.getCell(COL.KS).value = ks;
-    row.getCell(COL.KU).value = ku;
+    row.getCell(COL.KU).value = ku === 1 ? '' : ku;
+    const kuCol = colLetter(COL.KU);
     row.getCell(COL.TOTAL).value = {
-      formula: `${colLetter(COL.POWER)}${rowNum}*${colLetter(COL.QTY)}${rowNum}*${colLetter(COL.KS)}${rowNum}`,
+      formula: `${colLetter(COL.POWER)}${rowNum}*${colLetter(COL.QTY)}${rowNum}*${colLetter(COL.KS)}${rowNum}*IF(${kuCol}${rowNum}="",1,${kuCol}${rowNum})`,
     };
 
     dataRowIndex++;
