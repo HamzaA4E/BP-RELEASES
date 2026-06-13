@@ -28,8 +28,6 @@ const ALT_ROW_COLOR = 'FFF8F9FA';
 const TOTAL_ROW_COLOR = 'FFDBEAFE';
 const SUBTOTAL_ROW_COLOR = 'FFEFF6FF';
 const PROJECT_INFO_COLOR = 'FFE8F0FE';
-const MULTI_ROW_COLOR = 'FFF5F3FF';
-const MULTI_ACCENT_COLOR = 'FF7C3AED';
 
 const COL = {
   REPERE: 1,
@@ -98,6 +96,7 @@ function applyBorder(cell: ExcelJS.Cell): void {
     bottom: { style: 'thin', color: { argb: 'FFD1D5DB' } },
     right: { style: 'thin', color: { argb: 'FFD1D5DB' } },
   };
+  cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
 }
 
 /** Merge sans erreur si la plage est déjà fusionnée ou chevauche une fusion existante. */
@@ -270,7 +269,7 @@ function addCompanyHeader(
     pattern: 'solid',
     fgColor: { argb: PROJECT_INFO_COLOR },
   };
-  projectCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  projectCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
   return { headerRow: 4, svgSkipped };
 }
@@ -300,64 +299,37 @@ function writeJeuDeBarresExcelRow(
     fgColor: { argb: PRIMARY_COLOR },
   };
   cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
-  cell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
   sheet.getRow(rowNum).height = 26;
   applyBorder(cell);
 }
 
-function buildArticlesSummaryExcel(articles: ArticleRow[]): string {
-  if (articles.length === 0) return 'DÉPART MULTI';
-  const parts = articles.map((a) => {
-    const label = a.type_label?.trim() || a.designation?.trim() || 'Article';
-    const short = label.length > 18 ? `${label.slice(0, 16)}…` : label;
-    return `${short} ×${a.quantity}`;
-  });
-  let summary = parts.join(' + ');
-  if (summary.length > 50) summary = `${summary.slice(0, 47)}...`;
-  return summary;
-}
-
 function writeMultiDepartExcelRows(
   sheet: ExcelJS.Worksheet,
-  titleRowNum: number,
+  startRowNum: number,
   el: ElementRow,
   articles: ArticleRow[]
 ): { endRow: number; powerRows: number[] } {
-  const titleRow = sheet.getRow(titleRowNum);
-
-  titleRow.getCell(COL.REPERE).value = toCellValue(el.repere);
-  titleRow.getCell(COL.DESIGNATION).value = toCellString(
-    `DÉPART MULTI — ${buildArticlesSummaryExcel(articles)}`
-  );
-  titleRow.getCell(COL.POWER).value = '—';
-  titleRow.getCell(COL.QTY).value = '—';
-  titleRow.getCell(COL.KS).value = '';
-  titleRow.getCell(COL.KU).value = '';
-  titleRow.getCell(COL.TOTAL).value = '';
-
-  for (let c = 1; c <= COL_COUNT; c++) {
-    const cell = titleRow.getCell(c);
-    cell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: MULTI_ROW_COLOR },
-    };
-    cell.font = { bold: true, color: { argb: MULTI_ACCENT_COLOR }, size: 10 };
-    applyBorder(cell);
-  }
-
   const powerRows: number[] = [];
-  let rowNum = titleRowNum;
+  let rowNum = startRowNum - 1;
+  let isFirstArticle = true;
 
   for (const article of articles) {
     rowNum++;
     const row = sheet.getRow(rowNum);
-    row.getCell(COL.REPERE).value = '';
+
+    // Only set repère for the first article in the multi depart
+    if (isFirstArticle) {
+      row.getCell(COL.REPERE).value = toCellValue(el.repere);
+      isFirstArticle = false;
+    } else {
+      row.getCell(COL.REPERE).value = '';
+    }
+
     const desCell = row.getCell(COL.DESIGNATION);
     desCell.value = toCellString(
       article.designation?.trim() || article.type_label?.trim() || ''
     );
-    desCell.alignment = { indent: 1, vertical: 'middle', horizontal: 'left' };
     row.getCell(COL.POWER).value = wattsToKw(article.power_w);
     row.getCell(COL.QTY).value = article.quantity;
     const ks = article.coef_ks ?? 1;
@@ -371,15 +343,9 @@ function writeMultiDepartExcelRows(
     };
     powerRows.push(rowNum);
 
+    // Apply standard formatting (no special colors)
     for (let c = 1; c <= COL_COUNT; c++) {
-      const cell = row.getCell(c);
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: MULTI_ROW_COLOR },
-      };
-      cell.font = { size: 9, color: { argb: 'FF5B21B6' } };
-      applyBorder(cell);
+      applyBorder(row.getCell(c));
     }
   }
 
@@ -396,12 +362,7 @@ function writeSubtotalRow(
   const labelCell = sheet.getCell(rowNum, COL.REPERE);
   labelCell.value = toCellString(label);
   labelCell.font = { bold: true, italic: true, size: 10 };
-  labelCell.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
-  labelCell.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: SUBTOTAL_ROW_COLOR },
-  };
+  labelCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
   const totalCell = sheet.getCell(rowNum, COL.TOTAL);
   totalCell.value = { formula: sumFormula };
@@ -411,6 +372,7 @@ function writeSubtotalRow(
     pattern: 'solid',
     fgColor: { argb: SUBTOTAL_ROW_COLOR },
   };
+  totalCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
   for (let c = 1; c <= COL_COUNT; c++) {
     applyBorder(sheet.getCell(rowNum, c));
@@ -483,6 +445,16 @@ function createPanelSheet(
   let groupPowerRows: number[] = [];
   const allPowerRows: number[] = [];
 
+  // Tracking for repère merging
+  let currentRepere = '';
+  let currentRepereStartRow = 0;
+
+  const flushRepereGroup = (): void => {
+    if (currentRepere && currentRepereStartRow > 0 && rowNum > currentRepereStartRow) {
+      safeMergeCells(sheet, currentRepereStartRow, COL.REPERE, rowNum, COL.REPERE);
+    }
+  };
+
   const flushSubtotal = (): void => {
     if (!currentJdb || groupPowerRows.length === 0) return;
     rowNum++;
@@ -501,10 +473,20 @@ function createPanelSheet(
     rowNum++;
 
     if (isJeuDeBarresRow(el)) {
+      flushRepereGroup();
       flushSubtotal();
       currentJdb = el;
+      currentRepere = '';
+      currentRepereStartRow = 0;
       writeJeuDeBarresExcelRow(sheet, rowNum, el);
       continue;
+    }
+
+    // Check if repère changed
+    if (el.repere !== currentRepere) {
+      flushRepereGroup();
+      currentRepere = el.repere;
+      currentRepereStartRow = rowNum;
     }
 
     if (el.is_multi) {
@@ -556,6 +538,7 @@ function createPanelSheet(
     if (currentJdb) groupPowerRows.push(rowNum);
   }
 
+  flushRepereGroup();
   flushSubtotal();
 
   const dataStartRow = headerRow + 1;
