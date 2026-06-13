@@ -29,18 +29,6 @@ const TOTAL_ROW_COLOR = 'FFDBEAFE';
 const SUBTOTAL_ROW_COLOR = 'FFEFF6FF';
 const PROJECT_INFO_COLOR = 'FFE8F0FE';
 
-const COL = {
-  REPERE: 1,
-  DESIGNATION: 2,
-  POWER: 3,
-  QTY: 4,
-  KS: 5,
-  KU: 6,
-  TOTAL: 7,
-} as const;
-
-const COL_COUNT = 7;
-
 interface PanelSheetMeta {
   sheetName: string;
   totalPowerCell: string;
@@ -208,7 +196,8 @@ function addCompanyHeader(
   workbook: ExcelJS.Workbook,
   company: CompanySettings,
   title: string,
-  projectInfo: { name: string; client: string | null }
+  projectInfo: { name: string; client: string | null },
+  colCount: number = 7
 ): { headerRow: number; svgSkipped: boolean } {
   worksheet.getRow(1).height = 55;
   worksheet.getRow(2).height = 18;
@@ -219,8 +208,8 @@ function addCompanyHeader(
   // Toutes les fusions d'en-tête avant l'image (l'ancrage image peut fusionner des cellules).
   safeMergeCells(worksheet, 1, 1, 1, 2);
   safeMergeCells(worksheet, 1, 3, 1, 5);
-  safeMergeCells(worksheet, 1, 6, 1, COL_COUNT);
-  safeMergeCells(worksheet, 2, 1, 2, COL_COUNT);
+  safeMergeCells(worksheet, 1, 6, 1, colCount);
+  safeMergeCells(worksheet, 2, 1, 2, colCount);
 
   const logoCell = worksheet.getCell(1, 1);
   logoCell.fill = {
@@ -286,11 +275,12 @@ function jdbCategoryLabelExcel(category: string | null | undefined): string {
 function writeJeuDeBarresExcelRow(
   sheet: ExcelJS.Worksheet,
   rowNum: number,
-  el: ElementRow
+  el: ElementRow,
+  colCount: number
 ): void {
   const title = el.type_label?.trim() || el.designation?.trim() || 'Jeu de barres';
   const category = jdbCategoryLabelExcel(el.jdb_category);
-  safeMergeCells(sheet, rowNum, 1, rowNum, COL_COUNT);
+  safeMergeCells(sheet, rowNum, 1, rowNum, colCount);
   const cell = sheet.getCell(rowNum, 1);
   cell.value = toCellString(`${title}  —  Jeu de barres · ${category}`);
   cell.fill = {
@@ -308,7 +298,10 @@ function writeMultiDepartExcelRows(
   sheet: ExcelJS.Worksheet,
   startRowNum: number,
   el: ElementRow,
-  articles: ArticleRow[]
+  articles: ArticleRow[],
+  colMapping: { REPERE: number; DESIGNATION: number; POWER: number; QTY: number; KS: number; KU: number; TOTAL: number },
+  colCount: number,
+  showKu: boolean
 ): { endRow: number; powerRows: number[] } {
   const powerRows: number[] = [];
   let rowNum = startRowNum - 1;
@@ -320,31 +313,35 @@ function writeMultiDepartExcelRows(
 
     // Only set repère for the first article in the multi depart
     if (isFirstArticle) {
-      row.getCell(COL.REPERE).value = toCellValue(el.repere);
+      row.getCell(colMapping.REPERE).value = toCellValue(el.repere);
       isFirstArticle = false;
     } else {
-      row.getCell(COL.REPERE).value = '';
+      row.getCell(colMapping.REPERE).value = '';
     }
 
-    const desCell = row.getCell(COL.DESIGNATION);
+    const desCell = row.getCell(colMapping.DESIGNATION);
     desCell.value = toCellString(
       article.designation?.trim() || article.type_label?.trim() || ''
     );
-    row.getCell(COL.POWER).value = wattsToKw(article.power_w);
-    row.getCell(COL.QTY).value = article.quantity;
+    row.getCell(colMapping.POWER).value = wattsToKw(article.power_w);
+    row.getCell(colMapping.QTY).value = article.quantity;
     const ks = article.coef_ks ?? 1;
     const ku = article.coef_ku ?? 1;
-    row.getCell(COL.KS).value = ks;
-    row.getCell(COL.KU).value = ku === 1 ? '' : ku;
-    const kuCol = colLetter(COL.KU);
-    const ksCol = colLetter(COL.KS);
-    row.getCell(COL.TOTAL).value = {
-      formula: `${colLetter(COL.POWER)}${rowNum}*${colLetter(COL.QTY)}${rowNum}*${ksCol}${rowNum}*IF(${kuCol}${rowNum}="",1,${kuCol}${rowNum})`,
+    row.getCell(colMapping.KS).value = ks;
+    if (showKu) {
+      row.getCell(colMapping.KU).value = ku === 1 ? '' : ku;
+    }
+
+    const kuCol = showKu ? colLetter(colMapping.KU) : '';
+    const kuCondition = showKu ? `IF(${kuCol}${rowNum}="",1,${kuCol}${rowNum})` : '1';
+    const ksCol = colLetter(colMapping.KS);
+    row.getCell(colMapping.TOTAL).value = {
+      formula: `${colLetter(colMapping.POWER)}${rowNum}*${colLetter(colMapping.QTY)}${rowNum}*${ksCol}${rowNum}*${kuCondition}`,
     };
     powerRows.push(rowNum);
 
     // Apply standard formatting (no special colors)
-    for (let c = 1; c <= COL_COUNT; c++) {
+    for (let c = 1; c <= colCount; c++) {
       applyBorder(row.getCell(c));
     }
   }
@@ -356,15 +353,17 @@ function writeSubtotalRow(
   sheet: ExcelJS.Worksheet,
   rowNum: number,
   label: string,
-  sumFormula: string
+  sumFormula: string,
+  colMapping: { REPERE: number; DESIGNATION: number; POWER: number; QTY: number; KS: number; KU: number; TOTAL: number },
+  colCount: number
 ): void {
-  safeMergeCells(sheet, rowNum, COL.REPERE, rowNum, COL.DESIGNATION);
-  const labelCell = sheet.getCell(rowNum, COL.REPERE);
+  safeMergeCells(sheet, rowNum, colMapping.REPERE, rowNum, colMapping.DESIGNATION);
+  const labelCell = sheet.getCell(rowNum, colMapping.REPERE);
   labelCell.value = toCellString(label);
   labelCell.font = { bold: true, italic: true, size: 10 };
   labelCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-  const totalCell = sheet.getCell(rowNum, COL.TOTAL);
+  const totalCell = sheet.getCell(rowNum, colMapping.TOTAL);
   totalCell.value = { formula: sumFormula };
   totalCell.font = { bold: true, italic: true, size: 10 };
   totalCell.fill = {
@@ -374,7 +373,7 @@ function writeSubtotalRow(
   };
   totalCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-  for (let c = 1; c <= COL_COUNT; c++) {
+  for (let c = 1; c <= colCount; c++) {
     applyBorder(sheet.getCell(rowNum, c));
   }
   sheet.getRow(rowNum).height = 22;
@@ -388,6 +387,23 @@ interface PanelSheetResult {
   totalRowNum: number;
   totalPowerCell: string;
   currentCell: string;
+}
+
+function hasNonUnitaryKu(elements: ElementRow[]): boolean {
+  for (const el of elements) {
+    if (isJeuDeBarresRow(el)) continue;
+    
+    if (el.is_multi) {
+      const articles = getArticlesByElement(el.id);
+      for (const article of articles) {
+        if ((article.coef_ku ?? 1) !== 1) return true;
+      }
+    } else {
+      const resolvedCoefs = resolveElementCoefs(el);
+      if (resolvedCoefs.ku !== 1) return true;
+    }
+  }
+  return false;
 }
 
 function createPanelSheet(
@@ -406,23 +422,48 @@ function createPanelSheet(
   const sheetName = uniqueSheetName(workbook, data.sheetName);
   const sheet = workbook.addWorksheet(sheetName);
 
+  // Check if Ku is needed BEFORE calling addCompanyHeader
+  const showKu = hasNonUnitaryKu(data.elements);
+  const COL_COUNT_DYNAMIC = showKu ? 7 : 6;
+
   const { headerRow, svgSkipped } = addCompanyHeader(
     sheet,
     workbook,
     data.company,
     data.sheetTitle,
-    { name: data.projectName, client: data.projectClient }
+    { name: data.projectName, client: data.projectClient },
+    COL_COUNT_DYNAMIC
   );
 
-  const headers = [
-    'Repère',
-    'Désignation',
-    'P. Unitaire (kW)',
-    'Qté',
-    'Ks',
-    'Ku',
-    'P. totale (kW)',
-  ];
+  // Dynamic column mapping
+  const COL_DYNAMIC = {
+    REPERE: 1,
+    DESIGNATION: 2,
+    POWER: 3,
+    QTY: 4,
+    KS: 5,
+    KU: showKu ? 6 : 0,
+    TOTAL: showKu ? 7 : 6,
+  } as const;
+
+  const headers = showKu
+    ? [
+        'Repère',
+        'Désignation',
+        'P. Unitaire (kW)',
+        'Qté',
+        'Ks',
+        'Ku',
+        'P. totale (kW)',
+      ]
+    : [
+        'Repère',
+        'Désignation',
+        'P. Unitaire (kW)',
+        'Qté',
+        'Ks',
+        'P. totale (kW)',
+      ];
 
   const headerRowObj = sheet.getRow(headerRow);
   headers.forEach((h, i) => {
@@ -451,7 +492,7 @@ function createPanelSheet(
 
   const flushRepereGroup = (): void => {
     if (currentRepere && currentRepereStartRow > 0 && rowNum > currentRepereStartRow) {
-      safeMergeCells(sheet, currentRepereStartRow, COL.REPERE, rowNum, COL.REPERE);
+      safeMergeCells(sheet, currentRepereStartRow, COL_DYNAMIC.REPERE, rowNum, COL_DYNAMIC.REPERE);
     }
   };
 
@@ -460,12 +501,12 @@ function createPanelSheet(
     rowNum++;
     const first = groupPowerRows[0]!;
     const last = groupPowerRows[groupPowerRows.length - 1]!;
-    const sumFormula = `SUM(${colLetter(COL.TOTAL)}${first}:${colLetter(COL.TOTAL)}${last})`;
+    const sumFormula = `SUM(${colLetter(COL_DYNAMIC.TOTAL)}${first}:${colLetter(COL_DYNAMIC.TOTAL)}${last})`;
     const jdbTitle =
       currentJdb.type_label?.trim() ||
       currentJdb.designation?.trim() ||
       'Jeu de barres';
-    writeSubtotalRow(sheet, rowNum, `Sous-total ${jdbTitle}`, sumFormula);
+    writeSubtotalRow(sheet, rowNum, `Sous-total ${jdbTitle}`, sumFormula, COL_DYNAMIC, COL_COUNT_DYNAMIC);
     groupPowerRows = [];
   };
 
@@ -478,7 +519,7 @@ function createPanelSheet(
       currentJdb = el;
       currentRepere = '';
       currentRepereStartRow = 0;
-      writeJeuDeBarresExcelRow(sheet, rowNum, el);
+      writeJeuDeBarresExcelRow(sheet, rowNum, el, COL_COUNT_DYNAMIC);
       continue;
     }
 
@@ -496,7 +537,10 @@ function createPanelSheet(
         sheet,
         titleRowNum,
         el,
-        articles
+        articles,
+        COL_DYNAMIC,
+        COL_COUNT_DYNAMIC,
+        showKu
       );
       rowNum = endRow;
       dataRowIndex++;
@@ -509,20 +553,24 @@ function createPanelSheet(
     const { ks, ku } = resolveElementCoefs(el);
     const designation = el.emplacement?.trim() || el.type_label || '';
 
-    row.getCell(COL.REPERE).value = toCellValue(el.repere);
-    row.getCell(COL.DESIGNATION).value = toCellValue(designation);
-    row.getCell(COL.POWER).value = wattsToKw(el.power_w);
-    row.getCell(COL.QTY).value = el.quantity;
-    row.getCell(COL.KS).value = ks;
-    row.getCell(COL.KU).value = ku === 1 ? '' : ku;
-    const kuCol = colLetter(COL.KU);
-    row.getCell(COL.TOTAL).value = {
-      formula: `${colLetter(COL.POWER)}${rowNum}*${colLetter(COL.QTY)}${rowNum}*${colLetter(COL.KS)}${rowNum}*IF(${kuCol}${rowNum}="",1,${kuCol}${rowNum})`,
+    row.getCell(COL_DYNAMIC.REPERE).value = toCellValue(el.repere);
+    row.getCell(COL_DYNAMIC.DESIGNATION).value = toCellValue(designation);
+    row.getCell(COL_DYNAMIC.POWER).value = wattsToKw(el.power_w);
+    row.getCell(COL_DYNAMIC.QTY).value = el.quantity;
+    row.getCell(COL_DYNAMIC.KS).value = ks;
+    if (showKu) {
+      row.getCell(COL_DYNAMIC.KU).value = ku === 1 ? '' : ku;
+    }
+
+    const kuCol = showKu ? colLetter(COL_DYNAMIC.KU) : '';
+    const kuCondition = showKu ? `IF(${kuCol}${rowNum}="",1,${kuCol}${rowNum})` : '1';
+    row.getCell(COL_DYNAMIC.TOTAL).value = {
+      formula: `${colLetter(COL_DYNAMIC.POWER)}${rowNum}*${colLetter(COL_DYNAMIC.QTY)}${rowNum}*${colLetter(COL_DYNAMIC.KS)}${rowNum}*${kuCondition}`,
     };
 
     dataRowIndex++;
     if (dataRowIndex % 2 === 0) {
-      for (let c = 1; c <= COL_COUNT; c++) {
+      for (let c = 1; c <= COL_COUNT_DYNAMIC; c++) {
         row.getCell(c).fill = {
           type: 'pattern',
           pattern: 'solid',
@@ -530,7 +578,7 @@ function createPanelSheet(
         };
       }
     }
-    for (let c = 1; c <= COL_COUNT; c++) {
+    for (let c = 1; c <= COL_COUNT_DYNAMIC; c++) {
       applyBorder(row.getCell(c));
     }
 
@@ -547,28 +595,29 @@ function createPanelSheet(
   const totalRowNum = rowNum;
 
   const totalRow = sheet.getRow(totalRowNum);
-  safeMergeCells(sheet, totalRowNum, COL.REPERE, totalRowNum, COL.KU);
-  totalRow.getCell(COL.REPERE).value = 'TOTAL';
-  totalRow.getCell(COL.REPERE).font = { bold: true };
-  totalRow.getCell(COL.REPERE).fill = {
+  const mergeEndCol = showKu ? COL_DYNAMIC.KU : COL_DYNAMIC.KS;
+  safeMergeCells(sheet, totalRowNum, COL_DYNAMIC.REPERE, totalRowNum, mergeEndCol);
+  totalRow.getCell(COL_DYNAMIC.REPERE).value = 'TOTAL';
+  totalRow.getCell(COL_DYNAMIC.REPERE).font = { bold: true };
+  totalRow.getCell(COL_DYNAMIC.REPERE).fill = {
     type: 'pattern',
     pattern: 'solid',
     fgColor: { argb: TOTAL_ROW_COLOR },
   };
 
-  const powerRefs = allPowerRows.map((r) => `${colLetter(COL.TOTAL)}${r}`).join(',');
+  const powerRefs = allPowerRows.map((r) => `${colLetter(COL_DYNAMIC.TOTAL)}${r}`).join(',');
   const powerSumFormula = powerRefs ? `SUM(${powerRefs})` : '0';
-  totalRow.getCell(COL.TOTAL).value = { formula: powerSumFormula };
-  totalRow.getCell(COL.TOTAL).font = { bold: true };
-  totalRow.getCell(COL.TOTAL).fill = {
+  totalRow.getCell(COL_DYNAMIC.TOTAL).value = { formula: powerSumFormula };
+  totalRow.getCell(COL_DYNAMIC.TOTAL).font = { bold: true };
+  totalRow.getCell(COL_DYNAMIC.TOTAL).fill = {
     type: 'pattern',
     pattern: 'solid',
     fgColor: { argb: TOTAL_ROW_COLOR },
   };
-  applyBorder(totalRow.getCell(COL.REPERE));
-  applyBorder(totalRow.getCell(COL.TOTAL));
+  applyBorder(totalRow.getCell(COL_DYNAMIC.REPERE));
+  applyBorder(totalRow.getCell(COL_DYNAMIC.TOTAL));
 
-  const totalPowerCell = `${colLetter(COL.TOTAL)}${totalRowNum}`;
+  const totalPowerCell = `${colLetter(COL_DYNAMIC.TOTAL)}${totalRowNum}`;
   const summaryStart = totalRowNum + 2;
 
   sheet.getCell(summaryStart, 1).value = 'Puissance installée :';
@@ -585,15 +634,26 @@ function createPanelSheet(
   };
   sheet.getCell(currentRowNum, 3).value = 'A';
 
-  sheet.columns = [
-    { width: 10 },
-    { width: 28 },
-    { width: 14 },
-    { width: 6 },
-    { width: 6 },
-    { width: 6 },
-    { width: 14 },
-  ];
+  // Dynamic column widths based on whether Ku is shown
+  const columns = showKu
+    ? [
+        { width: 10 },
+        { width: 28 },
+        { width: 14 },
+        { width: 6 },
+        { width: 6 },
+        { width: 6 },
+        { width: 14 },
+      ]
+    : [
+        { width: 10 },
+        { width: 28 },
+        { width: 14 },
+        { width: 6 },
+        { width: 6 },
+        { width: 14 },
+      ];
+  sheet.columns = columns;
 
   sheet.views = [{ state: 'frozen', ySplit: headerRow }];
 
