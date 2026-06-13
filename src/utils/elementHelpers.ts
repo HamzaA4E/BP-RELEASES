@@ -1,4 +1,4 @@
-import type { Article, Element, ElementType, JdbCategory } from '@/types';
+import type { Article, Element, ElementType, JdbCategory, PhaseType } from '@/types';
 import { resolveJdbCategory } from '@/types';
 import { calcPuissanceTotale, defaultCoefsForType } from '@/utils/calculations';
 
@@ -52,6 +52,49 @@ export function jeuDeBarresTitle(element: Element): string {
 export function jdbCategoryLabel(category: JdbCategory | null | undefined): string {
   const resolved = resolveJdbCategory(category);
   return resolved === 'eclairage' ? 'Éclairage' : 'Prise de courant';
+}
+
+/** Catégorie d'un départ : éclairage, mono, tri ou attente (mutuellement exclusives par repère). */
+export type DepartCategory = 'eclairage' | 'prise-mono' | 'prise-tri' | 'attente';
+
+export function departCategoryOf(element: {
+  type: ElementType;
+  phase_type?: PhaseType;
+}): DepartCategory {
+  if (element.type === 'attente') return 'attente';
+  if (element.type === 'eclairage') return 'eclairage';
+  if (element.type === 'prise') {
+    return element.phase_type === 'tri' ? 'prise-tri' : 'prise-mono';
+  }
+  return 'eclairage';
+}
+
+export function departCategoryLabel(category: DepartCategory): string {
+  switch (category) {
+    case 'eclairage':
+      return 'Éclairage';
+    case 'prise-mono':
+      return 'Monophasé';
+    case 'prise-tri':
+      return 'Triphasé';
+    case 'attente':
+      return 'Attente';
+  }
+}
+
+export function findElementByRepere(
+  elements: Element[],
+  repere: string,
+  excludeId?: number
+): Element | undefined {
+  const key = repere.trim().toUpperCase();
+  if (!key) return undefined;
+  return elements.find(
+    (e) =>
+      !isJeuDeBarres(e) &&
+      e.id !== excludeId &&
+      e.repere.trim().toUpperCase() === key
+  );
 }
 
 export function displayEmplacement(element: Element): string {

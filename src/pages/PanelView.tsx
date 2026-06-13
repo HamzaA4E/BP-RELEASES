@@ -16,6 +16,9 @@ import {
   isJeuDeBarres,
   getInsertIndexAfterJdbSection,
   getJeuDeBarresForElement,
+  departCategoryOf,
+  departCategoryLabel,
+  findElementByRepere,
 } from '@/utils/elementHelpers';
 import {
   panelTotalPower,
@@ -165,8 +168,15 @@ export function PanelView() {
 
   const handleSaveElement = async (data: ElementSavePayload) => {
     if (departForNewType) {
-      if (data.type !== departForNewType.type) {
-        toast.error('Le type doit être de la même catégorie que le départ');
+      const parentCategory = departCategoryOf(departForNewType);
+      const formCategory = departCategoryOf({
+        type: data.type,
+        phase_type: data.phase_type,
+      });
+      if (formCategory !== parentCategory) {
+        toast.error(
+          `La catégorie doit rester « ${departCategoryLabel(parentCategory)} » pour ce repère`
+        );
         return;
       }
       const articleTypeLabel = data.type_label.trim();
@@ -221,9 +231,41 @@ export function PanelView() {
     }
 
     if (editElement && editElement.type !== 'jeu_de_barres') {
+      const existing = findElementByRepere(elements, data.repere, editElement.id);
+      if (existing) {
+        const existingCategory = departCategoryOf(existing);
+        const formCategory = departCategoryOf({
+          type: data.type,
+          phase_type: data.phase_type,
+        });
+        if (existingCategory !== formCategory) {
+          toast.error(
+            `Ce repère est déjà utilisé en « ${departCategoryLabel(existingCategory)} »`
+          );
+          return;
+        }
+        toast.error('Ce repère est déjà utilisé par un autre départ');
+        return;
+      }
       await window.bilpow.elements.update({ id: editElement.id, ...data });
       toast.success('Élément mis à jour');
     } else {
+      const existing = findElementByRepere(elements, data.repere);
+      if (existing) {
+        const existingCategory = departCategoryOf(existing);
+        const formCategory = departCategoryOf({
+          type: data.type,
+          phase_type: data.phase_type,
+        });
+        if (existingCategory !== formCategory) {
+          toast.error(
+            `Ce repère est déjà utilisé en « ${departCategoryLabel(existingCategory)} »`
+          );
+          return;
+        }
+        toast.error('Ce repère existe déjà — utilisez + sur la ligne pour ajouter un autre type');
+        return;
+      }
       const created = await createElementFromPayload(data);
       await insertElementInSection(created, contextJdb);
       toast.success('Élément ajouté');
@@ -235,6 +277,19 @@ export function PanelView() {
   };
 
   const handleSaveMultiple = async (items: ElementSavePayload[]) => {
+    const repereKeys = items.map((i) => i.repere.trim().toUpperCase());
+    if (repereKeys.some((key, idx) => repereKeys.indexOf(key) !== idx)) {
+      toast.error('Des repères en double sont présents dans la sélection');
+      return;
+    }
+    for (const item of items) {
+      const existing = findElementByRepere(elements, item.repere);
+      if (existing) {
+        toast.error(`Le repère ${item.repere} est déjà utilisé`);
+        return;
+      }
+    }
+
     let insertAt = contextJdb
       ? getInsertIndexAfterJdbSection(elements, contextJdb.id)
       : elements.length;

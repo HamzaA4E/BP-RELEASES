@@ -19,6 +19,9 @@ import {
   getJeuDeBarresForElement,
   isTypeAllowedUnderJdb,
   defaultElementTypeForJdb,
+  departCategoryOf,
+  departCategoryLabel,
+  findElementByRepere,
 } from '@/utils/elementHelpers';
 
 type ElementFormType = Exclude<ElementType, 'jeu_de_barres'>;
@@ -127,6 +130,9 @@ export function AddElementModal({
 
   const isEdit = Boolean(editElement);
   const isAddTypeMode = Boolean(addTypeToDepart);
+  const lockedDepartCategory = addTypeToDepart
+    ? departCategoryOf(addTypeToDepart)
+    : null;
 
   const insertIndex = addTypeToDepart
     ? Math.max(0, existingElements.findIndex((e) => e.id === addTypeToDepart.id) + 1)
@@ -257,6 +263,7 @@ export function AddElementModal({
   };
 
   const handlePrisePhaseChange = (phase_type: PhaseType) => {
+    if (isAddTypeMode) return;
     const coefs = defaultCoefsForType('prise', phase_type);
     setFormData((p) => ({
       ...p,
@@ -274,6 +281,34 @@ export function AddElementModal({
       newErrors.power_w = 'La puissance doit être supérieure à 0';
     }
     if (formData.quantity < 1) newErrors.quantity = 'La quantité doit être au moins 1';
+
+    const formCategory = departCategoryOf({
+      type: formData.type,
+      phase_type: formData.phase_type,
+    });
+
+    if (isAddTypeMode && addTypeToDepart) {
+      const parentCategory = departCategoryOf(addTypeToDepart);
+      if (formCategory !== parentCategory) {
+        newErrors.category = `La catégorie doit rester « ${departCategoryLabel(parentCategory)} »`;
+      }
+    } else if (formData.repere.trim()) {
+      const existing = findElementByRepere(
+        existingElements,
+        formData.repere,
+        isEdit ? editElement?.id : undefined
+      );
+      if (existing) {
+        const existingCategory = departCategoryOf(existing);
+        if (existingCategory !== formCategory) {
+          newErrors.repere = `Ce repère est déjà utilisé en « ${departCategoryLabel(existingCategory)} »`;
+        } else {
+          newErrors.repere =
+            'Ce repère existe déjà — utilisez + sur la ligne pour ajouter un autre type';
+        }
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -356,7 +391,7 @@ export function AddElementModal({
                 </span>
               </div>
             )}
-            {isAddTypeMode && addTypeToDepart && (
+            {isAddTypeMode && addTypeToDepart && lockedDepartCategory && (
               <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm">
                 <span className="text-slate-500 dark:text-slate-400">Nouveau type pour le départ </span>
                 <span className="font-mono font-bold text-primary dark:text-blue-300">
@@ -364,36 +399,44 @@ export function AddElementModal({
                 </span>
                 <span className="text-slate-600 dark:text-slate-300">
                   {' '}
-                  — même catégorie que le départ
+                  — catégorie verrouillée :{' '}
+                  <strong>{departCategoryLabel(lockedDepartCategory)}</strong>
                 </span>
               </div>
             )}
+            {!isAddTypeMode && (
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-2">Type</label>
               <div className="grid grid-cols-3 gap-2">
-                {TYPE_OPTIONS.map((opt) => {
-                  const locked = isAddTypeMode && addTypeToDepart?.type !== opt.value;
-                  return (
+                {TYPE_OPTIONS.map((opt) => (
                     <button
                       key={opt.value}
                       type="button"
-                      disabled={locked}
                       onClick={() => handleTypeChange(opt.value)}
                       className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
-                        locked
-                          ? 'opacity-40 cursor-not-allowed bg-gray-100 dark:bg-gray-700 text-slate-400 border-slate-200'
-                          : formData.type === opt.value
-                            ? `${opt.color} text-white border-transparent shadow-sm`
-                            : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-slate-300'
+                        formData.type === opt.value
+                          ? `${opt.color} text-white border-transparent shadow-sm`
+                          : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-slate-300'
                       }`}
                     >
                       {opt.icon}
                       {opt.label}
                     </button>
-                  );
-                })}
+                ))}
               </div>
             </div>
+            )}
+            {isAddTypeMode && lockedDepartCategory && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-2">Catégorie</label>
+                <div className="rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-gray-700/50 px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-200">
+                  {departCategoryLabel(lockedDepartCategory)}
+                </div>
+                {errors.category && (
+                  <p className="text-red-500 text-xs mt-1">{errors.category}</p>
+                )}
+              </div>
+            )}
 
             {false && (
               <div>
