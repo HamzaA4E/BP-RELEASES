@@ -973,10 +973,7 @@ function SortableDataRow({
           ⋮⋮
         </td>
         <td className="px-1 py-2 text-center">
-          <AddTypeButton
-            disabled={isAttente}
-            onClick={() => onAddTypeToDepart(element)}
-          />
+          <AddTypeButton onClick={() => onAddTypeToDepart(element)} />
         </td>
         <td className="px-3 py-2">
           <span

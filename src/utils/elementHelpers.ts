@@ -54,7 +54,7 @@ export function jdbCategoryLabel(category: JdbCategory | null | undefined): stri
   return resolved === 'eclairage' ? 'Éclairage' : 'Prise de courant';
 }
 
-/** Catégorie d'un départ : éclairage, mono, tri ou attente (mutuellement exclusives par repère). */
+/** Catégorie d'un départ : éclairage, mono, tri ou attente (plusieurs catégories possibles sur un même repère). */
 export type DepartCategory = 'eclairage' | 'prise-mono' | 'prise-tri' | 'attente';
 
 export function departCategoryOf(element: {
@@ -95,6 +95,42 @@ export function findElementByRepere(
       e.id !== excludeId &&
       e.repere.trim().toUpperCase() === key
   );
+}
+
+export function findElementByRepereAndCategory(
+  elements: Element[],
+  repere: string,
+  category: DepartCategory,
+  excludeId?: number
+): Element | undefined {
+  const key = repere.trim().toUpperCase();
+  if (!key) return undefined;
+  return elements.find(
+    (e) =>
+      !isJeuDeBarres(e) &&
+      e.id !== excludeId &&
+      e.repere.trim().toUpperCase() === key &&
+      departCategoryOf(e) === category
+  );
+}
+
+/** Index d'insertion après le dernier élément partageant le même repère. */
+export function getInsertIndexAfterRepereGroup(
+  elements: Element[],
+  repere: string,
+  fromElementId: number
+): number {
+  const key = repere.trim().toUpperCase();
+  let lastIndex = elements.findIndex((e) => e.id === fromElementId);
+  if (lastIndex < 0) return elements.length;
+
+  for (let i = lastIndex + 1; i < elements.length; i++) {
+    const el = elements[i]!;
+    if (isJeuDeBarres(el)) break;
+    if (el.repere.trim().toUpperCase() !== key) break;
+    lastIndex = i;
+  }
+  return lastIndex + 1;
 }
 
 export function displayEmplacement(element: Element): string {
