@@ -511,16 +511,10 @@ function ArticleTypeLabelCell({
   setArticleEditing: (v: ArticleEditingState) => void;
   onCommit: (v: string) => void;
 }) {
-  const isPrise = element.type === 'prise';
   const display = displayArticleTypeLabel(article, element, isFirstArticle);
   const isEditing =
-    !isPrise &&
     articleEditing?.id === article.id &&
     articleEditing.field === 'type_label';
-
-  if (isPrise) {
-    return <span className="text-sm">{display}</span>;
-  }
 
   if (isEditing) {
     return (
@@ -1000,7 +994,15 @@ function SortableDataRow({
           />
         </td>
         <td className="px-3 py-2 text-sm max-w-[140px]" title={typeLabel}>
-          {typeLabel}
+          <InlineTextCell
+            elementId={element.id}
+            field="type_label"
+            value={typeLabel}
+            editingField={editingField}
+            setEditingField={setEditingField}
+            onCommit={(v) => void onFieldUpdate(element.id, 'type_label', v)}
+            className="truncate block"
+          />
         </td>
         <td
           className={`px-3 py-2 text-sm max-w-[140px] ${isAttente ? 'italic text-gray-500' : ''}`}

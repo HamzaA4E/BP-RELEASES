@@ -13,9 +13,6 @@ export function payloadToArticleTypeLabel(data: {
   type_label: string;
   phase_type?: PhaseType;
 }): string {
-  if (data.type === 'prise') {
-    return data.phase_type === 'tri' ? 'Triphasé' : 'Monophasé';
-  }
   return data.type_label.trim();
 }
 
@@ -32,9 +29,6 @@ export function displayArticleTypeLabel(
   element: Element,
   isFirstArticle = false
 ): string {
-  if (element.type === 'prise') {
-    return element.phase_type === 'tri' ? 'Triphasé' : 'Monophasé';
-  }
   const fromArticle = (article.type_label ?? '').trim();
   if (fromArticle) return fromArticle;
   if (isFirstArticle) {

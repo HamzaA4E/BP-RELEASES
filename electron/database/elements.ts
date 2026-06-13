@@ -408,11 +408,7 @@ export function createArticle(data: {
       ? String(data.type_label).trim()
       : '';
   if (!type_label && parent) {
-    if (parent.type === 'prise') {
-      type_label = parent.phase_type === 'tri' ? 'Triphasé' : 'Monophasé';
-    } else {
-      type_label = (parent.type_label || parent.designation || '').trim();
-    }
+    type_label = (parent.type_label || parent.designation || '').trim();
   }
 
   const result = db

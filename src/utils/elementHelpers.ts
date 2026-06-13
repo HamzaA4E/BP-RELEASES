@@ -21,12 +21,21 @@ export function nextBarSetIndex(elements: Element[]): number {
   return elements.filter((e) => isJeuDeBarres(e)).length + 1;
 }
 
+function isPrisePhaseLabel(label: string): boolean {
+  const normalized = label.trim().toLowerCase();
+  return normalized === 'monophasé' || normalized === 'triphasé';
+}
+
 export function displayTypeLabel(element: Element): string {
   if (isJeuDeBarres(element)) {
     return element.type_label || element.designation || 'Jeu de barres';
   }
   if (element.type === 'prise') {
-    return element.phase_type === 'tri' ? 'Triphasé' : 'Monophasé';
+    const fromLabel = (element.type_label ?? '').trim();
+    if (fromLabel && !isPrisePhaseLabel(fromLabel)) return fromLabel;
+    const fromDesignation = (element.designation ?? '').trim();
+    if (fromDesignation && !isPrisePhaseLabel(fromDesignation)) return fromDesignation;
+    return '';
   }
   if (element.type_label) return element.type_label;
   return element.designation ?? '';
