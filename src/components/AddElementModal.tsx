@@ -19,6 +19,7 @@ import {
   getJeuDeBarresForElement,
   isTypeAllowedUnderJdb,
   defaultElementTypeForJdb,
+  priseSocketTypeLabel,
 } from '@/utils/elementHelpers';
 
 type ElementFormType = Exclude<ElementType, 'jeu_de_barres'>;
@@ -95,7 +96,7 @@ function buildDefaultForm(
   return {
     type,
     repere: getNextRepere(existingElements, type),
-    type_label: type === 'prise' ? 'Monophasé' : '',
+    type_label: '',
     emplacement: '',
     power_w: type === 'attente' ? 1000 : 0,
     quantity: 1,
@@ -198,9 +199,7 @@ export function AddElementModal({
         repere: editElement.repere,
         type_label:
           editElement.type === 'prise'
-            ? phase_type === 'tri'
-              ? 'Triphasé'
-              : 'Monophasé'
+            ? priseSocketTypeLabel(editElement.type_label)
             : displayTypeLabel(editElement),
         emplacement: displayEmplacement(editElement),
         power_w: editElement.power_w,
@@ -216,7 +215,7 @@ export function AddElementModal({
       setFormData({
         type,
         repere: addTypeToDepart.repere,
-        type_label: type === 'prise' ? (phase_type === 'tri' ? 'Triphasé' : 'Monophasé') : '',
+        type_label: '',
         emplacement: '',
         power_w: 0,
         quantity: 1,
@@ -255,12 +254,7 @@ export function AddElementModal({
       ...p,
       type,
       phase_type,
-      type_label:
-        type === 'prise'
-          ? phase_type === 'tri'
-            ? 'Triphasé'
-            : 'Monophasé'
-          : p.type_label,
+      type_label: type === 'prise' ? '' : p.type_label,
       power_w: type === 'attente' ? (p.power_w > 0 ? p.power_w : 1000) : p.power_w,
       ...coefs,
     }));
@@ -271,7 +265,6 @@ export function AddElementModal({
     setFormData((p) => ({
       ...p,
       phase_type,
-      type_label: phase_type === 'tri' ? 'Triphasé' : 'Monophasé',
       ...coefs,
     }));
   };
@@ -279,7 +272,7 @@ export function AddElementModal({
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!isAddTypeMode && !formData.repere.trim()) newErrors.repere = 'Le repère est requis';
-    if (formData.type !== 'prise' && !formData.type_label.trim()) {
+    if (formData.type !== 'attente' && !formData.type_label.trim()) {
       newErrors.type_label = 'Le type est requis';
     }
     if (formData.power_w < 0) newErrors.power_w = 'La puissance ne peut pas être négative';
@@ -294,12 +287,7 @@ export function AddElementModal({
   const buildPayload = (repere: string) => ({
     type: formData.type,
     repere: repere.trim(),
-    type_label:
-      formData.type === 'prise'
-        ? formData.phase_type === 'tri'
-          ? 'Triphasé'
-          : 'Monophasé'
-        : formData.type_label.trim(),
+    type_label: formData.type_label.trim(),
     emplacement: formData.emplacement.trim(),
     power_w: formData.power_w,
     quantity: formData.quantity,
@@ -480,8 +468,33 @@ export function AddElementModal({
               </div>
               <div className="relative">
                 <label className="block text-xs font-medium text-gray-500 mb-1">Type *</label>
-                {formData.type === 'prise' ? (
-                  <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600">
+                <input
+                  type="text"
+                  value={formData.type_label}
+                  onChange={(e) =>
+                    setFormData((p) => ({ ...p, type_label: e.target.value }))
+                  }
+                  className={`input-field ${errors.type_label ? 'border-red-500' : ''}`}
+                  placeholder={
+                    formData.type === 'prise'
+                      ? 'Ex: Prise 2P+T'
+                      : 'Ex: Panneau LED 36W'
+                  }
+                  list="type-label-suggestions"
+                />
+                <datalist id="type-label-suggestions">
+                  {typeLabelSuggestions.map((f) => (
+                    <option key={f.id} value={f.designation} />
+                  ))}
+                </datalist>
+                {errors.type_label && (
+                  <p className="text-red-500 text-xs mt-1">{errors.type_label}</p>
+                )}
+              </div>
+              {formData.type === 'prise' && (
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Phase</label>
+                  <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600 max-w-md">
                     <button
                       type="button"
                       disabled={isAddTypeMode}
@@ -507,29 +520,8 @@ export function AddElementModal({
                       Triphasé
                     </button>
                   </div>
-                ) : (
-                  <>
-                    <input
-                      type="text"
-                      value={formData.type_label}
-                      onChange={(e) =>
-                        setFormData((p) => ({ ...p, type_label: e.target.value }))
-                      }
-                      className={`input-field ${errors.type_label ? 'border-red-500' : ''}`}
-                      placeholder="Ex: Panneau LED 36W"
-                      list="type-label-suggestions"
-                    />
-                    <datalist id="type-label-suggestions">
-                      {typeLabelSuggestions.map((f) => (
-                        <option key={f.id} value={f.designation} />
-                      ))}
-                    </datalist>
-                    {errors.type_label && (
-                      <p className="text-red-500 text-xs mt-1">{errors.type_label}</p>
-                    )}
-                  </>
-                )}
-              </div>
+                </div>
+              )}
               <div className="md:col-span-2">
                 <label className="block text-xs font-medium text-gray-500 mb-1">
                   Désignation

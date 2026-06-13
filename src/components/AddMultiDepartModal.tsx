@@ -423,11 +423,7 @@ export function MultiDepartModal({
 
     try {
       const typeLabel =
-        depart.type === 'prise'
-          ? depart.phase_type === 'tri'
-            ? 'Triphasé'
-            : 'Monophasé'
-          : 'Départ multi-articles';
+        depart.type === 'prise' ? '' : 'Départ multi-articles';
 
       if (isEdit && editElement) {
         await window.bilpow.elements.update({

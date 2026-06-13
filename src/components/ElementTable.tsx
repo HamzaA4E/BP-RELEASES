@@ -111,6 +111,7 @@ function InlineTextCell({
   onCommit,
   className = '',
   inputClassName = 'input-field py-1 text-sm w-full',
+  emptyDisplay = '—',
 }: {
   elementId: number;
   field: EditableField;
@@ -120,6 +121,7 @@ function InlineTextCell({
   onCommit: (v: string) => void;
   className?: string;
   inputClassName?: string;
+  emptyDisplay?: string;
 }) {
   const isEditing = editingField?.id === elementId && editingField?.field === field;
 
@@ -153,7 +155,7 @@ function InlineTextCell({
       className={`cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors ${className}`}
       title="Cliquer pour modifier"
     >
-      {value || '—'}
+      {value || emptyDisplay}
     </span>
   );
 }
@@ -511,16 +513,10 @@ function ArticleTypeLabelCell({
   setArticleEditing: (v: ArticleEditingState) => void;
   onCommit: (v: string) => void;
 }) {
-  const isPrise = element.type === 'prise';
   const display = displayArticleTypeLabel(article, element, isFirstArticle);
   const isEditing =
-    !isPrise &&
     articleEditing?.id === article.id &&
     articleEditing.field === 'type_label';
-
-  if (isPrise) {
-    return <span className="text-sm">{display}</span>;
-  }
 
   if (isEditing) {
     return (
@@ -1012,6 +1008,7 @@ function SortableDataRow({
             editingField={editingField}
             setEditingField={setEditingField}
             onCommit={(v) => void onFieldUpdate(element.id, 'emplacement', v)}
+            emptyDisplay=""
           />
         </td>
         <td className="px-3 py-2 text-sm text-right">

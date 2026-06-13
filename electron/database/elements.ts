@@ -108,12 +108,13 @@ function mapRow(raw: RawElementRow): ElementRow {
   const phase_type = (raw.phase_type ?? 'mono') as PhaseType;
   const elementType = isJdb && raw.type !== 'jeu_de_barres' ? 'jeu_de_barres' : raw.type;
   const type_label =
-    raw.type_label ||
+    String(raw.type_label ?? '').trim() ||
     (isJdb && bar_set_index > 0
       ? raw.jdb_category === 'eclairage'
         ? `Jeu de barre Éclairage ${bar_set_index}`
         : `Jeu de barre Prise ${bar_set_index}`
-      : raw.designation || '');
+      : '');
+
   const defaults = defaultCoefsForType(elementType, phase_type);
 
   return {
@@ -130,7 +131,7 @@ function mapRow(raw: RawElementRow): ElementRow {
     coef_ks: raw.coef_ks ?? defaults.coef_ks,
     coef_ku: raw.coef_ku ?? defaults.coef_ku,
     is_multi: Boolean(raw.is_multi),
-    designation: type_label,
+    designation: String(raw.designation ?? '').trim(),
   };
 }
 
@@ -409,7 +410,11 @@ export function createArticle(data: {
       : '';
   if (!type_label && parent) {
     if (parent.type === 'prise') {
-      type_label = parent.phase_type === 'tri' ? 'Triphasé' : 'Monophasé';
+      const parentLabel = (parent.type_label || '').trim();
+      type_label =
+        parentLabel && parentLabel !== 'Monophasé' && parentLabel !== 'Triphasé'
+          ? parentLabel
+          : '';
     } else {
       type_label = (parent.type_label || parent.designation || '').trim();
     }

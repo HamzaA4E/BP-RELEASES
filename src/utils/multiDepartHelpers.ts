@@ -1,5 +1,10 @@
 import type { Article, Element, PhaseType } from '@/types';
-import { displayEmplacement, displayTypeLabel } from '@/utils/elementHelpers';
+import {
+  displayEmplacement,
+  displayTypeLabel,
+  isPhaseTypeLabel,
+  priseSocketTypeLabel,
+} from '@/utils/elementHelpers';
 import { articlesInstalledPower, calculationCurrent } from '@/utils/calculations';
 
 /** Emplacement / désignation de pose d'un article (champ « Désignation » du modal). */
@@ -13,9 +18,6 @@ export function payloadToArticleTypeLabel(data: {
   type_label: string;
   phase_type?: PhaseType;
 }): string {
-  if (data.type === 'prise') {
-    return data.phase_type === 'tri' ? 'Triphasé' : 'Monophasé';
-  }
   return data.type_label.trim();
 }
 
@@ -32,11 +34,13 @@ export function displayArticleTypeLabel(
   element: Element,
   isFirstArticle = false
 ): string {
-  if (element.type === 'prise') {
-    return element.phase_type === 'tri' ? 'Triphasé' : 'Monophasé';
-  }
   const fromArticle = (article.type_label ?? '').trim();
-  if (fromArticle) return fromArticle;
+  if (fromArticle && !(element.type === 'prise' && isPhaseTypeLabel(fromArticle))) {
+    return fromArticle;
+  }
+  if (isFirstArticle && element.type === 'prise') {
+    return priseSocketTypeLabel(element.type_label) || '—';
+  }
   if (isFirstArticle) {
     return displayTypeLabel(element).trim() || '—';
   }
@@ -44,7 +48,7 @@ export function displayArticleTypeLabel(
 }
 
 export function displayArticleDesignation(article: Article): string {
-  return article.designation?.trim() || '—';
+  return article.designation?.trim() ?? '';
 }
 
 export function buildArticlesSummary(articles: Article[], maxLen = 60): string {

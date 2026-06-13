@@ -21,15 +21,28 @@ export function nextBarSetIndex(elements: Element[]): number {
   return elements.filter((e) => isJeuDeBarres(e)).length + 1;
 }
 
+const PHASE_TYPE_LABELS = new Set(['Monophasé', 'Triphasé']);
+
+export function isPhaseTypeLabel(label: string | null | undefined): boolean {
+  return PHASE_TYPE_LABELS.has((label ?? '').trim());
+}
+
+/** Type de prise saisi au modal (exclut les anciennes valeurs phase Monophasé/Triphasé). */
+export function priseSocketTypeLabel(typeLabel: string | null | undefined): string {
+  const label = (typeLabel ?? '').trim();
+  if (!label || isPhaseTypeLabel(label)) return '';
+  return label;
+}
+
 export function displayTypeLabel(element: Element): string {
   if (isJeuDeBarres(element)) {
     return element.type_label || element.designation || 'Jeu de barres';
   }
   if (element.type === 'prise') {
-    return element.phase_type === 'tri' ? 'Triphasé' : 'Monophasé';
+    return priseSocketTypeLabel(element.type_label) || '—';
   }
-  if (element.type_label) return element.type_label;
-  return element.designation ?? '';
+  if (element.type_label?.trim()) return element.type_label.trim();
+  return '—';
 }
 
 export function jeuDeBarresTitle(element: Element): string {
@@ -104,10 +117,10 @@ export function isTypeAllowedUnderJdb(
 export function normalizeElement(raw: Element): Element {
   const isJdb = raw.type === 'jeu_de_barres' || raw.row_kind === 'bar_set';
   const type_label =
-    raw.type_label ||
+    raw.type_label?.trim() ||
     (isJdb && raw.bar_set_index > 0
       ? barSetLabel(raw.jdb_category ?? raw.type, raw.bar_set_index)
-      : raw.designation || '');
+      : '');
 
   const elementType = isJdb && raw.type !== 'jeu_de_barres' ? 'jeu_de_barres' : raw.type;
   const phase_type = raw.phase_type ?? 'mono';

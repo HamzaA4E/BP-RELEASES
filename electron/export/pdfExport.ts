@@ -351,8 +351,7 @@ function addPanelPage(
         const totalArt = calcArticlePower(article);
         const coefsLine = ku === 1 ? `Ks=${ks}` : formatCoefsLine(ks, ku);
 
-        const desLabel =
-          article.designation?.trim() || article.type_label?.trim() || '';
+        const desLabel = article.designation?.trim() ?? '';
 
         const row = [
           artIdx === 0 ? el.repere : '',
@@ -384,7 +383,7 @@ function addPanelPage(
       doc.rect(TABLE_LEFT, y - 4, TABLE_WIDTH, 7, 'F');
     }
 
-    const designation = el.emplacement?.trim() || el.type_label || '';
+    const designation = el.emplacement?.trim() ?? '';
     const { ks, ku } = resolveElementCoefs(el);
     const totalEl = calcPuissanceTotale(el);
     const coefsLine = ku === 1 ? `Ks=${ks}` : formatCoefsLine(ks, ku);

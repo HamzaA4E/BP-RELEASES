@@ -354,9 +354,7 @@ function writeMultiDepartExcelRows(
     const row = sheet.getRow(rowNum);
     row.getCell(COL.REPERE).value = '';
     const desCell = row.getCell(COL.DESIGNATION);
-    desCell.value = toCellString(
-      article.designation?.trim() || article.type_label?.trim() || ''
-    );
+    desCell.value = toCellString(article.designation?.trim() ?? '');
     desCell.alignment = { indent: 1, vertical: 'middle', horizontal: 'left' };
     row.getCell(COL.POWER).value = wattsToKw(article.power_w);
     row.getCell(COL.QTY).value = article.quantity;
@@ -525,7 +523,7 @@ function createPanelSheet(
 
     const row = sheet.getRow(rowNum);
     const { ks, ku } = resolveElementCoefs(el);
-    const designation = el.emplacement?.trim() || el.type_label || '';
+    const designation = el.emplacement?.trim() ?? '';
 
     row.getCell(COL.REPERE).value = toCellValue(el.repere);
     row.getCell(COL.DESIGNATION).value = toCellValue(designation);
