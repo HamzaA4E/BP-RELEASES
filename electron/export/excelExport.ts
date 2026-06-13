@@ -329,14 +329,14 @@ function writeMultiDepartExcelRows(
     const ku = article.coef_ku ?? 1;
     row.getCell(colMapping.KS).value = ks;
     if (showKu) {
-      row.getCell(colMapping.KU).value = ku === 1 ? '' : ku;
+      row.getCell(colMapping.KU).value = ku;
     }
 
-    const kuCol = showKu ? colLetter(colMapping.KU) : '';
-    const kuCondition = showKu ? `IF(${kuCol}${rowNum}="",1,${kuCol}${rowNum})` : '1';
+    const kuCol = showKu ? colLetter(colMapping.KU) : '1';
+    const kuValue = showKu ? `${kuCol}${rowNum}` : '1';
     const ksCol = colLetter(colMapping.KS);
     row.getCell(colMapping.TOTAL).value = {
-      formula: `${colLetter(colMapping.POWER)}${rowNum}*${colLetter(colMapping.QTY)}${rowNum}*${ksCol}${rowNum}*${kuCondition}`,
+      formula: `${colLetter(colMapping.POWER)}${rowNum}*${colLetter(colMapping.QTY)}${rowNum}*${ksCol}${rowNum}*${kuValue}`,
     };
     powerRows.push(rowNum);
 
@@ -559,13 +559,13 @@ function createPanelSheet(
     row.getCell(COL_DYNAMIC.QTY).value = el.quantity;
     row.getCell(COL_DYNAMIC.KS).value = ks;
     if (showKu) {
-      row.getCell(COL_DYNAMIC.KU).value = ku === 1 ? '' : ku;
+      row.getCell(COL_DYNAMIC.KU).value = ku;
     }
 
-    const kuCol = showKu ? colLetter(COL_DYNAMIC.KU) : '';
-    const kuCondition = showKu ? `IF(${kuCol}${rowNum}="",1,${kuCol}${rowNum})` : '1';
+    const kuCol = showKu ? colLetter(COL_DYNAMIC.KU) : '1';
+    const kuValue = showKu ? `${kuCol}${rowNum}` : '1';
     row.getCell(COL_DYNAMIC.TOTAL).value = {
-      formula: `${colLetter(COL_DYNAMIC.POWER)}${rowNum}*${colLetter(COL_DYNAMIC.QTY)}${rowNum}*${colLetter(COL_DYNAMIC.KS)}${rowNum}*${kuCondition}`,
+      formula: `${colLetter(COL_DYNAMIC.POWER)}${rowNum}*${colLetter(COL_DYNAMIC.QTY)}${rowNum}*${colLetter(COL_DYNAMIC.KS)}${rowNum}*${kuValue}`,
     };
 
     dataRowIndex++;
