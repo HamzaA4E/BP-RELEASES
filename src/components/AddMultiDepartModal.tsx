@@ -458,6 +458,7 @@ export function MultiDepartModal({
           if (a.id != null) {
             await window.bilpow.elements.updateArticle({
               id: a.id,
+              type_label: a.designation.trim(),
               designation: a.designation.trim(),
               power_w: a.power_w,
               quantity: a.quantity,
@@ -466,6 +467,7 @@ export function MultiDepartModal({
           } else {
             await window.bilpow.elements.createArticle({
               element_id: editElement.id,
+              type_label: a.designation.trim(),
               designation: a.designation.trim(),
               power_w: a.power_w,
               quantity: a.quantity,
@@ -496,6 +498,7 @@ export function MultiDepartModal({
           const a = articles[i]!;
           await window.bilpow.elements.createArticle({
             element_id: created.id,
+            type_label: a.designation.trim(),
             designation: a.designation.trim(),
             power_w: a.power_w,
             quantity: a.quantity,

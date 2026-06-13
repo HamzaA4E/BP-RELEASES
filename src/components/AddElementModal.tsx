@@ -321,7 +321,6 @@ export function AddElementModal({
     setFormData((p) => ({
       ...p,
       type_label: fav.designation,
-      emplacement: isAddTypeMode ? '' : fav.designation,
       power_w: fav.power_w,
       type: isAddTypeMode ? p.type : fav.type,
       ...coefs,

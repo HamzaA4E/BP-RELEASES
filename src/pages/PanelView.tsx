@@ -9,7 +9,6 @@ import {
   elementToArticleDesignation,
   elementToArticleTypeLabel,
   payloadToArticleDesignation,
-  payloadToArticleTypeLabel,
 } from '@/utils/multiDepartHelpers';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import {
@@ -170,9 +169,8 @@ export function PanelView() {
         toast.error('Le type doit être de la même catégorie que le départ');
         return;
       }
-      const designation = payloadToArticleDesignation(data);
-      const type_label =
-        (data.type_label ?? '').trim() || payloadToArticleTypeLabel(data);
+      const articleTypeLabel = data.type_label.trim();
+      const articleDesignation = payloadToArticleDesignation(data);
       const articleCoefs = { coef_ks: data.coef_ks, coef_ku: data.coef_ku };
       if (!departForNewType.is_multi) {
         await window.bilpow.elements.update({
@@ -194,23 +192,23 @@ export function PanelView() {
         });
         await window.bilpow.elements.createArticle({
           element_id: departForNewType.id,
-          type_label,
-          designation,
+          designation: articleDesignation,
           power_w: data.power_w,
           quantity: data.quantity,
           ...articleCoefs,
           order_index: 1,
+          type_label: articleTypeLabel,
         });
       } else {
         const existing = articlesByElement[departForNewType.id] ?? [];
         await window.bilpow.elements.createArticle({
           element_id: departForNewType.id,
-          type_label,
-          designation,
+          designation: articleDesignation,
           power_w: data.power_w,
           quantity: data.quantity,
           ...articleCoefs,
           order_index: existing.length,
+          type_label: articleTypeLabel,
         });
       }
       toast.success('Type ajouté au départ');

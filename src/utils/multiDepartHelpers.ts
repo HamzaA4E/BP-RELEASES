@@ -31,6 +31,8 @@ export function displayArticleTypeLabel(
 ): string {
   const fromArticle = (article.type_label ?? '').trim();
   if (fromArticle) return fromArticle;
+  const fromDesignation = (article.designation ?? '').trim();
+  if (fromDesignation) return fromDesignation;
   if (isFirstArticle) {
     return displayTypeLabel(element).trim() || '—';
   }

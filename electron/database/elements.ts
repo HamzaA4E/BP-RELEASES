@@ -403,11 +403,11 @@ export function createArticle(data: {
   const coef_ks = data.coef_ks ?? parent?.coef_ks ?? 1;
   const coef_ku = data.coef_ku ?? parent?.coef_ku ?? 1;
 
-  let type_label =
-    data.type_label !== undefined && data.type_label !== null
-      ? String(data.type_label).trim()
-      : '';
-  if (!type_label && parent) {
+  const hasExplicitTypeLabel = Object.prototype.hasOwnProperty.call(data, 'type_label');
+  let type_label = hasExplicitTypeLabel
+    ? String(data.type_label ?? '').trim()
+    : '';
+  if (!hasExplicitTypeLabel && !type_label && parent) {
     type_label = (parent.type_label || parent.designation || '').trim();
   }
 
