@@ -10,6 +10,7 @@ import type {
   Panel,
   PanelWithStats,
   Element,
+  Article,
   Favorite,
   CreateProjectInput,
   UpdateProjectInput,
@@ -19,6 +20,8 @@ import type {
   UpdatePanelInput,
   CreateElementInput,
   UpdateElementInput,
+  CreateArticleInput,
+  UpdateArticleInput,
   CreateFavoriteInput,
   CompanySettings,
   UpdateCompanySettingsInput,
@@ -56,6 +59,10 @@ export interface BilPowAPI {
     update: (data: UpdateElementInput) => Promise<Element>;
     delete: (id: number) => Promise<boolean>;
     reorder: (panelId: number, orderedIds: number[]) => Promise<boolean>;
+    getArticles: (elementId: number) => Promise<Article[]>;
+    createArticle: (data: CreateArticleInput) => Promise<Article>;
+    updateArticle: (data: UpdateArticleInput) => Promise<Article>;
+    deleteArticle: (id: number) => Promise<boolean>;
   };
   favorites: {
     getAll: () => Promise<Favorite[]>;

@@ -16,9 +16,10 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Element } from '@/types';
+import type { Article, Element } from '@/types';
 import {
   calcPuissanceTotale,
+  calcArticlePower,
   panelTotalPower,
   formatCoefsLine,
   resolveElementCoefs,
@@ -34,17 +35,51 @@ import {
   jdbCategoryLabel,
   buildElementTableRows,
 } from '@/utils/elementHelpers';
+import {
+  displayArticleTypeLabel,
+  displayArticleDesignation,
+} from '@/utils/multiDepartHelpers';
 
-/** drag + Cat + Repère + Type + Désignation + Puiss + Qté + Ks + Ku + P.totale + Actions */
-const TOTAL_COLUMN_COUNT = 11;
+/** drag + + + Cat + Repère + Type + Désignation + Puiss + Qté + Ks + Ku + P.totale + Actions */
+const TOTAL_COLUMN_COUNT = 12;
+
+function AddTypeButton({
+  onClick,
+  disabled = false,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  if (disabled) return <span className="inline-block w-6" aria-hidden />;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-500 hover:text-blue-600 text-sm font-bold leading-none transition-colors"
+      title="Ajouter un autre type sur ce départ"
+    >
+      +
+    </button>
+  );
+}
 
 type EditableField = 'emplacement' | 'power_w' | 'repere' | 'quantity' | 'type_label';
+
+type ArticleEditableField =
+  | 'designation'
+  | 'type_label'
+  | 'power_w'
+  | 'quantity'
+  | 'coef_ks'
+  | 'coef_ku';
 
 type CoefField = 'coef_ks' | 'coef_ku';
 
 interface ElementTableProps {
   elements: Element[];
+  articlesByElement: Record<number, Article[]>;
   onEdit: (element: Element) => void;
+  onAddTypeToDepart: (element: Element) => void;
   onDelete: (id: number) => void;
   onAddElementUnderJdb: (jdb: Element) => void;
   onReorder: (orderedIds: number[]) => void;
@@ -59,6 +94,12 @@ interface ElementTableProps {
       | CoefField,
     value: number | string
   ) => Promise<void>;
+  onArticleUpdate: (
+    articleId: number,
+    field: 'designation' | 'type_label' | 'power_w' | 'quantity' | 'coef_ks' | 'coef_ku',
+    value: string | number
+  ) => Promise<void>;
+  onArticleDelete: (articleId: number, elementId: number) => Promise<void>;
 }
 
 function InlineTextCell({
@@ -322,7 +363,8 @@ function JeuDeBarresRow({
       >
         ⋮⋮
       </td>
-      <td colSpan={TOTAL_COLUMN_COUNT - 1} className="p-0">
+      <td />
+      <td colSpan={TOTAL_COLUMN_COUNT - 2} className="p-0">
         <div className="flex items-center justify-between gap-4 px-5 py-3 bg-gradient-to-r from-[#1E3A5F] to-[#2a4f7a] border-y border-[#162d4a]">
           <div className="flex items-center gap-3 min-w-0">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/15 text-base">
@@ -382,6 +424,7 @@ function SubtotalRow({ label, totalPower }: { label: string; totalPower: number 
   return (
     <tr className="bg-blue-50/80 dark:bg-blue-900/15">
       <td />
+      <td />
       <td colSpan={2} className="px-3 py-2 text-sm font-bold italic text-primary dark:text-blue-300">
         {label}
       </td>
@@ -394,9 +437,500 @@ function SubtotalRow({ label, totalPower }: { label: string; totalPower: number 
   );
 }
 
+type ArticleEditingState = { id: number; field: ArticleEditableField } | null;
+
+function ArticleCoefCell({
+  article,
+  field,
+  articleEditing,
+  setArticleEditing,
+  onCommit,
+}: {
+  article: Article;
+  field: 'coef_ks' | 'coef_ku';
+  articleEditing: ArticleEditingState;
+  setArticleEditing: (v: ArticleEditingState) => void;
+  onCommit: (value: number) => void;
+}) {
+  const value = article[field] ?? 1;
+  const isEditing = articleEditing?.id === article.id && articleEditing.field === field;
+
+  if (isEditing) {
+    return (
+      <input
+        type="number"
+        autoFocus
+        min={0}
+        max={1}
+        step={0.05}
+        defaultValue={value}
+        onBlur={(e) => {
+          const val = parseFloat(e.target.value);
+          if (!Number.isNaN(val)) onCommit(Math.min(1, Math.max(0, val)));
+          setArticleEditing(null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') setArticleEditing(null);
+        }}
+        className="input-field py-1 text-sm w-14 text-center"
+      />
+    );
+  }
+
+  const display = field === 'coef_ku' ? formatKuDisplay(value) : value.toFixed(2);
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={() => setArticleEditing({ id: article.id, field })}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') setArticleEditing({ id: article.id, field });
+      }}
+      className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors font-mono text-sm"
+      title="Cliquer pour modifier"
+    >
+      {display}
+    </span>
+  );
+}
+
+function ArticleTypeLabelCell({
+  article,
+  element,
+  isFirstArticle,
+  articleEditing,
+  setArticleEditing,
+  onCommit,
+}: {
+  article: Article;
+  element: Element;
+  isFirstArticle: boolean;
+  articleEditing: ArticleEditingState;
+  setArticleEditing: (v: ArticleEditingState) => void;
+  onCommit: (v: string) => void;
+}) {
+  const isPrise = element.type === 'prise';
+  const display = displayArticleTypeLabel(article, element, isFirstArticle);
+  const isEditing =
+    !isPrise &&
+    articleEditing?.id === article.id &&
+    articleEditing.field === 'type_label';
+
+  if (isPrise) {
+    return <span className="text-sm">{display}</span>;
+  }
+
+  if (isEditing) {
+    return (
+      <input
+        type="text"
+        autoFocus
+        defaultValue={article.type_label || displayTypeLabel(element)}
+        onBlur={(e) => {
+          onCommit(e.target.value.trim());
+          setArticleEditing(null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') setArticleEditing(null);
+        }}
+        className="input-field py-1 text-sm w-full"
+        placeholder="Type"
+      />
+    );
+  }
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={() => setArticleEditing({ id: article.id, field: 'type_label' })}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') setArticleEditing({ id: article.id, field: 'type_label' });
+      }}
+      className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors truncate block"
+      title="Cliquer pour modifier"
+    >
+      {display}
+    </span>
+  );
+}
+
+function ArticleDesignationCell({
+  article,
+  articleEditing,
+  setArticleEditing,
+  onCommit,
+  canDelete,
+  onDelete,
+}: {
+  article: Article;
+  articleEditing: ArticleEditingState;
+  setArticleEditing: (v: ArticleEditingState) => void;
+  onCommit: (v: string) => void;
+  canDelete: boolean;
+  onDelete: () => void;
+}) {
+  const isEditing =
+    articleEditing?.id === article.id && articleEditing.field === 'designation';
+
+  if (isEditing) {
+    return (
+      <input
+        type="text"
+        autoFocus
+        defaultValue={article.designation}
+        onBlur={(e) => {
+          onCommit(e.target.value.trim());
+          setArticleEditing(null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') setArticleEditing(null);
+        }}
+        className="input-field py-1 text-sm w-full"
+        placeholder="Désignation"
+      />
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1 min-w-0">
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={() => setArticleEditing({ id: article.id, field: 'designation' })}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') setArticleEditing({ id: article.id, field: 'designation' });
+        }}
+        className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors truncate flex-1"
+        title="Cliquer pour modifier"
+      >
+        {displayArticleDesignation(article)}
+      </span>
+      {canDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="shrink-0 text-red-400 hover:text-red-600 text-xs px-1"
+          title="Retirer ce type"
+        >
+          ×
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ArticlePowerCell({
+  article,
+  articleEditing,
+  setArticleEditing,
+  onCommit,
+}: {
+  article: Article;
+  articleEditing: ArticleEditingState;
+  setArticleEditing: (v: ArticleEditingState) => void;
+  onCommit: (powerW: number) => void;
+}) {
+  const isEditing = articleEditing?.id === article.id && articleEditing.field === 'power_w';
+
+  if (isEditing) {
+    return (
+      <input
+        type="number"
+        autoFocus
+        min={0}
+        step={0.001}
+        defaultValue={wattsToKw(article.power_w)}
+        onBlur={(e) => {
+          const val = parseFloat(e.target.value);
+          if (!Number.isNaN(val) && val >= 0) onCommit(Math.round(val * 1000));
+          setArticleEditing(null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') setArticleEditing(null);
+        }}
+        className="input-field py-1 text-sm w-24 text-right"
+      />
+    );
+  }
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={() => setArticleEditing({ id: article.id, field: 'power_w' })}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') setArticleEditing({ id: article.id, field: 'power_w' });
+      }}
+      className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors"
+      title="Cliquer pour modifier"
+    >
+      {formatNumber(wattsToKw(article.power_w), 3)} kW
+    </span>
+  );
+}
+
+function ArticleQuantityCell({
+  article,
+  articleEditing,
+  setArticleEditing,
+  onCommit,
+}: {
+  article: Article;
+  articleEditing: ArticleEditingState;
+  setArticleEditing: (v: ArticleEditingState) => void;
+  onCommit: (qty: number) => void;
+}) {
+  const isEditing = articleEditing?.id === article.id && articleEditing.field === 'quantity';
+
+  if (isEditing) {
+    return (
+      <input
+        type="number"
+        autoFocus
+        min={1}
+        step={1}
+        defaultValue={article.quantity}
+        onBlur={(e) => {
+          const val = parseInt(e.target.value, 10);
+          if (!Number.isNaN(val) && val >= 1) onCommit(val);
+          setArticleEditing(null);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+          if (e.key === 'Escape') setArticleEditing(null);
+        }}
+        className="input-field py-1 text-sm w-14 text-center font-mono"
+      />
+    );
+  }
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={() => setArticleEditing({ id: article.id, field: 'quantity' })}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') setArticleEditing({ id: article.id, field: 'quantity' });
+      }}
+      className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors font-mono text-sm"
+      title="Cliquer pour modifier"
+    >
+      {article.quantity}
+    </span>
+  );
+}
+
+function SortableMultiDepartRow({
+  element,
+  articles,
+  onAddTypeToDepart,
+  onDelete,
+  onFieldUpdate,
+  onArticleUpdate,
+  onArticleDelete,
+  editingField,
+  setEditingField,
+  articleEditing,
+  setArticleEditing,
+}: {
+  element: Element;
+  articles: Article[];
+  onAddTypeToDepart: (el: Element) => void;
+  onDelete: (id: number) => void;
+  onFieldUpdate: ElementTableProps['onFieldUpdate'];
+  onArticleUpdate: ElementTableProps['onArticleUpdate'];
+  onArticleDelete: (articleId: number, elementId: number) => Promise<void>;
+  editingField: { id: number; field: EditableField | CoefField } | null;
+  setEditingField: (v: { id: number; field: EditableField | CoefField } | null) => void;
+  articleEditing: ArticleEditingState;
+  setArticleEditing: (v: ArticleEditingState) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: element.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const badge = typeBadge(element);
+  const rowCount = Math.max(articles.length, 1);
+  const displayArticles: Article[] =
+    articles.length > 0
+      ? articles
+      : [
+          {
+            id: -1,
+            element_id: element.id,
+            type_label: '',
+            designation: '',
+            power_w: 0,
+            quantity: 1,
+            coef_ks: 1,
+            coef_ku: 1,
+            order_index: 0,
+          },
+        ];
+
+  const groupBorder = 'border-l-2 border-l-blue-200 dark:border-l-blue-800';
+
+  return (
+    <>
+      {displayArticles.map((article, idx) => (
+        <tr
+          key={article.id}
+          ref={idx === 0 ? setNodeRef : undefined}
+          style={idx === 0 ? style : undefined}
+          className={`hover:bg-gray-50 dark:hover:bg-gray-750 ${
+            idx < rowCount - 1
+              ? 'border-b border-dashed border-gray-200 dark:border-gray-600'
+              : 'border-b border-gray-100 dark:border-gray-700'
+          }`}
+        >
+          {idx === 0 && (
+            <>
+              <td
+                rowSpan={rowCount}
+                className={`px-2 py-2 text-center text-gray-400 cursor-grab align-middle ${groupBorder}`}
+                {...attributes}
+                {...listeners}
+              >
+                ⋮⋮
+              </td>
+              <td rowSpan={rowCount} className="px-1 py-2 text-center align-middle">
+                <AddTypeButton onClick={() => onAddTypeToDepart(element)} />
+              </td>
+              <td rowSpan={rowCount} className="px-3 py-2 align-middle">
+                <span
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${badge.className}`}
+                >
+                  {badge.label}
+                </span>
+              </td>
+              <td rowSpan={rowCount} className="px-3 py-2 align-middle">
+                <InlineRepereCell
+                  element={element}
+                  editingField={editingField}
+                  setEditingField={setEditingField}
+                  onCommit={(v) => void onFieldUpdate(element.id, 'repere', v)}
+                />
+              </td>
+            </>
+          )}
+          <td className="px-3 py-2 text-sm max-w-[140px]" title={displayArticleTypeLabel(article, element, idx === 0)}>
+            {article.id > 0 ? (
+              <ArticleTypeLabelCell
+                article={article}
+                element={element}
+                isFirstArticle={idx === 0}
+                articleEditing={articleEditing}
+                setArticleEditing={setArticleEditing}
+                onCommit={(v) => void onArticleUpdate(article.id, 'type_label', v)}
+              />
+            ) : (
+              <span className="text-gray-400">—</span>
+            )}
+          </td>
+          <td className="px-3 py-2 text-sm max-w-[180px]">
+            {article.id > 0 ? (
+              <ArticleDesignationCell
+                article={article}
+                articleEditing={articleEditing}
+                setArticleEditing={setArticleEditing}
+                onCommit={(v) => void onArticleUpdate(article.id, 'designation', v)}
+                canDelete={articles.length > 1}
+                onDelete={() => void onArticleDelete(article.id, element.id)}
+              />
+            ) : (
+              <span className="text-gray-400 italic text-sm">—</span>
+            )}
+          </td>
+          <td className="px-3 py-2 text-sm text-right">
+            {article.id > 0 ? (
+              <ArticlePowerCell
+                article={article}
+                articleEditing={articleEditing}
+                setArticleEditing={setArticleEditing}
+                onCommit={(v) => void onArticleUpdate(article.id, 'power_w', v)}
+              />
+            ) : (
+              <span className="text-gray-400">—</span>
+            )}
+          </td>
+          <td className="px-3 py-2 text-sm text-center">
+            {article.id > 0 ? (
+              <ArticleQuantityCell
+                article={article}
+                articleEditing={articleEditing}
+                setArticleEditing={setArticleEditing}
+                onCommit={(v) => void onArticleUpdate(article.id, 'quantity', v)}
+              />
+            ) : (
+              <span className="text-gray-400">—</span>
+            )}
+          </td>
+          <td className="px-3 py-2 text-sm text-center">
+            {article.id > 0 ? (
+              <ArticleCoefCell
+                article={article}
+                field="coef_ks"
+                articleEditing={articleEditing}
+                setArticleEditing={setArticleEditing}
+                onCommit={(v) => void onArticleUpdate(article.id, 'coef_ks', v)}
+              />
+            ) : (
+              <span className="text-gray-400">—</span>
+            )}
+          </td>
+          <td className="px-3 py-2 text-sm text-center">
+            {article.id > 0 ? (
+              <ArticleCoefCell
+                article={article}
+                field="coef_ku"
+                articleEditing={articleEditing}
+                setArticleEditing={setArticleEditing}
+                onCommit={(v) => void onArticleUpdate(article.id, 'coef_ku', v)}
+              />
+            ) : (
+              <span className="text-gray-400">—</span>
+            )}
+          </td>
+          <td className="px-3 py-2 text-sm text-right font-medium">
+            {article.id > 0 ? (
+              formatNumber(wattsToKw(calcArticlePower(article)), 3)
+            ) : (
+              <span className="text-gray-400">—</span>
+            )}
+          </td>
+          {idx === 0 && (
+            <td rowSpan={rowCount} className="px-3 py-2 align-middle">
+              <button
+                type="button"
+                onClick={() => onDelete(element.id)}
+                className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                title="Supprimer le départ"
+              >
+                🗑️
+              </button>
+            </td>
+          )}
+        </tr>
+      ))}
+    </>
+  );
+}
+
 function SortableDataRow({
   element,
   onEdit,
+  onAddTypeToDepart,
   onDelete,
   onFieldUpdate,
   editingField,
@@ -404,6 +938,7 @@ function SortableDataRow({
 }: {
   element: Element;
   onEdit: (el: Element) => void;
+  onAddTypeToDepart: (el: Element) => void;
   onDelete: (id: number) => void;
   onFieldUpdate: ElementTableProps['onFieldUpdate'];
   editingField: { id: number; field: EditableField | CoefField } | null;
@@ -442,6 +977,12 @@ function SortableDataRow({
       >
         <td className="px-2 py-2 text-center text-gray-400 cursor-grab" {...attributes} {...listeners}>
           ⋮⋮
+        </td>
+        <td className="px-1 py-2 text-center">
+          <AddTypeButton
+            disabled={isAttente}
+            onClick={() => onAddTypeToDepart(element)}
+          />
         </td>
         <td className="px-3 py-2">
           <span
@@ -544,7 +1085,8 @@ function SortableDataRow({
       </tr>
       <tr className="border-b border-gray-50 dark:border-gray-800">
         <td />
-        <td colSpan={TOTAL_COLUMN_COUNT - 1} className="px-3 py-0.5 text-xs text-gray-400 italic">
+        <td />
+        <td colSpan={TOTAL_COLUMN_COUNT - 2} className="px-3 py-0.5 text-xs text-gray-400 italic">
           {coefsLine}
         </td>
       </tr>
@@ -554,16 +1096,21 @@ function SortableDataRow({
 
 export function ElementTable({
   elements,
+  articlesByElement,
   onEdit,
+  onAddTypeToDepart,
   onDelete,
   onAddElementUnderJdb,
   onReorder,
   onFieldUpdate,
+  onArticleUpdate,
+  onArticleDelete,
 }: ElementTableProps) {
   const [editingField, setEditingField] = useState<{
     id: number;
     field: EditableField | CoefField;
   } | null>(null);
+  const [articleEditing, setArticleEditing] = useState<ArticleEditingState>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -580,8 +1127,8 @@ export function ElementTable({
     onReorder(reordered.map((e) => e.id));
   };
 
-  const totalPower = panelTotalPower(elements);
-  const tableRows = buildElementTableRows(elements);
+  const totalPower = panelTotalPower(elements, articlesByElement);
+  const tableRows = buildElementTableRows(elements, articlesByElement);
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
@@ -590,6 +1137,7 @@ export function ElementTable({
           <thead>
             <tr className="bg-primary text-white text-xs uppercase tracking-wide">
               <th className="w-8 px-2 py-3" />
+              <th className="w-8 px-1 py-3" title="Ajouter un type sur le départ" />
               <th className="px-3 py-3">Cat.</th>
               <th className="px-3 py-3">Repère</th>
               <th className="px-3 py-3 min-w-[100px]">Type</th>
@@ -634,11 +1182,30 @@ export function ElementTable({
                     />
                   );
                 }
+                if (row.element.is_multi) {
+                  return (
+                    <SortableMultiDepartRow
+                      key={row.element.id}
+                      element={row.element}
+                      articles={articlesByElement[row.element.id] ?? []}
+                      onAddTypeToDepart={onAddTypeToDepart}
+                      onDelete={onDelete}
+                      onFieldUpdate={onFieldUpdate}
+                      onArticleUpdate={onArticleUpdate}
+                      onArticleDelete={onArticleDelete}
+                      editingField={editingField}
+                      setEditingField={setEditingField}
+                      articleEditing={articleEditing}
+                      setArticleEditing={setArticleEditing}
+                    />
+                  );
+                }
                 return (
                   <SortableDataRow
                     key={row.element.id}
                     element={row.element}
                     onEdit={onEdit}
+                    onAddTypeToDepart={onAddTypeToDepart}
                     onDelete={onDelete}
                     onFieldUpdate={onFieldUpdate}
                     editingField={editingField}
@@ -660,7 +1227,7 @@ export function ElementTable({
             {elements.length > 0 && (
               <tr className="bg-blue-50 dark:bg-blue-900/20 font-bold">
                 <td
-                  colSpan={9}
+                  colSpan={10}
                   className="px-3 py-3 text-sm text-right text-primary dark:text-accent-light"
                 >
                   TOTAL

@@ -8,6 +8,9 @@ import {
   formatCoefsLine,
   resolveElementCoefs,
   wattsToKw,
+  articlesInstalledPower,
+  articlesTotalPower,
+  calcArticlePower,
 } from '../../shared/powerCalculations';
 
 export {
@@ -19,6 +22,9 @@ export {
   formatCoefsLine,
   resolveElementCoefs,
   wattsToKw,
+  articlesInstalledPower,
+  articlesTotalPower,
+  calcArticlePower,
 };
 
 export function defaultCoefsForType(

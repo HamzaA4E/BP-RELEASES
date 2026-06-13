@@ -3,13 +3,14 @@ import { dialog } from 'electron';
 import { getProjectById } from '../database/projects';
 import { getLocationsByProject } from '../database/locations';
 import { getPanelsByLocation } from '../database/panels';
-import { getElementsByPanel } from '../database/elements';
+import { getElementsByPanel, getArticlesByElement } from '../database/elements';
 import { getCompanySettings } from '../database/settings';
 import type { CompanySettings } from '../../shared/types';
 import type { ProjectRow } from '../database/projects';
 import type { ElementRow } from '../database/elements';
 import {
   calcPuissanceTotale,
+  calcArticlePower,
   resolveElementCoefs,
   formatCoefsLine,
   wattsToKw,
@@ -301,7 +302,13 @@ function addPanelPage(
 
   const flushSubtotal = (): void => {
     if (!currentJdb || groupElements.length === 0) return;
-    const total = groupElements.reduce((sum, el) => sum + calcPuissanceTotale(el), 0);
+    const total = groupElements.reduce((sum, el) => {
+      if (el.is_multi) {
+        const arts = getArticlesByElement(el.id);
+        return sum + calcPuissanceTotale(el, arts);
+      }
+      return sum + calcPuissanceTotale(el);
+    }, 0);
     const jdbTitle =
       currentJdb.type_label?.trim() ||
       currentJdb.designation?.trim() ||
@@ -321,6 +328,54 @@ function addPanelPage(
       flushSubtotal();
       currentJdb = el;
       y = drawJeuDeBarresTitleRow(doc, el, y);
+      return;
+    }
+
+    if (el.is_multi) {
+      const articles = getArticlesByElement(el.id);
+
+      articles.forEach((article, artIdx) => {
+        if (y > 268) {
+          doc.addPage();
+          addPageHeader(doc, company, project, locationName);
+          y = drawTableHeader(doc, 24);
+        }
+
+        if (dataRowIndex % 2 === 1) {
+          doc.setFillColor(248, 249, 250);
+          doc.rect(TABLE_LEFT, y - 4, TABLE_WIDTH, 7, 'F');
+        }
+
+        const ks = article.coef_ks ?? 1;
+        const ku = article.coef_ku ?? 1;
+        const totalArt = calcArticlePower(article);
+        const coefsLine = ku === 1 ? `Ks=${ks}` : formatCoefsLine(ks, ku);
+
+        const desLabel =
+          article.designation?.trim() || article.type_label?.trim() || '';
+
+        const row = [
+          artIdx === 0 ? el.repere : '',
+          desLabel,
+          formatKw(article.power_w),
+          String(article.quantity),
+          String(ks),
+          ku === 1 ? '' : ku.toFixed(2),
+          formatKw(totalArt),
+          coefsLine,
+        ];
+
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', artIdx === 0 ? 'bold' : 'normal');
+        doc.setFontSize(7);
+        row.forEach((cell, i) => {
+          drawCenteredCell(doc, cell.slice(0, maxCharsForCol(i)), i, y);
+        });
+        y += 7;
+        dataRowIndex++;
+      });
+
+      if (currentJdb) groupElements.push(el);
       return;
     }
 

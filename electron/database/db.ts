@@ -164,7 +164,10 @@ const RECREATE_ELEMENTS_SQL = `
 `;
 
 export function getDatabase(): Database.Database {
-  if (db) return db;
+  if (db) {
+    ensureElementArticlesSchema(db);
+    return db;
+  }
 
   const dbPath = resolveDatabasePath();
   db = new Database(dbPath);
@@ -176,6 +179,7 @@ export function getDatabase(): Database.Database {
   ensureElementsColumns(db);
   migratePanelCoefficients(db);
   migrateElementsTable(db);
+  migrateElementArticles(db);
   seedFavorites();
 
   return db;
@@ -259,6 +263,7 @@ function ensureElementsColumns(database: Database.Database): void {
   addColumn('coef_ks', 'REAL DEFAULT 0.8');
   addColumn('coef_ku', 'REAL DEFAULT 1.0');
   addColumn('coef_fp', 'REAL DEFAULT 1.0');
+  addColumn('is_multi', 'INTEGER DEFAULT 0');
 
   database.exec(
     `UPDATE elements SET type_label = designation WHERE (type_label = '' OR type_label IS NULL) AND designation IS NOT NULL`
@@ -306,6 +311,70 @@ function migrateElementsTable(database: Database.Database): void {
     `UPDATE elements SET jdb_category = 'eclairage'
      WHERE type = 'jeu_de_barres' AND jdb_category IS NULL`
   );
+}
+
+function hasColumn(database: Database.Database, table: string, column: string): boolean {
+  const cols = database.pragma(`table_info(${table})`) as Array<{ name: string }>;
+  return cols.some((c) => c.name === column);
+}
+
+export function ensureElementArticlesSchema(database: Database.Database): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS element_articles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      element_id INTEGER NOT NULL REFERENCES elements(id) ON DELETE CASCADE,
+      designation TEXT NOT NULL,
+      power_w REAL NOT NULL DEFAULT 0,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      order_index INTEGER DEFAULT 0
+    );
+  `);
+
+  if (!hasColumn(database, 'element_articles', 'coef_ks')) {
+    database.exec(`ALTER TABLE element_articles ADD COLUMN coef_ks REAL DEFAULT 1.0`);
+    database.exec(`ALTER TABLE element_articles ADD COLUMN coef_ku REAL DEFAULT 1.0`);
+    database.exec(`
+      UPDATE element_articles SET
+        coef_ks = COALESCE(
+          (SELECT e.coef_ks FROM elements e WHERE e.id = element_articles.element_id),
+          1.0
+        ),
+        coef_ku = COALESCE(
+          (SELECT e.coef_ku FROM elements e WHERE e.id = element_articles.element_id),
+          1.0
+        )
+    `);
+  } else if (!hasColumn(database, 'element_articles', 'coef_ku')) {
+    database.exec(`ALTER TABLE element_articles ADD COLUMN coef_ku REAL DEFAULT 1.0`);
+  }
+
+  if (!hasColumn(database, 'element_articles', 'type_label')) {
+    database.exec(`ALTER TABLE element_articles ADD COLUMN type_label TEXT DEFAULT ''`);
+    database.exec(`
+      UPDATE element_articles SET type_label = designation
+      WHERE COALESCE(type_label, '') = ''
+    `);
+  }
+
+  database.exec(`
+    UPDATE element_articles SET type_label = (
+      SELECT COALESCE(NULLIF(e.type_label, ''), NULLIF(e.designation, ''), '')
+      FROM elements e WHERE e.id = element_articles.element_id
+    )
+    WHERE COALESCE(type_label, '') = ''
+      AND id = (
+        SELECT a2.id FROM element_articles a2
+        WHERE a2.element_id = element_articles.element_id
+        ORDER BY a2.order_index, a2.id
+        LIMIT 1
+      )
+  `);
+
+  database.pragma('wal_checkpoint(FULL)');
+}
+
+function migrateElementArticles(database: Database.Database): void {
+  ensureElementArticlesSchema(database);
 }
 
 function seedFavorites(): void {

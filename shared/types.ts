@@ -51,6 +51,18 @@ export interface PanelWithStats extends Panel {
   used_power_w: number;
 }
 
+export interface Article {
+  id: number;
+  element_id: number;
+  type_label: string;
+  designation: string;
+  power_w: number;
+  quantity: number;
+  coef_ks: number;
+  coef_ku: number;
+  order_index: number;
+}
+
 export interface Element {
   id: number;
   panel_id: number;
@@ -73,7 +85,30 @@ export interface Element {
   coef_ku: number;
   circuit: string | null;
   notes: string | null;
+  is_multi: boolean;
   order_index: number;
+}
+
+export interface CreateArticleInput {
+  element_id: number;
+  type_label?: string;
+  designation: string;
+  power_w: number;
+  quantity: number;
+  coef_ks?: number;
+  coef_ku?: number;
+  order_index?: number;
+}
+
+export interface UpdateArticleInput {
+  id: number;
+  type_label?: string;
+  designation?: string;
+  power_w?: number;
+  quantity?: number;
+  coef_ks?: number;
+  coef_ku?: number;
+  order_index?: number;
 }
 
 export interface Favorite {
@@ -140,6 +175,7 @@ export interface CreateElementInput {
   coef_ku?: number;
   circuit?: string;
   notes?: string;
+  is_multi?: boolean;
 }
 
 export interface UpdateElementInput {
@@ -159,6 +195,7 @@ export interface UpdateElementInput {
   coef_ku?: number;
   circuit?: string;
   notes?: string;
+  is_multi?: boolean;
 }
 
 export interface CreateFavoriteInput {

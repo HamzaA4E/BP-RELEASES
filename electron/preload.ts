@@ -11,6 +11,7 @@ import type {
   Panel,
   PanelWithStats,
   Element,
+  Article,
   Favorite,
   CreateProjectInput,
   UpdateProjectInput,
@@ -20,6 +21,8 @@ import type {
   UpdatePanelInput,
   CreateElementInput,
   UpdateElementInput,
+  CreateArticleInput,
+  UpdateArticleInput,
   CreateFavoriteInput,
   CompanySettings,
   UpdateCompanySettingsInput,
@@ -82,6 +85,14 @@ const api = {
     delete: (id: number): Promise<boolean> => invoke('elements:delete', id),
     reorder: (panelId: number, orderedIds: number[]): Promise<boolean> =>
       invoke('elements:reorder', panelId, orderedIds),
+    getArticles: (elementId: number): Promise<Article[]> =>
+      invoke('elements:getArticles', elementId),
+    createArticle: (data: CreateArticleInput): Promise<Article> =>
+      invoke('elements:createArticle', data),
+    updateArticle: (data: UpdateArticleInput): Promise<Article> =>
+      invoke('elements:updateArticle', data),
+    deleteArticle: (id: number): Promise<boolean> =>
+      invoke('elements:deleteArticle', id),
   },
   favorites: {
     getAll: (): Promise<Favorite[]> => invoke('favorites:getAll'),

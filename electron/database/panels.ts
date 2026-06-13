@@ -1,5 +1,10 @@
 import { getDatabase } from './db';
-import { getElementsByPanel, createElement } from './elements';
+import {
+  getElementsByPanel,
+  createElement,
+  getArticlesByPanel,
+  ELEMENT_INSTALLED_POWER_SQL,
+} from './elements';
 import { panelTotalPower } from '../../shared/powerCalculations';
 import type { ElementType } from '../../shared/types';
 
@@ -26,7 +31,7 @@ export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
       `SELECT p.*,
         (SELECT COUNT(*) FROM elements e WHERE e.panel_id = p.id) as element_count,
         COALESCE((
-          SELECT SUM(e.power_w * e.quantity * COALESCE(e.coef_ks, e.ks, 1) * COALESCE(e.coef_ku, e.ku, 1)) FROM elements e
+          SELECT SUM(${ELEMENT_INSTALLED_POWER_SQL}) FROM elements e
           WHERE e.panel_id = p.id AND e.type != 'jeu_de_barres' AND e.type != 'attente'
         ), 0) as installed_power_w
       FROM panels p
@@ -39,7 +44,8 @@ export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
 
   return panels.map((p) => {
     const elements = getElementsByPanel(p.id);
-    const used_power_w = panelTotalPower(elements);
+    const articlesByElement = getArticlesByPanel(p.id);
+    const used_power_w = panelTotalPower(elements, articlesByElement);
     return {
       ...p,
       absorbed_power_w: used_power_w,

@@ -1,5 +1,5 @@
 import { getDatabase } from './db';
-import { createElement } from './elements';
+import { createElement, ELEMENT_INSTALLED_POWER_SQL } from './elements';
 
 export interface LocationRow {
   id: number;
@@ -20,7 +20,7 @@ export function getLocationsByProject(projectId: number): LocationWithStatsRow[]
       `SELECT l.*,
         (SELECT COUNT(*) FROM panels p WHERE p.location_id = l.id) as panel_count,
         COALESCE((
-          SELECT SUM(e.power_w * e.quantity * COALESCE(e.coef_ks, e.ks, 1) * COALESCE(e.coef_ku, e.ku, 1))
+          SELECT SUM(${ELEMENT_INSTALLED_POWER_SQL})
           FROM elements e
           JOIN panels pa ON e.panel_id = pa.id
           WHERE pa.location_id = l.id AND e.type NOT IN ('jeu_de_barres', 'attente')

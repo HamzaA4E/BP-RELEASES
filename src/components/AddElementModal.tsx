@@ -16,6 +16,7 @@ import {
   jeuDeBarresTitle,
   jdbCategoryLabel,
   getActiveJeuDeBarres,
+  getJeuDeBarresForElement,
   isTypeAllowedUnderJdb,
   defaultElementTypeForJdb,
 } from '@/utils/elementHelpers';
@@ -42,6 +43,8 @@ interface AddElementModalProps {
   editElement?: Element | null;
   /** When set, the new element is added under this jeu de barres section. */
   contextJdb?: Element | null;
+  /** When set, adds a new type/article to this existing depart (same category). */
+  addTypeToDepart?: Element | null;
   onClose: () => void;
   onSave: (data: {
     type: ElementFormType;
@@ -108,6 +111,7 @@ export function AddElementModal({
   favorites,
   editElement,
   contextJdb = null,
+  addTypeToDepart = null,
   onClose,
   onSave,
   onSaveMultiple,
@@ -122,12 +126,18 @@ export function AddElementModal({
   const [showCoefs, setShowCoefs] = useState(false);
 
   const isEdit = Boolean(editElement);
+  const isAddTypeMode = Boolean(addTypeToDepart);
 
-  const insertIndex = existingElements.length;
+  const insertIndex = addTypeToDepart
+    ? Math.max(0, existingElements.findIndex((e) => e.id === addTypeToDepart.id) + 1)
+    : existingElements.length;
   const activeJdb =
-    contextJdb ?? getActiveJeuDeBarres(existingElements, insertIndex);
+    contextJdb ??
+    (addTypeToDepart
+      ? getJeuDeBarresForElement(existingElements, addTypeToDepart.id)
+      : getActiveJeuDeBarres(existingElements, insertIndex));
   const typeNotAllowed =
-    !isEdit && !isTypeAllowedUnderJdb(formData.type, activeJdb);
+    !isEdit && !isAddTypeMode && !isTypeAllowedUnderJdb(formData.type, activeJdb);
 
   const filteredFavorites = useMemo(
     () => favorites.filter((f) => f.type === formData.type),
@@ -172,6 +182,7 @@ export function AddElementModal({
       coef_ku: formData.coef_ku,
       circuit: null,
       notes: null,
+      is_multi: false,
       order_index: 0,
     };
     return calcPuissanceTotale(previewElement);
@@ -199,6 +210,21 @@ export function AddElementModal({
         coef_ku: editElement.coef_ku,
         notes: editElement.notes ?? '',
       });
+    } else if (addTypeToDepart) {
+      const type = addTypeToDepart.type as ElementFormType;
+      const phase_type = addTypeToDepart.phase_type ?? 'mono';
+      setFormData({
+        type,
+        repere: addTypeToDepart.repere,
+        type_label: type === 'prise' ? (phase_type === 'tri' ? 'Triphasé' : 'Monophasé') : '',
+        emplacement: '',
+        power_w: 0,
+        quantity: 1,
+        phase_type,
+        coef_ks: addTypeToDepart.coef_ks,
+        coef_ku: addTypeToDepart.coef_ku,
+        notes: '',
+      });
     } else if (contextJdb) {
       const defaultType = defaultElementTypeForJdb(contextJdb);
       setFormData(buildDefaultForm(defaultType, existingElements));
@@ -208,18 +234,20 @@ export function AddElementModal({
     setErrors({});
     setDuplicateCount(1);
     setShowCoefs(false);
-  }, [isOpen, editElement, contextJdb, existingElements]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- réinitialiser uniquement à l'ouverture
+  }, [isOpen, editElement?.id, contextJdb?.id, addTypeToDepart?.id]);
 
   useEffect(() => {
-    if (!editElement && isOpen) {
+    if (!editElement && !addTypeToDepart && isOpen) {
       setFormData((p) => ({
         ...p,
         repere: getNextRepere(existingElements, p.type),
       }));
     }
-  }, [formData.type, isOpen, editElement, existingElements]);
+  }, [formData.type, isOpen, editElement, addTypeToDepart, existingElements]);
 
   const handleTypeChange = (type: ElementFormType) => {
+    if (isAddTypeMode) return;
     setDuplicateCount(1);
     const phase_type: PhaseType = type === 'prise' ? formData.phase_type : 'mono';
     const coefs = defaultCoefsForType(type, phase_type);
@@ -250,7 +278,7 @@ export function AddElementModal({
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
-    if (!formData.repere.trim()) newErrors.repere = 'Le repère est requis';
+    if (!isAddTypeMode && !formData.repere.trim()) newErrors.repere = 'Le repère est requis';
     if (formData.type !== 'prise' && !formData.type_label.trim()) {
       newErrors.type_label = 'Le type est requis';
     }
@@ -306,12 +334,14 @@ export function AddElementModal({
 
   const handleFavoriteSelect = (fav: Favorite) => {
     if (fav.type === 'jeu_de_barres') return;
+    if (isAddTypeMode && addTypeToDepart && fav.type !== addTypeToDepart.type) return;
     const coefs = defaultCoefsForType(fav.type, formData.phase_type);
     setFormData((p) => ({
       ...p,
       type_label: fav.designation,
+      emplacement: isAddTypeMode ? '' : fav.designation,
       power_w: fav.power_w,
-      type: fav.type,
+      type: isAddTypeMode ? p.type : fav.type,
       ...coefs,
     }));
   };
@@ -345,24 +375,42 @@ export function AddElementModal({
                 </span>
               </div>
             )}
+            {isAddTypeMode && addTypeToDepart && (
+              <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm">
+                <span className="text-slate-500 dark:text-slate-400">Nouveau type pour le départ </span>
+                <span className="font-mono font-bold text-primary dark:text-blue-300">
+                  {addTypeToDepart.repere}
+                </span>
+                <span className="text-slate-600 dark:text-slate-300">
+                  {' '}
+                  — même catégorie que le départ
+                </span>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-2">Type</label>
               <div className="grid grid-cols-3 gap-2">
-                {TYPE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => handleTypeChange(opt.value)}
-                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
-                      formData.type === opt.value
-                        ? `${opt.color} text-white border-transparent shadow-sm`
-                        : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-slate-300'
-                    }`}
-                  >
-                    {opt.icon}
-                    {opt.label}
-                  </button>
-                ))}
+                {TYPE_OPTIONS.map((opt) => {
+                  const locked = isAddTypeMode && addTypeToDepart?.type !== opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      disabled={locked}
+                      onClick={() => handleTypeChange(opt.value)}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                        locked
+                          ? 'opacity-40 cursor-not-allowed bg-gray-100 dark:bg-gray-700 text-slate-400 border-slate-200'
+                          : formData.type === opt.value
+                            ? `${opt.color} text-white border-transparent shadow-sm`
+                            : 'bg-white dark:bg-gray-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600 hover:border-slate-300'
+                      }`}
+                    >
+                      {opt.icon}
+                      {opt.label}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -408,13 +456,16 @@ export function AddElementModal({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Repère *
+                  Repère {isAddTypeMode ? '' : '*'}
                 </label>
                 <input
                   type="text"
                   value={formData.repere}
+                  readOnly={isAddTypeMode}
                   onChange={(e) => setFormData((p) => ({ ...p, repere: e.target.value }))}
-                  className={`input-field ${errors.repere ? 'border-red-500' : ''}`}
+                  className={`input-field font-mono ${errors.repere ? 'border-red-500' : ''} ${
+                    isAddTypeMode ? 'bg-gray-50 dark:bg-gray-700/50 cursor-default' : ''
+                  }`}
                   placeholder={
                     formData.type === 'eclairage'
                       ? 'E1'
@@ -433,23 +484,25 @@ export function AddElementModal({
                   <div className="flex rounded-lg overflow-hidden border border-slate-200 dark:border-slate-600">
                     <button
                       type="button"
+                      disabled={isAddTypeMode}
                       onClick={() => handlePrisePhaseChange('mono')}
                       className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
                         formData.phase_type === 'mono'
                           ? 'bg-blue-600 text-white'
                           : 'bg-white dark:bg-gray-800 text-slate-600 hover:bg-slate-50'
-                      }`}
+                      } ${isAddTypeMode ? 'opacity-60 cursor-default' : ''}`}
                     >
                       Monophasé
                     </button>
                     <button
                       type="button"
+                      disabled={isAddTypeMode}
                       onClick={() => handlePrisePhaseChange('tri')}
                       className={`flex-1 px-3 py-2 text-sm font-medium border-l border-slate-200 dark:border-slate-600 transition-colors ${
                         formData.phase_type === 'tri'
                           ? 'bg-orange-500 text-white'
                           : 'bg-white dark:bg-gray-800 text-slate-600 hover:bg-slate-50'
-                      }`}
+                      } ${isAddTypeMode ? 'opacity-60 cursor-default' : ''}`}
                     >
                       Triphasé
                     </button>
@@ -618,7 +671,7 @@ export function AddElementModal({
               />
             </div>
 
-            {!isEdit && (
+            {!isEdit && !isAddTypeMode && (
               <div className="rounded-lg border border-slate-200 dark:border-slate-600 p-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-slate-700 dark:text-slate-300">

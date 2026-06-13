@@ -5,18 +5,25 @@ import { useAppStore } from '@/store/useAppStore';
 import { ElementTable } from '@/components/ElementTable';
 import { AddElementModal } from '@/components/AddElementModal';
 import { AddJdbModal } from '@/components/AddJdbModal';
+import {
+  elementToArticleDesignation,
+  elementToArticleTypeLabel,
+  payloadToArticleDesignation,
+  payloadToArticleTypeLabel,
+} from '@/utils/multiDepartHelpers';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import {
   normalizeElement,
   isJeuDeBarres,
   getInsertIndexAfterJdbSection,
+  getJeuDeBarresForElement,
 } from '@/utils/elementHelpers';
 import {
   panelTotalPower,
   calculationCurrent,
 } from '@/utils/calculations';
 import { LoadGauge } from '@/components/LoadGauge';
-import type { Element, Panel, PhaseType } from '@/types';
+import type { Article, Element, Panel, PhaseType } from '@/types';
 
 type ElementFormType = Exclude<Element['type'], 'jeu_de_barres'>;
 
@@ -65,13 +72,32 @@ export function PanelView() {
   const [showAddElement, setShowAddElement] = useState(false);
   const [showAddJdb, setShowAddJdb] = useState(false);
   const [editElement, setEditElement] = useState<Element | null>(null);
+  const [articlesByElement, setArticlesByElement] = useState<Record<number, Article[]>>({});
+  const [departForNewType, setDepartForNewType] = useState<Element | null>(null);
   const [contextJdb, setContextJdb] = useState<Element | null>(null);
   const [deleteElementId, setDeleteElementId] = useState<number | null>(null);
 
+  const loadArticlesForElements = useCallback(async (els: Element[]) => {
+    const multiElements = els.filter((e) => e.is_multi);
+    const entries = await Promise.all(
+      multiElements.map(async (el) => {
+        const articles = await window.bilpow.elements.getArticles(el.id);
+        return [el.id, articles] as const;
+      })
+    );
+    const map: Record<number, Article[]> = {};
+    for (const [id, articles] of entries) {
+      map[id] = articles;
+    }
+    setArticlesByElement(map);
+  }, []);
+
   const refreshElements = useCallback(async () => {
     const els = await window.bilpow.elements.getByPanel(panId);
-    setElements(els.map((e) => normalizeElement(e)));
-  }, [panId, setElements]);
+    const normalized = els.map((e) => normalizeElement(e));
+    setElements(normalized);
+    await loadArticlesForElements(normalized);
+  }, [panId, setElements, loadArticlesForElements]);
 
   const loadData = useCallback(async () => {
     try {
@@ -93,7 +119,10 @@ export function PanelView() {
     void window.bilpow.favorites.getAll().then(setFavorites);
   }, [loadData, setFavorites]);
 
-  const totalPower = useMemo(() => panelTotalPower(elements), [elements]);
+  const totalPower = useMemo(
+    () => panelTotalPower(elements, articlesByElement),
+    [elements, articlesByElement]
+  );
   const calcCurrent = useMemo(() => calculationCurrent(totalPower), [totalPower]);
 
   const savePanelName = async (name: string) => {
@@ -136,6 +165,63 @@ export function PanelView() {
   };
 
   const handleSaveElement = async (data: ElementSavePayload) => {
+    if (departForNewType) {
+      if (data.type !== departForNewType.type) {
+        toast.error('Le type doit être de la même catégorie que le départ');
+        return;
+      }
+      const designation = payloadToArticleDesignation(data);
+      const type_label =
+        (data.type_label ?? '').trim() || payloadToArticleTypeLabel(data);
+      const articleCoefs = { coef_ks: data.coef_ks, coef_ku: data.coef_ku };
+      if (!departForNewType.is_multi) {
+        await window.bilpow.elements.update({
+          id: departForNewType.id,
+          is_multi: true,
+          power_w: 0,
+          quantity: 1,
+          notes: data.notes,
+        });
+        await window.bilpow.elements.createArticle({
+          element_id: departForNewType.id,
+          type_label: elementToArticleTypeLabel(departForNewType),
+          designation: elementToArticleDesignation(departForNewType),
+          power_w: departForNewType.power_w,
+          quantity: departForNewType.quantity,
+          coef_ks: departForNewType.coef_ks,
+          coef_ku: departForNewType.coef_ku,
+          order_index: 0,
+        });
+        await window.bilpow.elements.createArticle({
+          element_id: departForNewType.id,
+          type_label,
+          designation,
+          power_w: data.power_w,
+          quantity: data.quantity,
+          ...articleCoefs,
+          order_index: 1,
+        });
+      } else {
+        const existing = articlesByElement[departForNewType.id] ?? [];
+        await window.bilpow.elements.createArticle({
+          element_id: departForNewType.id,
+          type_label,
+          designation,
+          power_w: data.power_w,
+          quantity: data.quantity,
+          ...articleCoefs,
+          order_index: existing.length,
+        });
+      }
+      toast.success('Type ajouté au départ');
+      setDepartForNewType(null);
+      setContextJdb(null);
+      await refreshElements();
+      const pnl = await window.bilpow.panels.getByLocation(lId);
+      setPanels(pnl);
+      return;
+    }
+
     if (editElement && editElement.type !== 'jeu_de_barres') {
       await window.bilpow.elements.update({ id: editElement.id, ...data });
       toast.success('Élément mis à jour');
@@ -241,6 +327,41 @@ export function PanelView() {
     setPanels(pnl);
   };
 
+  const handleAddTypeToDepart = (element: Element) => {
+    if (element.type === 'jeu_de_barres' || element.type === 'attente') return;
+    const jdb = getJeuDeBarresForElement(elements, element.id);
+    setEditElement(null);
+    setContextJdb(jdb);
+    setDepartForNewType(element);
+    setShowAddElement(true);
+  };
+
+  const handleArticleUpdate = async (
+    articleId: number,
+    field: 'designation' | 'type_label' | 'power_w' | 'quantity' | 'coef_ks' | 'coef_ku',
+    value: string | number
+  ) => {
+    try {
+      await window.bilpow.elements.updateArticle({ id: articleId, [field]: value });
+      await refreshElements();
+      const pnl = await window.bilpow.panels.getByLocation(lId);
+      setPanels(pnl);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleArticleDelete = async (articleId: number, _elementId: number) => {
+    try {
+      await window.bilpow.elements.deleteArticle(articleId);
+      await refreshElements();
+      const pnl = await window.bilpow.panels.getByLocation(lId);
+      setPanels(pnl);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-full mx-auto space-y-6">
@@ -275,6 +396,7 @@ export function PanelView() {
               onClick={() => {
                 setEditElement(null);
                 setContextJdb(null);
+                setDepartForNewType(null);
                 setShowAddElement(true);
               }}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-sm font-medium transition-all shadow-sm"
@@ -289,16 +411,20 @@ export function PanelView() {
 
         <ElementTable
           elements={elements}
+          articlesByElement={articlesByElement}
           onEdit={(el) => {
-            if (el.type === 'jeu_de_barres') return;
+            if (el.type === 'jeu_de_barres' || el.is_multi) return;
             setContextJdb(null);
             setEditElement(el);
             setShowAddElement(true);
           }}
+          onAddTypeToDepart={handleAddTypeToDepart}
           onDelete={setDeleteElementId}
           onAddElementUnderJdb={handleAddElementUnderJdb}
           onReorder={handleReorder}
           onFieldUpdate={handleFieldUpdate}
+          onArticleUpdate={handleArticleUpdate}
+          onArticleDelete={handleArticleDelete}
         />
 
         
@@ -310,10 +436,12 @@ export function PanelView() {
         favorites={favorites}
         editElement={editElement}
         contextJdb={contextJdb}
+        addTypeToDepart={departForNewType}
         onClose={() => {
           setShowAddElement(false);
           setEditElement(null);
           setContextJdb(null);
+          setDepartForNewType(null);
         }}
         onSave={handleSaveElement}
         onSaveMultiple={handleSaveMultiple}

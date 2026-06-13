@@ -254,6 +254,47 @@ function registerIpcHandlers(): void {
         return true;
       })
   );
+  ipcMain.handle('elements:getArticles', (_e, elementId: number) =>
+    wrapHandler(() => elementsDb.getArticlesByElement(elementId))
+  );
+  ipcMain.handle(
+    'elements:createArticle',
+    (
+      _e,
+      data: {
+        element_id: number;
+        type_label?: string;
+        designation: string;
+        power_w: number;
+        quantity: number;
+        coef_ks?: number;
+        coef_ku?: number;
+        order_index?: number;
+      }
+    ) => wrapHandler(() => elementsDb.createArticle(data))
+  );
+  ipcMain.handle(
+    'elements:updateArticle',
+    (
+      _e,
+      data: {
+        id: number;
+        type_label?: string;
+        designation?: string;
+        power_w?: number;
+        quantity?: number;
+        coef_ks?: number;
+        coef_ku?: number;
+        order_index?: number;
+      }
+    ) => wrapHandler(() => elementsDb.updateArticle(data))
+  );
+  ipcMain.handle('elements:deleteArticle', (_e, id: number) =>
+    wrapHandler(() => {
+      elementsDb.deleteArticle(id);
+      return true;
+    })
+  );
 
   ipcMain.handle('favorites:getAll', () =>
     wrapHandler(() => favoritesDb.getAllFavorites())

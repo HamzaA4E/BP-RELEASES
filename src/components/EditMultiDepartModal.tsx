@@ -1,0 +1,1 @@
+export { EditMultiDepartModal } from './AddMultiDepartModal';

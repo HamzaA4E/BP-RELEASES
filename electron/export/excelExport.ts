@@ -4,7 +4,11 @@ import { getDatabase } from '../database/db';
 import { getProjectById } from '../database/projects';
 import { getLocationById, getLocationsByProject } from '../database/locations';
 import { getPanelsByLocation } from '../database/panels';
-import { getElementsByPanel } from '../database/elements';
+import {
+  getElementsByPanel,
+  getArticlesByElement,
+  type ArticleRow,
+} from '../database/elements';
 import { getCompanySettings } from '../database/settings';
 import type {
   CompanySettings,
@@ -24,6 +28,8 @@ const ALT_ROW_COLOR = 'FFF8F9FA';
 const TOTAL_ROW_COLOR = 'FFDBEAFE';
 const SUBTOTAL_ROW_COLOR = 'FFEFF6FF';
 const PROJECT_INFO_COLOR = 'FFE8F0FE';
+const MULTI_ROW_COLOR = 'FFF5F3FF';
+const MULTI_ACCENT_COLOR = 'FF7C3AED';
 
 const COL = {
   REPERE: 1,
@@ -299,6 +305,87 @@ function writeJeuDeBarresExcelRow(
   applyBorder(cell);
 }
 
+function buildArticlesSummaryExcel(articles: ArticleRow[]): string {
+  if (articles.length === 0) return 'DÉPART MULTI';
+  const parts = articles.map((a) => {
+    const label = a.type_label?.trim() || a.designation?.trim() || 'Article';
+    const short = label.length > 18 ? `${label.slice(0, 16)}…` : label;
+    return `${short} ×${a.quantity}`;
+  });
+  let summary = parts.join(' + ');
+  if (summary.length > 50) summary = `${summary.slice(0, 47)}...`;
+  return summary;
+}
+
+function writeMultiDepartExcelRows(
+  sheet: ExcelJS.Worksheet,
+  titleRowNum: number,
+  el: ElementRow,
+  articles: ArticleRow[]
+): { endRow: number; powerRows: number[] } {
+  const titleRow = sheet.getRow(titleRowNum);
+
+  titleRow.getCell(COL.REPERE).value = toCellValue(el.repere);
+  titleRow.getCell(COL.DESIGNATION).value = toCellString(
+    `DÉPART MULTI — ${buildArticlesSummaryExcel(articles)}`
+  );
+  titleRow.getCell(COL.POWER).value = '—';
+  titleRow.getCell(COL.QTY).value = '—';
+  titleRow.getCell(COL.KS).value = '';
+  titleRow.getCell(COL.KU).value = '';
+  titleRow.getCell(COL.TOTAL).value = '';
+
+  for (let c = 1; c <= COL_COUNT; c++) {
+    const cell = titleRow.getCell(c);
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: MULTI_ROW_COLOR },
+    };
+    cell.font = { bold: true, color: { argb: MULTI_ACCENT_COLOR }, size: 10 };
+    applyBorder(cell);
+  }
+
+  const powerRows: number[] = [];
+  let rowNum = titleRowNum;
+
+  for (const article of articles) {
+    rowNum++;
+    const row = sheet.getRow(rowNum);
+    row.getCell(COL.REPERE).value = '';
+    const desCell = row.getCell(COL.DESIGNATION);
+    desCell.value = toCellString(
+      article.designation?.trim() || article.type_label?.trim() || ''
+    );
+    desCell.alignment = { indent: 1, vertical: 'middle', horizontal: 'left' };
+    row.getCell(COL.POWER).value = wattsToKw(article.power_w);
+    row.getCell(COL.QTY).value = article.quantity;
+    const ks = article.coef_ks ?? 1;
+    const ku = article.coef_ku ?? 1;
+    row.getCell(COL.KS).value = ks;
+    row.getCell(COL.KU).value = ku === 1 ? '' : ku;
+    const kuCol = colLetter(COL.KU);
+    const ksCol = colLetter(COL.KS);
+    row.getCell(COL.TOTAL).value = {
+      formula: `${colLetter(COL.POWER)}${rowNum}*${colLetter(COL.QTY)}${rowNum}*${ksCol}${rowNum}*IF(${kuCol}${rowNum}="",1,${kuCol}${rowNum})`,
+    };
+    powerRows.push(rowNum);
+
+    for (let c = 1; c <= COL_COUNT; c++) {
+      const cell = row.getCell(c);
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: MULTI_ROW_COLOR },
+      };
+      cell.font = { size: 9, color: { argb: 'FF5B21B6' } };
+      applyBorder(cell);
+    }
+  }
+
+  return { endRow: rowNum, powerRows };
+}
+
 function writeSubtotalRow(
   sheet: ExcelJS.Worksheet,
   rowNum: number,
@@ -417,6 +504,22 @@ function createPanelSheet(
       flushSubtotal();
       currentJdb = el;
       writeJeuDeBarresExcelRow(sheet, rowNum, el);
+      continue;
+    }
+
+    if (el.is_multi) {
+      const articles = getArticlesByElement(el.id);
+      const titleRowNum = rowNum;
+      const { endRow, powerRows } = writeMultiDepartExcelRows(
+        sheet,
+        titleRowNum,
+        el,
+        articles
+      );
+      rowNum = endRow;
+      dataRowIndex++;
+      allPowerRows.push(...powerRows);
+      if (currentJdb) groupPowerRows.push(...powerRows);
       continue;
     }
 

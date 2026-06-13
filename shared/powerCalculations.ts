@@ -15,6 +15,28 @@ export interface PowerElementInput {
   ks?: number;
   ku?: number;
   row_kind?: string;
+  is_multi?: boolean;
+}
+
+export interface ArticlePowerInput {
+  power_w: number;
+  quantity: number;
+  coef_ks?: number;
+  coef_ku?: number;
+}
+
+export function calcArticlePower(article: ArticlePowerInput): number {
+  const ks = article.coef_ks ?? 1;
+  const ku = article.coef_ku ?? 1;
+  return Math.round(article.power_w * article.quantity * ks * ku);
+}
+
+export function articlesInstalledPower(articles: ArticlePowerInput[]): number {
+  return articles.reduce((sum, a) => sum + a.power_w * a.quantity, 0);
+}
+
+export function articlesTotalPower(articles: ArticlePowerInput[]): number {
+  return articles.reduce((sum, a) => sum + calcArticlePower(a), 0);
 }
 
 export function isInstalledPowerRow(el: {
@@ -44,17 +66,30 @@ export function wattsToKw(powerW: number): number {
 }
 
 /** Puissance totale d'un élément en W : P × Qté × Ks × Ku (arrondi). */
-export function calcPuissanceTotale(el: PowerElementInput): number {
+export function calcPuissanceTotale(
+  el: PowerElementInput,
+  articles?: ArticlePowerInput[]
+): number {
   if (el.type === 'attente' || el.type === 'jeu_de_barres') return 0;
+  if (el.is_multi && articles && articles.length > 0) {
+    return articlesTotalPower(articles);
+  }
   const { ks, ku } = resolveElementCoefs(el);
   return Math.round(el.power_w * el.quantity * ks * ku);
 }
 
 /** Somme des puissances totales du tableau en W (hors attente et jeux de barres). */
-export function panelTotalPower(elements: PowerElementInput[]): number {
+export function panelTotalPower(
+  elements: (PowerElementInput & { id?: number })[],
+  articlesByElementId?: Record<number, ArticlePowerInput[]>
+): number {
   return elements
     .filter((el) => el.type !== 'jeu_de_barres' && el.type !== 'attente')
-    .reduce((sum, el) => sum + calcPuissanceTotale(el), 0);
+    .reduce((sum, el) => {
+      const articles =
+        el.id != null && el.is_multi ? articlesByElementId?.[el.id] : undefined;
+      return sum + calcPuissanceTotale(el, articles);
+    }, 0);
 }
 
 /** @deprecated Utiliser panelTotalPower */
@@ -63,10 +98,17 @@ export function panelUsedPower(elements: PowerElementInput[]): number {
 }
 
 /** Puissance installée en W : somme P × Qté × Ks × Ku (hors JDB / bar_set). */
-export function panelInstalledPower(elements: PowerElementInput[]): number {
+export function panelInstalledPower(
+  elements: (PowerElementInput & { id?: number })[],
+  articlesByElementId?: Record<number, ArticlePowerInput[]>
+): number {
   return elements
     .filter(isInstalledPowerRow)
-    .reduce((sum, el) => sum + calcPuissanceTotale(el), 0);
+    .reduce((sum, el) => {
+      const articles =
+        el.id != null && el.is_multi ? articlesByElementId?.[el.id] : undefined;
+      return sum + calcPuissanceTotale(el, articles);
+    }, 0);
 }
 
 export interface PanelPowerSummary {

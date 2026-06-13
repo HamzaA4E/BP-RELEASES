@@ -1,4 +1,4 @@
-import type { Element, ElementType, JdbCategory } from '@/types';
+import type { Article, Element, ElementType, JdbCategory } from '@/types';
 import { resolveJdbCategory } from '@/types';
 import { calcPuissanceTotale, defaultCoefsForType } from '@/utils/calculations';
 
@@ -60,6 +60,16 @@ export function getActiveJeuDeBarres(
   return null;
 }
 
+/** Jeu de barres contenant un élément donné (selon l'ordre du tableau). */
+export function getJeuDeBarresForElement(
+  elements: Element[],
+  elementId: number
+): Element | null {
+  const index = elements.findIndex((e) => e.id === elementId);
+  if (index < 0) return null;
+  return getActiveJeuDeBarres(elements, index + 1);
+}
+
 /** Index where a new element should be inserted at the end of a jeu de barres section. */
 export function getInsertIndexAfterJdbSection(
   elements: Element[],
@@ -116,6 +126,7 @@ export function normalizeElement(raw: Element): Element {
     ks: raw.ks ?? 1,
     coef_ks: raw.coef_ks ?? coefDefaults.coef_ks,
     coef_ku: raw.coef_ku ?? coefDefaults.coef_ku,
+    is_multi: Boolean(raw.is_multi),
   };
 }
 
@@ -125,7 +136,10 @@ export type ElementTableRow =
   | { kind: 'subtotal'; label: string; totalPower: number };
 
 /** Construit les lignes du tableau avec sous-totaux par jeu de barres. */
-export function buildElementTableRows(elements: Element[]): ElementTableRow[] {
+export function buildElementTableRows(
+  elements: Element[],
+  articlesByElement: Record<number, Article[]> = {}
+): ElementTableRow[] {
   const rows: ElementTableRow[] = [];
   let currentJdb: Element | null = null;
   let groupElements: Element[] = [];
@@ -133,7 +147,12 @@ export function buildElementTableRows(elements: Element[]): ElementTableRow[] {
   const flushSubtotal = (): void => {
     if (!currentJdb || groupElements.length === 0) return;
     const totalPower = groupElements.reduce(
-      (sum, el) => sum + calcPuissanceTotale(el),
+      (sum, el) =>
+        sum +
+        calcPuissanceTotale(
+          el,
+          el.is_multi ? articlesByElement[el.id] : undefined
+        ),
       0
     );
     rows.push({
