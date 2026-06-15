@@ -174,7 +174,7 @@ const TABLE_HEADERS = [
   'Ks',
   'Ku',
   'P.Totale (kW)',
-  'Coefficients',
+  // 'Coefficients',
 ];
 
 const TABLE_HEADER_HEIGHT = 8;

@@ -511,18 +511,17 @@ function createPanelSheet(
   };
 
   for (const el of data.elements) {
-    rowNum++;
-
     if (isJeuDeBarresRow(el)) {
       flushRepereGroup();
-      flushSubtotal();
+      flushSubtotal();        // sous-total sur rowNum courant (ligne précédente)
+      rowNum++;               // nouvelle ligne pour le titre JDB
       currentJdb = el;
       currentRepere = '';
       currentRepereStartRow = 0;
       writeJeuDeBarresExcelRow(sheet, rowNum, el, COL_COUNT_DYNAMIC);
       continue;
     }
-
+    rowNum++;
     // Check if repère changed
     if (el.repere !== currentRepere) {
       flushRepereGroup();
