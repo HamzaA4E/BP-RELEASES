@@ -29,6 +29,7 @@ import type {
   CompanySettings,
   UpdateCompanySettingsInput,
   CreateElementInput,
+  CreateFavoriteInput,
   UpdateElementInput,
   PanelSavePayload,
   UploadLogoResult,
@@ -389,17 +390,8 @@ function registerIpcHandlers(): void {
   ipcMain.handle('favorites:getAll', () =>
     wrapHandler(() => favoritesDb.getAllFavorites())
   );
-  ipcMain.handle(
-    'favorites:create',
-    (
-      _e,
-      data: {
-        type: 'eclairage' | 'prise';
-        designation: string;
-        power_w: number;
-        color?: string;
-      }
-    ) => wrapHandler(() => favoritesDb.createFavorite(data))
+  ipcMain.handle('favorites:create', (_e, data: CreateFavoriteInput) =>
+    wrapHandler(() => favoritesDb.createFavorite(data))
   );
   ipcMain.handle('favorites:delete', (_e, id: number) =>
     wrapHandler(() => {

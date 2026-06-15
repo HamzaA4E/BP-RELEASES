@@ -3,11 +3,22 @@ import toast from 'react-hot-toast';
 import { useAppStore } from '@/store/useAppStore';
 import { FavoriteCard } from '@/components/FavoriteCard';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import type { ElementType } from '@/types';
+import type { FavoriteType } from '@/types';
+
+const FAVORITE_TYPES: { id: FavoriteType; label: string; icon: string }[] = [
+  { id: 'eclairage', label: 'Éclairage', icon: '💡' },
+  { id: 'prise', label: 'Prise', icon: '🔌' },
+  { id: 'divers', label: 'Divers', icon: '📦' },
+];
+
+function favoriteTypeMeta(type: FavoriteType) {
+  return FAVORITE_TYPES.find((t) => t.id === type) ?? FAVORITE_TYPES[0];
+}
 
 export function Favorites() {
   const { favorites, setFavorites } = useAppStore();
-  const [type, setType] = useState<ElementType>('eclairage');
+  const [addType, setAddType] = useState<FavoriteType>('eclairage');
+  const [listFilter, setListFilter] = useState<FavoriteType>('eclairage');
   const [designation, setDesignation] = useState('');
   const [powerW, setPowerW] = useState<number | ''>('');
   const [color, setColor] = useState('#3B82F6');
@@ -32,19 +43,20 @@ export function Favorites() {
       toast.error('La désignation est requise');
       return;
     }
-    if (powerW <= 0) {
+    if (powerW === '' || powerW <= 0) {
       toast.error('La puissance doit être supérieure à 0');
       return;
     }
     try {
       await window.bilpow.favorites.create({
-        type,
+        type: addType,
         designation: designation.trim(),
         power_w: powerW,
         color,
       });
       setDesignation('');
-      setPowerW(0);
+      setPowerW('');
+      setListFilter(addType);
       await loadFavorites();
       toast.success('Favori ajouté');
     } catch (err) {
@@ -64,8 +76,8 @@ export function Favorites() {
     setDeleteId(null);
   };
 
-  const eclairageFavs = favorites.filter((f) => f.type === 'eclairage');
-  const priseFavs = favorites.filter((f) => f.type === 'prise');
+  const filteredFavorites = favorites.filter((f) => f.type === listFilter);
+  const activeFilter = favoriteTypeMeta(listFilter);
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
@@ -81,17 +93,17 @@ export function Favorites() {
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-2">Type</label>
-              <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 max-w-xs">
-                {(['eclairage', 'prise'] as const).map((t) => (
+              <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 max-w-md">
+                {FAVORITE_TYPES.map(({ id, label, icon }) => (
                   <button
-                    key={t}
+                    key={id}
                     type="button"
-                    onClick={() => setType(t)}
+                    onClick={() => setAddType(id)}
                     className={`flex-1 py-2 text-sm font-medium ${
-                      type === t ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800'
+                      addType === id ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800'
                     }`}
                   >
-                    {t === 'eclairage' ? '💡 Éclairage' : '🔌 Prise'}
+                    {icon} {label}
                   </button>
                 ))}
               </div>
@@ -114,25 +126,16 @@ export function Favorites() {
                   Puissance (W) *
                 </label>
                 <input
-                type="number"
-                min={1}
-                placeholder='0'
-                value={powerW}
-                onChange={(e) =>
-                  setPowerW(e.target.value === '' ? '' : Number(e.target.value))
-                }
-                className="input-field"
-              />
-              </div>
-              {/* <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Couleur</label>
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-full h-10 rounded cursor-pointer"
+                  type="number"
+                  min={1}
+                  placeholder="0"
+                  value={powerW}
+                  onChange={(e) =>
+                    setPowerW(e.target.value === '' ? '' : Number(e.target.value))
+                  }
+                  className="input-field"
                 />
-              </div> */}
+              </div>
             </div>
             <button type="submit" className="btn-primary">
               Ajouter
@@ -140,50 +143,31 @@ export function Favorites() {
           </div>
         </form>
 
-        <section className="mb-8">
-        <div>
-              <label className="block text-xs font-medium text-gray-500 mb-2">Type</label>
-              <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 max-w-xs">
-                {(['eclairage', 'prise'] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setType(t)}
-                    className={`flex-1 py-2 text-sm font-medium ${
-                      type === t ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800'
-                    }`}
-                  >
-                    {t === 'eclairage' ? '💡 Éclairage' : '🔌 Prise'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-            💡 Éclairage
-            <span className="text-sm font-normal text-gray-400">({eclairageFavs.length})</span>
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {eclairageFavs.map((fav) => (
-              <FavoriteCard
-                key={fav.id}
-                favorite={fav}
-                onSelect={() => {}}
-                onDelete={setDeleteId}
-              />
-            ))}
-            {eclairageFavs.length === 0 && (
-              <p className="text-gray-400 text-sm col-span-2">Aucun favori éclairage</p>
-            )}
-          </div>
-        </section>
-
         <section>
-          <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-            🔌 Prises
-            <span className="text-sm font-normal text-gray-400">({priseFavs.length})</span>
-          </h2>
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+              {activeFilter?.icon} {activeFilter?.label}
+              <span className="text-sm font-normal text-gray-400">
+                ({filteredFavorites.length})
+              </span>
+            </h2>
+            <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 max-w-md">
+              {FAVORITE_TYPES.map(({ id, label, icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setListFilter(id)}
+                  className={`flex-1 py-2 px-2 text-sm font-medium ${
+                    listFilter === id ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800'
+                  }`}
+                >
+                  {icon} {label}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {priseFavs.map((fav) => (
+            {filteredFavorites.map((fav) => (
               <FavoriteCard
                 key={fav.id}
                 favorite={fav}
@@ -191,8 +175,10 @@ export function Favorites() {
                 onDelete={setDeleteId}
               />
             ))}
-            {priseFavs.length === 0 && (
-              <p className="text-gray-400 text-sm col-span-2">Aucun favori prise</p>
+            {filteredFavorites.length === 0 && (
+              <p className="text-gray-400 text-sm col-span-2">
+                Aucun favori {activeFilter.label.toLowerCase()}
+              </p>
             )}
           </div>
         </section>

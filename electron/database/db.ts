@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS elements (
 
 CREATE TABLE IF NOT EXISTS favorites (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise')),
+  type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'divers')),
   designation TEXT NOT NULL,
   power_w REAL NOT NULL DEFAULT 0,
   color TEXT DEFAULT '#3B82F6'
@@ -169,6 +169,7 @@ const RECREATE_ELEMENTS_SQL = `
 export function getDatabase(): Database.Database {
   if (db) {
     ensureElementArticlesSchema(db);
+    migrateFavoritesTable(db);
     return db;
   }
 
@@ -184,6 +185,7 @@ export function getDatabase(): Database.Database {
   migrateElementsTable(db);
   migrateElementArticles(db);
   migrateCompanySettings(db);
+  migrateFavoritesTable(db);
   seedFavorites();
   db.pragma('wal_checkpoint(PASSIVE)');
   console.log('[DB] Connexion prête');
@@ -391,6 +393,48 @@ function migrateCompanySettings(database: Database.Database): void {
     database.exec(`ALTER TABLE company_settings ADD COLUMN client_logo_base64 TEXT DEFAULT ''`);
     database.exec(`ALTER TABLE company_settings ADD COLUMN client_logo_mime TEXT DEFAULT ''`);
   }
+}
+
+function getFavoritesTableSql(database: Database.Database): string | null {
+  const row = database
+    .prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='favorites'`)
+    .get() as { sql: string } | undefined;
+  return row?.sql ?? null;
+}
+
+function favoritesTypeAllowsDivers(database: Database.Database): boolean {
+  const sql = getFavoritesTableSql(database);
+  return sql != null && sql.includes("'divers'");
+}
+
+function migrateFavoritesTable(database: Database.Database): void {
+  if (!tableExists(database, 'favorites')) return;
+  if (favoritesTypeAllowsDivers(database)) return;
+
+  if (tableExists(database, 'favorites_new')) {
+    database.exec('DROP TABLE IF EXISTS favorites_new');
+  }
+
+  const run = database.transaction(() => {
+    database.exec(`
+      CREATE TABLE favorites_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'divers')),
+        designation TEXT NOT NULL,
+        power_w REAL NOT NULL DEFAULT 0,
+        color TEXT DEFAULT '#3B82F6'
+      );
+
+      INSERT INTO favorites_new (id, type, designation, power_w, color)
+      SELECT id, type, designation, power_w, color FROM favorites;
+
+      DROP TABLE favorites;
+      ALTER TABLE favorites_new RENAME TO favorites;
+    `);
+  });
+
+  run();
+  console.log('[DB] Migration favorites : type "divers" activé');
 }
 
 function seedFavorites(): void {

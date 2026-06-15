@@ -14,7 +14,8 @@ export function FavoriteCard({
   onDelete,
   compact = false,
 }: FavoriteCardProps) {
-  const isEclairage = favorite.type === 'eclairage';
+  const typeIcon =
+    favorite.type === 'eclairage' ? '💡' : favorite.type === 'prise' ? '🔌' : '📦';
 
   return (
     <button
@@ -28,7 +29,7 @@ export function FavoriteCard({
         className="flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-white text-xs"
         style={{ backgroundColor: favorite.color }}
       >
-        {isEclairage ? '💡' : '🔌'}
+        {typeIcon}
       </span>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-gray-900 dark:text-white truncate">

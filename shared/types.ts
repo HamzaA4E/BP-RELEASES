@@ -1,4 +1,5 @@
 export type ElementType = 'eclairage' | 'prise' | 'attente' | 'jeu_de_barres';
+export type FavoriteType = 'eclairage' | 'prise' | 'divers';
 export type ElementRowKind = 'element' | 'bar_set';
 export type PhaseType = 'mono' | 'tri';
 export type JdbCategory = 'eclairage' | 'prise';
@@ -114,7 +115,7 @@ export interface UpdateArticleInput {
 
 export interface Favorite {
   id: number;
-  type: ElementType;
+  type: FavoriteType;
   designation: string;
   power_w: number;
   color: string;
@@ -201,7 +202,7 @@ export interface UpdateElementInput {
 }
 
 export interface CreateFavoriteInput {
-  type: ElementType;
+  type: FavoriteType;
   designation: string;
   power_w: number;
   color?: string;

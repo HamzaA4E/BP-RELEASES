@@ -1,8 +1,9 @@
+import type { FavoriteType } from '../../shared/types';
 import { getDatabase } from './db';
 
 export interface FavoriteRow {
   id: number;
-  type: 'eclairage' | 'prise';
+  type: FavoriteType;
   designation: string;
   power_w: number;
   color: string;
@@ -16,7 +17,7 @@ export function getAllFavorites(): FavoriteRow[] {
 }
 
 export function createFavorite(data: {
-  type: 'eclairage' | 'prise';
+  type: FavoriteType;
   designation: string;
   power_w: number;
   color?: string;
