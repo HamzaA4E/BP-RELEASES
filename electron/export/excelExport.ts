@@ -358,7 +358,7 @@ function writeSubtotalRow(
   colMapping: { REPERE: number; DESIGNATION: number; POWER: number; QTY: number; KS: number; KU: number; TOTAL: number },
   colCount: number
 ): void {
-  safeMergeCells(sheet, rowNum, colMapping.REPERE, rowNum, colMapping.DESIGNATION);
+  safeMergeCells(sheet, rowNum, colMapping.REPERE, rowNum, colMapping.TOTAL - 1);
   const labelCell = sheet.getCell(rowNum, colMapping.REPERE);
   labelCell.value = toCellString(label);
   labelCell.font = { bold: true, italic: true, size: 10 };
