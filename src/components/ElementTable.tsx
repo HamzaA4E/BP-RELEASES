@@ -819,89 +819,61 @@ function SortableMultiDepartRow({
             </>
           )}
           <td className="px-3 py-2 text-sm max-w-[140px]" title={displayArticleTypeLabel(article, element, idx === 0)}>
-            {article.id > 0 ? (
-              <ArticleTypeLabelCell
-                article={article}
-                element={element}
-                isFirstArticle={idx === 0}
-                articleEditing={articleEditing}
-                setArticleEditing={setArticleEditing}
-                onCommit={(v) => void onArticleUpdate(article.id, 'type_label', v)}
-              />
-            ) : (
-              <span className="text-gray-400">—</span>
-            )}
+            <ArticleTypeLabelCell
+              article={article}
+              element={element}
+              isFirstArticle={idx === 0}
+              articleEditing={articleEditing}
+              setArticleEditing={setArticleEditing}
+              onCommit={(v) => void onArticleUpdate(article.id, 'type_label', v)}
+            />
           </td>
           <td className="px-3 py-2 text-sm max-w-[180px]">
-            {article.id > 0 ? (
-              <ArticleDesignationCell
-                article={article}
-                articleEditing={articleEditing}
-                setArticleEditing={setArticleEditing}
-                onCommit={(v) => void onArticleUpdate(article.id, 'designation', v)}
-                canDelete={articles.length > 1}
-                onDelete={() => void onArticleDelete(article.id, element.id)}
-              />
-            ) : (
-              <span className="text-gray-400 italic text-sm">—</span>
-            )}
+            <ArticleDesignationCell
+              article={article}
+              articleEditing={articleEditing}
+              setArticleEditing={setArticleEditing}
+              onCommit={(v) => void onArticleUpdate(article.id, 'designation', v)}
+              canDelete={articles.length > 1}
+              onDelete={() => void onArticleDelete(article.id, element.id)}
+            />
           </td>
           <td className="px-3 py-2 text-sm text-right">
-            {article.id > 0 ? (
-              <ArticlePowerCell
-                article={article}
-                articleEditing={articleEditing}
-                setArticleEditing={setArticleEditing}
-                onCommit={(v) => void onArticleUpdate(article.id, 'power_w', v)}
-              />
-            ) : (
-              <span className="text-gray-400">—</span>
-            )}
+            <ArticlePowerCell
+              article={article}
+              articleEditing={articleEditing}
+              setArticleEditing={setArticleEditing}
+              onCommit={(v) => void onArticleUpdate(article.id, 'power_w', v)}
+            />
           </td>
           <td className="px-3 py-2 text-sm text-center">
-            {article.id > 0 ? (
-              <ArticleQuantityCell
-                article={article}
-                articleEditing={articleEditing}
-                setArticleEditing={setArticleEditing}
-                onCommit={(v) => void onArticleUpdate(article.id, 'quantity', v)}
-              />
-            ) : (
-              <span className="text-gray-400">—</span>
-            )}
+            <ArticleQuantityCell
+              article={article}
+              articleEditing={articleEditing}
+              setArticleEditing={setArticleEditing}
+              onCommit={(v) => void onArticleUpdate(article.id, 'quantity', v)}
+            />
           </td>
           <td className="px-3 py-2 text-sm text-center">
-            {article.id > 0 ? (
-              <ArticleCoefCell
-                article={article}
-                field="coef_ks"
-                articleEditing={articleEditing}
-                setArticleEditing={setArticleEditing}
-                onCommit={(v) => void onArticleUpdate(article.id, 'coef_ks', v)}
-              />
-            ) : (
-              <span className="text-gray-400">—</span>
-            )}
+            <ArticleCoefCell
+              article={article}
+              field="coef_ks"
+              articleEditing={articleEditing}
+              setArticleEditing={setArticleEditing}
+              onCommit={(v) => void onArticleUpdate(article.id, 'coef_ks', v)}
+            />
           </td>
           <td className="px-3 py-2 text-sm text-center">
-            {article.id > 0 ? (
-              <ArticleCoefCell
-                article={article}
-                field="coef_ku"
-                articleEditing={articleEditing}
-                setArticleEditing={setArticleEditing}
-                onCommit={(v) => void onArticleUpdate(article.id, 'coef_ku', v)}
-              />
-            ) : (
-              <span className="text-gray-400">—</span>
-            )}
+            <ArticleCoefCell
+              article={article}
+              field="coef_ku"
+              articleEditing={articleEditing}
+              setArticleEditing={setArticleEditing}
+              onCommit={(v) => void onArticleUpdate(article.id, 'coef_ku', v)}
+            />
           </td>
           <td className="px-3 py-2 text-sm text-right font-medium">
-            {article.id > 0 ? (
-              formatNumber(wattsToKw(calcArticlePower(article)), 3)
-            ) : (
-              <span className="text-gray-400">—</span>
-            )}
+            {formatNumber(wattsToKw(calcArticlePower(article)), 3)}
           </td>
           {idx === 0 && (
             <td rowSpan={rowCount} className="px-3 py-2 align-middle">
