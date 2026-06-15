@@ -350,7 +350,7 @@ function registerIpcHandlers(): void {
         return { success: true };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erreur inconnue';
-        console.error('[panel:saveChanges]', message);
+        console.error('[panel:saveChanges]', message, err);
         return { success: false, error: message };
       }
     }
