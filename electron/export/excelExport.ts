@@ -267,6 +267,23 @@ function isJeuDeBarresRow(el: { type?: string; row_kind?: string }): boolean {
   return el.type === 'jeu_de_barres' || el.row_kind === 'bar_set';
 }
 
+function departCategoryOf(el: {
+  type?: string;
+  phase_type?: string | null;
+}): string {
+  if (el.type === 'attente') return 'attente';
+  if (el.type === 'eclairage') return 'eclairage';
+  if (el.type === 'prise') {
+    return el.phase_type === 'tri' ? 'prise-tri' : 'prise-mono';
+  }
+  return 'eclairage';
+}
+
+/** Clé de regroupement repère : même repère + catégories différentes = départs indépendants. */
+function repereGroupKey(el: ElementRow): string {
+  return `${el.repere.trim().toUpperCase()}|${departCategoryOf(el)}`;
+}
+
 function jdbCategoryLabelExcel(category: string | null | undefined): string {
   if (category === 'prise') return 'Prise de courant';
   return 'Éclairage';
@@ -491,13 +508,13 @@ function createPanelSheet(
   let groupPowerRows: number[] = [];
   const allPowerRows: number[] = [];
 
-  // Tracking for repère merging
-  let currentRepere = '';
+  // Tracking for repère merging (only within same repère + category, e.g. multi-départ)
+  let currentRepereGroupKey = '';
   let currentRepereStartRow = 0;
 
-  const flushRepereGroup = (): void => {
-    if (currentRepere && currentRepereStartRow > 0 && rowNum > currentRepereStartRow) {
-      safeMergeCells(sheet, currentRepereStartRow, COL_DYNAMIC.REPERE, rowNum, COL_DYNAMIC.REPERE);
+  const flushRepereGroup = (endRow: number = rowNum): void => {
+    if (currentRepereGroupKey && currentRepereStartRow > 0 && endRow > currentRepereStartRow) {
+      safeMergeCells(sheet, currentRepereStartRow, COL_DYNAMIC.REPERE, endRow, COL_DYNAMIC.REPERE);
     }
   };
 
@@ -521,16 +538,16 @@ function createPanelSheet(
       flushSubtotal();        // sous-total sur rowNum courant (ligne précédente)
       rowNum++;               // nouvelle ligne pour le titre JDB
       currentJdb = el;
-      currentRepere = '';
+      currentRepereGroupKey = '';
       currentRepereStartRow = 0;
       writeJeuDeBarresExcelRow(sheet, rowNum, el, COL_COUNT_DYNAMIC);
       continue;
     }
     rowNum++;
-    // Check if repère changed
-    if (el.repere !== currentRepere) {
-      flushRepereGroup();
-      currentRepere = el.repere;
+    const groupKey = repereGroupKey(el);
+    if (groupKey !== currentRepereGroupKey) {
+      flushRepereGroup(rowNum - 1);
+      currentRepereGroupKey = groupKey;
       currentRepereStartRow = rowNum;
     }
 
