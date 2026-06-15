@@ -121,7 +121,7 @@ export function Favorites() {
                   className="input-field"
                 />
               </div>
-              <div>
+              {/* <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Couleur</label>
                 <input
                   type="color"
@@ -129,7 +129,7 @@ export function Favorites() {
                   onChange={(e) => setColor(e.target.value)}
                   className="w-full h-10 rounded cursor-pointer"
                 />
-              </div>
+              </div> */}
             </div>
             <button type="submit" className="btn-primary">
               Ajouter

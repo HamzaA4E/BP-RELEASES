@@ -133,13 +133,16 @@ export function AddElementModal({
   const insertIndex = addTypeToDepart
     ? Math.max(0, existingElements.findIndex((e) => e.id === addTypeToDepart.id) + 1)
     : existingElements.length;
-  const activeJdb =
+    const activeJdb =
     contextJdb ??
-    (addTypeToDepart
-      ? getJeuDeBarresForElement(existingElements, addTypeToDepart.id)
-      : getActiveJeuDeBarres(existingElements, insertIndex));
-  const typeNotAllowed =
-    !isEdit && !isAddTypeMode && !isTypeAllowedUnderJdb(formData.type, activeJdb);
+    (editElement
+      ? getJeuDeBarresForElement(existingElements, editElement.id)
+      : addTypeToDepart
+        ? getJeuDeBarresForElement(existingElements, addTypeToDepart.id)
+        : getActiveJeuDeBarres(existingElements, insertIndex));
+        const typeNotAllowed =
+        activeJdb != null &&
+        !isTypeAllowedUnderJdb(formData.type, activeJdb);
 
   const filteredFavorites = useMemo(
     () => favorites.filter((f) => f.type === formData.type),
