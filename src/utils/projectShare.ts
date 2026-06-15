@@ -2,15 +2,30 @@ import toast from 'react-hot-toast';
 import { useAppStore } from '@/store/useAppStore';
 
 export async function importBilpowProject(filePath?: string): Promise<boolean> {
-  const result = await window.bilpow.project.import(filePath);
-  if (result.success && result.projectName) {
-    const projects = await window.bilpow.projects.getAll();
-    useAppStore.getState().setProjects(projects);
-    toast.success(`Projet « ${result.projectName} » importé avec succès !`);
-    return true;
+  console.log('[IMPORT][util] importBilpowProject appelé', { filePath });
+  try {
+    console.log('[IMPORT][util] Appel window.bilpow.project.import...');
+    const result = await window.bilpow.project.import(filePath);
+    console.log('[IMPORT][util] Résultat IPC:', result);
+
+    if (result.success && result.projectName) {
+      console.log('[IMPORT][util] Succès — rechargement store...');
+      const projects = await window.bilpow.projects.getAll();
+      console.log('[IMPORT][util] Projets récupérés:', projects.length);
+      useAppStore.getState().setProjects(projects);
+      toast.success(`Projet « ${result.projectName} » importé avec succès !`);
+      return true;
+    }
+
+    if (result.error && result.error !== 'Import annulé') {
+      console.error('[IMPORT][util] Erreur retournée par IPC:', result.error);
+      toast.error(result.error);
+    } else {
+      console.log('[IMPORT][util] Import annulé ou pas de projectName');
+    }
+    return false;
+  } catch (err) {
+    console.error('[IMPORT][util] Exception non gérée:', err);
+    throw err;
   }
-  if (result.error && result.error !== 'Import annulé') {
-    toast.error(result.error);
-  }
-  return false;
 }

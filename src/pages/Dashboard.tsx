@@ -107,13 +107,22 @@ export function Dashboard() {
   };
 
   const handleImport = async (filePath?: string) => {
+    console.log('[IMPORT][renderer] handleImport appelé', { filePath });
     setImporting(true);
     try {
+      console.log('[IMPORT][renderer] Appel importBilpowProject...');
       const ok = await importBilpowProject(filePath);
-      if (ok) await loadProjects();
+      console.log('[IMPORT][renderer] importBilpowProject résultat:', ok);
+      if (ok) {
+        console.log('[IMPORT][renderer] Rechargement des projets...');
+        await loadProjects();
+        console.log('[IMPORT][renderer] Projets rechargés');
+      }
     } catch (err) {
+      console.error('[IMPORT][renderer] Erreur catch:', err);
       toast.error(err instanceof Error ? err.message : "Erreur d'import");
     } finally {
+      console.log('[IMPORT][renderer] Finally — setImporting(false)');
       setImporting(false);
     }
   };

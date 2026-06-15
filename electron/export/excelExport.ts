@@ -200,8 +200,8 @@ function addCompanyHeader(
   colCount: number = 7
 ): { headerRow: number; svgSkipped: boolean } {
   worksheet.getRow(1).height = 55;
-  worksheet.getRow(2).height = 18;
-  worksheet.getRow(3).height = 6;
+  worksheet.getRow(2).height = 27;
+  worksheet.getRow(3).height = 0;
 
   let svgSkipped = false;
 
@@ -252,7 +252,7 @@ function addCompanyHeader(
   projectCell.value = toCellString(
     `Projet : ${projectInfo.name}${clientPart} | Date : ${formatExportDate()}`
   );
-  projectCell.font = { size: 10, color: { argb: 'FF1E3A5F' } };
+  projectCell.font = { size: 18, color: { argb: 'FF1E3A5F' } };
   projectCell.fill = {
     type: 'pattern',
     pattern: 'solid',
@@ -299,7 +299,7 @@ function writeMultiDepartExcelRows(
   startRowNum: number,
   el: ElementRow,
   articles: ArticleRow[],
-  colMapping: { REPERE: number; DESIGNATION: number; POWER: number; QTY: number; KS: number; KU: number; TOTAL: number },
+  colMapping: { REPERE: number; TYPE: number; DESIGNATION: number; POWER: number; QTY: number; KS: number; KU: number; TOTAL: number },
   colCount: number,
   showKu: boolean
 ): { endRow: number; powerRows: number[] } {
@@ -319,10 +319,11 @@ function writeMultiDepartExcelRows(
       row.getCell(colMapping.REPERE).value = '';
     }
 
-    const desCell = row.getCell(colMapping.DESIGNATION);
-    desCell.value = toCellString(
-      article.designation?.trim() || article.type_label?.trim() || ''
-    );
+    row.getCell(colMapping.TYPE).value =
+    article.type_label?.trim() || '';
+    
+    row.getCell(colMapping.DESIGNATION).value =
+    article.designation?.trim() || ''; 
     row.getCell(colMapping.POWER).value = wattsToKw(article.power_w);
     row.getCell(colMapping.QTY).value = article.quantity;
     const ks = article.coef_ks ?? 1;
@@ -424,7 +425,7 @@ function createPanelSheet(
 
   // Check if Ku is needed BEFORE calling addCompanyHeader
   const showKu = hasNonUnitaryKu(data.elements);
-  const COL_COUNT_DYNAMIC = showKu ? 7 : 6;
+  const COL_COUNT_DYNAMIC = showKu ? 8 : 7;
 
   const { headerRow, svgSkipped } = addCompanyHeader(
     sheet,
@@ -438,17 +439,19 @@ function createPanelSheet(
   // Dynamic column mapping
   const COL_DYNAMIC = {
     REPERE: 1,
-    DESIGNATION: 2,
-    POWER: 3,
-    QTY: 4,
-    KS: 5,
-    KU: showKu ? 6 : 0,
-    TOTAL: showKu ? 7 : 6,
+    TYPE: 2,
+    DESIGNATION: 3,
+    POWER: 4,
+    QTY: 5,
+    KS: 6,
+    KU: showKu ? 7 : 0,
+    TOTAL: showKu ? 8 : 7,
   } as const;
 
   const headers = showKu
     ? [
         'Repère',
+        'Type',
         'Désignation',
         'P. Unitaire (kW)',
         'Qté',
@@ -458,6 +461,7 @@ function createPanelSheet(
       ]
     : [
         'Repère',
+        'Type',
         'Désignation',
         'P. Unitaire (kW)',
         'Qté',
@@ -550,10 +554,12 @@ function createPanelSheet(
 
     const row = sheet.getRow(rowNum);
     const { ks, ku } = resolveElementCoefs(el);
-    const designation = el.emplacement?.trim() || el.type_label || '';
-
-    row.getCell(COL_DYNAMIC.REPERE).value = toCellValue(el.repere);
-    row.getCell(COL_DYNAMIC.DESIGNATION).value = toCellValue(designation);
+    const typeValue = el.type_label || '';
+    const designation = el.emplacement?.trim() || '';
+    
+    row.getCell(COL_DYNAMIC.REPERE).value = el.repere;
+    row.getCell(COL_DYNAMIC.TYPE).value = typeValue;
+    row.getCell(COL_DYNAMIC.DESIGNATION).value = designation;
     row.getCell(COL_DYNAMIC.POWER).value = wattsToKw(el.power_w);
     row.getCell(COL_DYNAMIC.QTY).value = el.quantity;
     row.getCell(COL_DYNAMIC.KS).value = ks;
@@ -635,25 +641,26 @@ function createPanelSheet(
   sheet.getCell(currentRowNum, 2).numFmt = '0.00 "A"';
 
   // Dynamic column widths based on whether Ku is shown
-  const columns = showKu
-    ? [
-        { width: 10 },
-        { width: 28 },
-        { width: 14 },
-        { width: 6 },
-        { width: 6 },
-        { width: 6 },
-        { width: 14 },
-      ]
-    : [
-        { width: 10 },
-        { width: 28 },
-        { width: 14 },
-        { width: 6 },
-        { width: 6 },
-        { width: 14 },
-      ];
-  sheet.columns = columns;
+  sheet.columns = showKu
+? [
+    { width: 10 }, // repère
+    { width: 25 }, // type
+    { width: 25 }, // désignation
+    { width: 14 }, // puissance
+    { width: 8 },  // qté
+    { width: 8 },  // ks
+    { width: 8 },  // ku
+    { width: 14 }, // total
+  ]
+: [
+    { width: 10 },
+    { width: 25 },
+    { width: 25 },
+    { width: 14 },
+    { width: 8 },
+    { width: 8 },
+    { width: 14 },
+  ];
 
   sheet.views = [{ state: 'frozen', ySplit: headerRow }];
 

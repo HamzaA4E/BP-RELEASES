@@ -12,7 +12,7 @@ export interface ElementRow {
   panel_id: number;
   type: ElementType;
   repere: string;
-  designation: string;
+  designation: string;  
   type_label: string;
   emplacement: string;
   row_kind: ElementRowKind;

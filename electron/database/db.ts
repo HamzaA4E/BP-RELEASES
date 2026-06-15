@@ -176,12 +176,13 @@ export function getDatabase(): Database.Database {
 
   db.exec(MIGRATIONS);
   recoverInterruptedElementsMigration(db);
-  ensureElementsColumns(db);
+  ensureElementsColumns(db);  
   migratePanelCoefficients(db);
   migrateElementsTable(db);
   migrateElementArticles(db);
   seedFavorites();
-
+  db.pragma('wal_checkpoint(PASSIVE)');
+  console.log('[DB] Connexion prête');
   return db;
 }
 
@@ -319,6 +320,7 @@ function hasColumn(database: Database.Database, table: string, column: string): 
 }
 
 export function ensureElementArticlesSchema(database: Database.Database): void {
+  console.log('[DB] ensureElementArticlesSchema — début');
   database.exec(`
     CREATE TABLE IF NOT EXISTS element_articles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -329,7 +331,7 @@ export function ensureElementArticlesSchema(database: Database.Database): void {
       order_index INTEGER DEFAULT 0
     );
   `);
-
+  console.log('[DB] ensureElementArticlesSchema — fin');
   if (!hasColumn(database, 'element_articles', 'coef_ks')) {
     database.exec(`ALTER TABLE element_articles ADD COLUMN coef_ks REAL DEFAULT 1.0`);
     database.exec(`ALTER TABLE element_articles ADD COLUMN coef_ku REAL DEFAULT 1.0`);
@@ -370,7 +372,7 @@ export function ensureElementArticlesSchema(database: Database.Database): void {
       )
   `);
 
-  database.pragma('wal_checkpoint(FULL)');
+  // database.pragma('wal_checkpoint(FULL)');
 }
 
 function migrateElementArticles(database: Database.Database): void {
@@ -400,7 +402,11 @@ function seedFavorites(): void {
 
 export function closeDatabase(): void {
   if (db) {
+    console.log('[DB] Fermeture connexion');
     db.close();
     db = null;
+    console.log('[DB] Connexion fermée');
+  } else {
+    console.log('[DB] closeDatabase() appelé mais db déjà null');
   }
 }
