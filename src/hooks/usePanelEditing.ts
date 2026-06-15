@@ -73,27 +73,34 @@ export function usePanelEditing({
     }
 
     try {
-      let filePath = savedFilePath;
-
-      // Si aucun chemin n'est défini, ouvrir la boîte de dialogue
-      if (!filePath) {
-        const defaultName = currentProject
-          ? `${currentProject.name}_panel_${panelId}`
-          : `panel_${panelId}`;
-        const result = await window.bilpow.panels.showSaveDialog(defaultName);
-        if (result.canceled || !result.filePath) {
-          return;
-        }
-        filePath = result.filePath;
-        setSavedFilePath(filePath);
-      }
-
-      // Sauvegarder avec le chemin
-      await window.bilpow.panels.saveChanges({ panelId, changes, filePath });
+      // Sauvegarder d'abord les changements dans la base de données
+      await window.bilpow.panels.saveChanges({ panelId, changes });
       clearEditingState();
       await refreshElements();
       await refreshPanels();
-      toast.success('Modifications enregistrées');
+
+      // Si aucun chemin n'est défini, ouvrir la boîte de dialogue pour exporter
+      if (!savedFilePath) {
+        if (currentProject) {
+          const exportResult = await window.bilpow.project.export(currentProject.id);
+          if (exportResult.success && exportResult.filePath) {
+            setSavedFilePath(exportResult.filePath);
+            toast.success('Modifications enregistrées et fichier exporté');
+          } else if (exportResult.error && exportResult.error !== 'Export annulé') {
+            toast.error(exportResult.error);
+          }
+        }
+      } else {
+        // Exporter directement avec le chemin sauvegardé
+        if (currentProject) {
+          const exportResult = await window.bilpow.project.exportWithPath(currentProject.id, savedFilePath);
+          if (exportResult.success) {
+            toast.success('Modifications enregistrées et fichier exporté');
+          } else if (exportResult.error) {
+            toast.error(exportResult.error);
+          }
+        }
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
     }

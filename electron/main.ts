@@ -318,35 +318,10 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(
     'panel:saveChanges',
-    async (_event, payload: PanelSavePayload & { filePath?: string }) => {
+    async (_event, payload: PanelSavePayload) => {
       try {
-        const { filePath, ...savePayload } = payload;
-
         // Appliquer les changements dans la base de données
-        await applyPanelChanges(savePayload.panelId, savePayload.changes);
-
-        // Si un chemin est fourni, sauvegarder le fichier .bilpow
-        if (filePath) {
-          const panel = panelsDb.getPanelById(savePayload.panelId);
-          if (!panel) {
-            return { success: false, error: 'Panneau non trouvé' };
-          }
-
-          const location = locationsDb.getLocationById(panel.location_id);
-          if (!location) {
-            return { success: false, error: 'Localisation non trouvée' };
-          }
-
-          const project = projectsDb.getProjectById(location.project_id);
-          if (!project) {
-            return { success: false, error: 'Projet non trouvé' };
-          }
-
-          const data = exportProjectForBilpow(project.id);
-          fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-          return { success: true, filePath };
-        }
-
+        await applyPanelChanges(payload.panelId, payload.changes);
         return { success: true };
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Erreur inconnue';
@@ -519,6 +494,18 @@ function registerIpcHandlers(): void {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue';
       console.error('[project:export]', message);
+      return { success: false, error: message };
+    }
+  });
+
+  ipcMain.handle('project:exportWithPath', async (_e, projectId: number, filePath: string) => {
+    try {
+      const data = exportProjectForBilpow(projectId);
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      return { success: true, filePath };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      console.error('[project:exportWithPath]', message);
       return { success: false, error: message };
     }
   });

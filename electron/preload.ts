@@ -146,6 +146,8 @@ const api = {
   project: {
     export: (projectId: number): Promise<ProjectExportResult> =>
       ipcRenderer.invoke('project:export', projectId) as Promise<ProjectExportResult>,
+    exportWithPath: (projectId: number, filePath: string): Promise<ProjectExportResult> =>
+      ipcRenderer.invoke('project:exportWithPath', projectId, filePath) as Promise<ProjectExportResult>,
     import: (filePath?: string): Promise<ProjectImportResult> =>
       ipcRenderer.invoke('project:import', filePath) as Promise<ProjectImportResult>,
     onAutoImport: (callback: (filePath: string) => void): (() => void) => {
