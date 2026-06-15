@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import toast from 'react-hot-toast';
 import type { JdbCategory } from '@/types';
 
 interface AddJdbModalProps {
-  panelId: number;
+  jdbCount: number;
   onClose: () => void;
-  onSuccess: () => void;
+  onCreate: (typeLabel: string, category: JdbCategory) => void;
 }
 
 const CATEGORY_OPTIONS: Array<{
@@ -28,43 +27,17 @@ const CATEGORY_OPTIONS: Array<{
   },
 ];
 
-export function AddJdbModal({ panelId, onClose, onSuccess }: AddJdbModalProps) {
+export function AddJdbModal({ jdbCount, onClose, onCreate }: AddJdbModalProps) {
   const [designation, setDesignation] = useState('');
   const [category, setCategory] = useState<JdbCategory>('eclairage');
-  const [isLoading, setIsLoading] = useState(false);
 
   const categoryLabel =
     category === 'eclairage' ? 'Éclairage' : 'Prise de courant';
 
-  const handleSubmit = async () => {
-    setIsLoading(true);
-    try {
-      const elements = await window.bilpow.elements.getByPanel(panelId);
-      const jdbCount = elements.filter((e) => e.type === 'jeu_de_barres').length;
-      const typeLabel = designation.trim() || `JD${jdbCount + 1}`;
-
-      await window.bilpow.elements.create({
-        panel_id: panelId,
-        type: 'jeu_de_barres',
-        repere: '',
-        type_label: typeLabel,
-        emplacement: '',
-        power_w: 0,
-        quantity: 1,
-        distance_m: 0,
-        phase_type: 'mono',
-        jdb_category: category,
-        coef_ks: 1,
-        coef_ku: 1,
-      });
-      toast.success('Jeu de barres ajouté');
-      onSuccess();
-      onClose();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
-    } finally {
-      setIsLoading(false);
-    }
+  const handleSubmit = () => {
+    const typeLabel = designation.trim() || `JD${jdbCount + 1}`;
+    onCreate(typeLabel, category);
+    onClose();
   };
 
   return (
@@ -108,7 +81,7 @@ export function AddJdbModal({ panelId, onClose, onSuccess }: AddJdbModalProps) {
               value={designation}
               onChange={(e) => setDesignation(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') void handleSubmit();
+                if (e.key === 'Enter') handleSubmit();
               }}
               placeholder="ex: Jeu de barres 1, Arrivée TGBT, Départs éclairage... (JD1 par défaut)"
               className="w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2.5 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F] focus:border-transparent transition-all"
@@ -178,11 +151,10 @@ export function AddJdbModal({ panelId, onClose, onSuccess }: AddJdbModalProps) {
           </button>
           <button
             type="button"
-            onClick={() => void handleSubmit()}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-[#1E3A5F] hover:bg-[#162d4a] text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+            onClick={handleSubmit}
+            className="flex items-center gap-2 px-4 py-2 bg-[#1E3A5F] hover:bg-[#162d4a] text-white rounded-lg text-sm font-medium transition-all"
           >
-            {isLoading ? 'Ajout...' : 'Ajouter le jeu de barres'}
+            Ajouter le jeu de barres
           </button>
         </div>
       </div>

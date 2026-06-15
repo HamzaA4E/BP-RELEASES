@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAppStore } from '@/store/useAppStore';
+import { usePanelEditingStore } from '@/store/panelEditingStore';
+import { usePanelEditing } from '@/hooks/usePanelEditing';
 import { ElementTable } from '@/components/ElementTable';
 import { AddElementModal } from '@/components/AddElementModal';
 import { AddJdbModal } from '@/components/AddJdbModal';
@@ -23,9 +25,16 @@ import {
 import {
   panelTotalPower,
   calculationCurrent,
+  formatPower,
 } from '@/utils/calculations';
+import {
+  buildLocalArticle,
+  buildLocalElement,
+  createElementPending,
+  reorderElementsList,
+} from '@/utils/panelEditing';
 import { LoadGauge } from '@/components/LoadGauge';
-import type { Article, Element, Panel, PhaseType } from '@/types';
+import type { Article, Element, JdbCategory, Panel, PhaseType } from '@/types';
 
 type ElementFormType = Exclude<Element['type'], 'jeu_de_barres'>;
 
@@ -50,7 +59,6 @@ type ElementSavePayload = {
   coef_ku: number;
   notes?: string;
 };
-import { formatPower } from '@/utils/calculations';
 
 function KsGlobalPanel({
   totalPowerW,
@@ -140,6 +148,10 @@ export function PanelView() {
     setPanels,
   } = useAppStore();
 
+  const nextTempId = usePanelEditingStore((s) => s.nextTempId);
+  const removePendingForTempElement = usePanelEditingStore((s) => s.removePendingForTempElement);
+  const unsaved = usePanelEditingStore((s) => s.pendingChanges.length > 0);
+
   const [panel, setPanel] = useState<Panel>(DEFAULT_PANEL);
   const [showAddElement, setShowAddElement] = useState(false);
   const [showAddJdb, setShowAddJdb] = useState(false);
@@ -148,9 +160,10 @@ export function PanelView() {
   const [departForNewType, setDepartForNewType] = useState<Element | null>(null);
   const [contextJdb, setContextJdb] = useState<Element | null>(null);
   const [deleteElementId, setDeleteElementId] = useState<number | null>(null);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const loadArticlesForElements = useCallback(async (els: Element[]) => {
-    const multiElements = els.filter((e) => e.is_multi);
+    const multiElements = els.filter((e) => e.is_multi && e.id > 0);
     const entries = await Promise.all(
       multiElements.map(async (el) => {
         const articles = await window.bilpow.elements.getArticles(el.id);
@@ -161,7 +174,15 @@ export function PanelView() {
     for (const [id, articles] of entries) {
       map[id] = articles;
     }
-    setArticlesByElement(map);
+    setArticlesByElement((prev) => {
+      const tempArticles: Record<number, Article[]> = {};
+      for (const el of els) {
+        if (el.id < 0 && prev[el.id]) {
+          tempArticles[el.id] = prev[el.id];
+        }
+      }
+      return { ...map, ...tempArticles };
+    });
   }, []);
 
   const refreshElements = useCallback(async () => {
@@ -170,6 +191,32 @@ export function PanelView() {
     setElements(normalized);
     await loadArticlesForElements(normalized);
   }, [panId, setElements, loadArticlesForElements]);
+
+  const refreshPanels = useCallback(async () => {
+    const pnl = await window.bilpow.panels.getByLocation(lId);
+    setPanels(pnl);
+  }, [lId, setPanels]);
+
+  const {
+    recordOperation,
+    applyMutations,
+    undo,
+    redo,
+    save,
+    discard,
+    canUndo,
+    canRedo,
+    initPanel,
+    reset,
+  } = usePanelEditing({
+    panelId: panId,
+    elements,
+    articlesByElement,
+    setElements,
+    setArticlesByElement,
+    refreshElements,
+    refreshPanels,
+  });
 
   const loadData = useCallback(async () => {
     try {
@@ -187,9 +234,45 @@ export function PanelView() {
   }, [lId, panId, pId, refreshElements, setPanels, setSelection]);
 
   useEffect(() => {
+    initPanel(panId);
     void loadData();
     void window.bilpow.favorites.getAll().then(setFavorites);
-  }, [loadData, setFavorites]);
+    return () => reset();
+  }, [panId, loadData, setFavorites, initPanel, reset]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target;
+      const isInput =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        void save();
+        return;
+      }
+
+      if (isInput) return;
+
+      if ((e.ctrlKey || e.metaKey)) {
+        if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          if (canUndo()) undo();
+          return;
+        }
+        if (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey)) {
+          e.preventDefault();
+          if (canRedo()) redo();
+          return;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, save, canUndo, canRedo]);
 
   const totalPower = useMemo(
     () => panelTotalPower(elements, articlesByElement),
@@ -201,8 +284,7 @@ export function PanelView() {
     try {
       await window.bilpow.panels.update({ id: panId, name });
       setPanel((p) => ({ ...p, name }));
-      const pnl = await window.bilpow.panels.getByLocation(lId);
-      setPanels(pnl);
+      await refreshPanels();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
     }
@@ -212,40 +294,11 @@ export function PanelView() {
     setPanel((p) => ({ ...p, coef_ks }));
     try {
       await window.bilpow.panels.update({ id: panId, coef_ks });
-      const pnl = await window.bilpow.panels.getByLocation(lId);
-      setPanels(pnl);
+      await refreshPanels();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
       await loadData();
     }
-  };
-
-  const createElementFromPayload = async (data: ElementSavePayload) => {
-    return window.bilpow.elements.create({
-      panel_id: panId,
-      type: data.type,
-      repere: data.repere,
-      type_label: data.type_label,
-      emplacement: data.emplacement,
-      phase_type: data.phase_type,
-      power_w: data.power_w,
-      quantity: data.quantity,
-      coef_ks: data.coef_ks,
-      coef_ku: data.coef_ku,
-      notes: data.notes,
-    });
-  };
-
-  const insertElementInSection = async (
-    created: Element,
-    jdb: Element | null
-  ) => {
-    if (!jdb) return;
-    const insertAt = getInsertIndexAfterJdbSection(elements, jdb.id);
-    const ids = elements.map((e) => e.id);
-    const withoutNew = ids.filter((id) => id !== created.id);
-    withoutNew.splice(insertAt, 0, created.id);
-    await window.bilpow.elements.reorder(panId, withoutNew);
   };
 
   const handleSaveElement = async (data: ElementSavePayload) => {
@@ -269,40 +322,47 @@ export function PanelView() {
           return;
         }
 
-        const created = await createElementFromPayload({
-          ...data,
-          repere: departForNewType.repere,
-        });
         const insertAt = getInsertIndexAfterRepereGroup(
           elements,
           departForNewType.repere,
           departForNewType.id
         );
-        const ids = elements.map((e) => e.id);
-        ids.splice(insertAt, 0, created.id);
-        await window.bilpow.elements.reorder(panId, ids);
+        const tempId = nextTempId();
+        const element = buildLocalElement(
+          tempId,
+          panId,
+          { ...data, repere: departForNewType.repere },
+          insertAt
+        );
+        const newIds = elements.map((e) => e.id);
+        newIds.splice(insertAt, 0, tempId);
+        const reordered = reorderElementsList([...elements, element], newIds);
+        recordOperation({
+          inverse: [{ op: 'setElements', elements }],
+          redo: [{ op: 'setElements', elements: reordered }],
+          pending: [
+            createElementPending(tempId, { ...data, repere: departForNewType.repere }),
+            { type: 'reorderElements', orderedIds: newIds },
+          ],
+        });
+        applyMutations([{ op: 'setElements', elements: reordered }]);
         toast.success('Élément ajouté au repère');
         setDepartForNewType(null);
         setContextJdb(null);
-        await refreshElements();
-        const pnl = await window.bilpow.panels.getByLocation(lId);
-        setPanels(pnl);
         return;
       }
 
       const articleTypeLabel = data.type_label.trim();
       const articleDesignation = payloadToArticleDesignation(data);
       const articleCoefs = { coef_ks: data.coef_ks, coef_ku: data.coef_ku };
+      const elementId = departForNewType.id;
+      const prevArticles = [...(articlesByElement[elementId] ?? [])];
+      const prevElement = { ...departForNewType };
+
       if (!departForNewType.is_multi) {
-        await window.bilpow.elements.update({
-          id: departForNewType.id,
-          is_multi: true,
-          power_w: 0,
-          quantity: 1,
-          notes: data.notes,
-        });
-        await window.bilpow.elements.createArticle({
-          element_id: departForNewType.id,
+        const art1Temp = nextTempId();
+        const art2Temp = nextTempId();
+        const art1 = buildLocalArticle(art1Temp, elementId, {
           type_label: elementToArticleTypeLabel(departForNewType),
           designation: elementToArticleDesignation(departForNewType),
           power_w: departForNewType.power_w,
@@ -311,33 +371,112 @@ export function PanelView() {
           coef_ku: departForNewType.coef_ku,
           order_index: 0,
         });
-        await window.bilpow.elements.createArticle({
-          element_id: departForNewType.id,
+        const art2 = buildLocalArticle(art2Temp, elementId, {
+          type_label: articleTypeLabel,
           designation: articleDesignation,
           power_w: data.power_w,
           quantity: data.quantity,
-          ...articleCoefs,
+          coef_ks: data.coef_ks,
+          coef_ku: data.coef_ku,
           order_index: 1,
-          type_label: articleTypeLabel,
         });
+        const updatedElement = {
+          ...departForNewType,
+          is_multi: true,
+          power_w: 0,
+          quantity: 1,
+          notes: data.notes ?? departForNewType.notes,
+        };
+
+        recordOperation({
+          inverse: [
+            { op: 'patchElement', id: elementId, patch: prevElement },
+            { op: 'setArticlesForElement', elementId, articles: prevArticles },
+          ],
+          redo: [
+            { op: 'patchElement', id: elementId, patch: updatedElement },
+            { op: 'setArticlesForElement', elementId, articles: [art1, art2] },
+          ],
+          pending: [
+            {
+              type: 'updateElement',
+              id: elementId,
+              data: { is_multi: true, power_w: 0, quantity: 1, notes: data.notes },
+            },
+            {
+              type: 'createArticle',
+              tempId: art1Temp,
+              data: {
+                element_id: elementId,
+                type_label: art1.type_label,
+                designation: art1.designation,
+                power_w: art1.power_w,
+                quantity: art1.quantity,
+                coef_ks: art1.coef_ks,
+                coef_ku: art1.coef_ku,
+                order_index: 0,
+              },
+            },
+            {
+              type: 'createArticle',
+              tempId: art2Temp,
+              data: {
+                element_id: elementId,
+                type_label: art2.type_label,
+                designation: art2.designation,
+                power_w: art2.power_w,
+                quantity: art2.quantity,
+                coef_ks: art2.coef_ks,
+                coef_ku: art2.coef_ku,
+                order_index: 1,
+              },
+            },
+          ],
+        });
+        applyMutations([
+          { op: 'patchElement', id: elementId, patch: updatedElement },
+          { op: 'setArticlesForElement', elementId, articles: [art1, art2] },
+        ]);
       } else {
-        const existing = articlesByElement[departForNewType.id] ?? [];
-        await window.bilpow.elements.createArticle({
-          element_id: departForNewType.id,
+        const artTemp = nextTempId();
+        const newArticle = buildLocalArticle(artTemp, elementId, {
+          type_label: articleTypeLabel,
           designation: articleDesignation,
           power_w: data.power_w,
           quantity: data.quantity,
-          ...articleCoefs,
-          order_index: existing.length,
-          type_label: articleTypeLabel,
+          coef_ks: data.coef_ks,
+          coef_ku: data.coef_ku,
+          order_index: prevArticles.length,
         });
+        const nextArticles = [...prevArticles, newArticle];
+
+        recordOperation({
+          inverse: [{ op: 'setArticlesForElement', elementId, articles: prevArticles }],
+          redo: [{ op: 'setArticlesForElement', elementId, articles: nextArticles }],
+          pending: [
+            {
+              type: 'createArticle',
+              tempId: artTemp,
+              data: {
+                element_id: elementId,
+                type_label: newArticle.type_label,
+                designation: newArticle.designation,
+                power_w: newArticle.power_w,
+                quantity: newArticle.quantity,
+                coef_ks: newArticle.coef_ks,
+                coef_ku: newArticle.coef_ku,
+                order_index: newArticle.order_index,
+              },
+            },
+          ],
+        });
+        applyMutations([
+          { op: 'setArticlesForElement', elementId, articles: nextArticles },
+        ]);
       }
       toast.success('Type ajouté au départ');
       setDepartForNewType(null);
       setContextJdb(null);
-      await refreshElements();
-      const pnl = await window.bilpow.panels.getByLocation(lId);
-      setPanels(pnl);
       return;
     }
 
@@ -356,7 +495,26 @@ export function PanelView() {
         toast.error('Ce repère est déjà utilisé pour cette catégorie');
         return;
       }
-      await window.bilpow.elements.update({ id: editElement.id, ...data });
+      const prev = { ...editElement };
+      const patch = {
+        type: data.type,
+        repere: data.repere,
+        type_label: data.type_label,
+        designation: data.type_label,
+        emplacement: data.emplacement,
+        power_w: data.power_w,
+        quantity: data.quantity,
+        phase_type: data.phase_type,
+        coef_ks: data.coef_ks,
+        coef_ku: data.coef_ku,
+        notes: data.notes ?? null,
+      };
+      recordOperation({
+        inverse: [{ op: 'patchElement', id: editElement.id, patch: prev }],
+        redo: [{ op: 'patchElement', id: editElement.id, patch }],
+        pending: [{ type: 'updateElement', id: editElement.id, data }],
+      });
+      applyMutations([{ op: 'patchElement', id: editElement.id, patch }]);
       toast.success('Élément mis à jour');
     } else {
       const formCategory = departCategoryOf({
@@ -370,14 +528,27 @@ export function PanelView() {
         );
         return;
       }
-      const created = await createElementFromPayload(data);
-      await insertElementInSection(created, contextJdb);
+      const insertAt = contextJdb
+        ? getInsertIndexAfterJdbSection(elements, contextJdb.id)
+        : elements.length;
+      const tempId = nextTempId();
+      const element = buildLocalElement(tempId, panId, data, insertAt);
+      const newIds = elements.map((e) => e.id);
+      newIds.splice(insertAt, 0, tempId);
+      const reordered = reorderElementsList([...elements, element], newIds);
+      const pending = [createElementPending(tempId, data)];
+      if (contextJdb) {
+        pending.push({ type: 'reorderElements', orderedIds: newIds });
+      }
+      recordOperation({
+        inverse: [{ op: 'setElements', elements }],
+        redo: [{ op: 'setElements', elements: reordered }],
+        pending,
+      });
+      applyMutations([{ op: 'setElements', elements: reordered }]);
       toast.success('Élément ajouté');
     }
     setContextJdb(null);
-    await refreshElements();
-    const pnl = await window.bilpow.panels.getByLocation(lId);
-    setPanels(pnl);
   };
 
   const handleSaveMultiple = async (items: ElementSavePayload[]) => {
@@ -404,22 +575,33 @@ export function PanelView() {
     let insertAt = contextJdb
       ? getInsertIndexAfterJdbSection(elements, contextJdb.id)
       : elements.length;
-    const orderedIds = elements.map((e) => e.id);
+    const prevElements = elements;
+    const newElements = [...elements];
+    const newIds = elements.map((e) => e.id);
+    const pending: Parameters<typeof recordOperation>[0]['pending'] = [];
 
     for (const item of items) {
-      const created = await createElementFromPayload(item);
-      orderedIds.splice(insertAt, 0, created.id);
+      const tempId = nextTempId();
+      const element = buildLocalElement(tempId, panId, item, insertAt);
+      newElements.push(element);
+      newIds.splice(insertAt, 0, tempId);
+      pending.push(createElementPending(tempId, item));
       insertAt++;
     }
 
+    const reordered = reorderElementsList(newElements, newIds);
     if (contextJdb) {
-      await window.bilpow.elements.reorder(panId, orderedIds);
+      pending.push({ type: 'reorderElements', orderedIds: newIds });
     }
+
+    recordOperation({
+      inverse: [{ op: 'setElements', elements: prevElements }],
+      redo: [{ op: 'setElements', elements: reordered }],
+      pending,
+    });
+    applyMutations([{ op: 'setElements', elements: reordered }]);
     setContextJdb(null);
     toast.success(`${items.length} éléments ajoutés avec succès`);
-    await refreshElements();
-    const pnl = await window.bilpow.panels.getByLocation(lId);
-    setPanels(pnl);
   };
 
   const handleAddElementUnderJdb = (jdb: Element) => {
@@ -440,38 +622,71 @@ export function PanelView() {
       | 'coef_ku',
     value: number | string
   ) => {
-    setElements(
-      elements.map((el) => (el.id === id ? { ...el, [field]: value } : el))
-    );
-    try {
-      await window.bilpow.elements.update({ id, [field]: value });
-      const pnl = await window.bilpow.panels.getByLocation(lId);
-      setPanels(pnl);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur de mise à jour');
-      await loadData();
-    }
+    const el = elements.find((e) => e.id === id);
+    if (!el) return;
+    const oldValue = el[field];
+    recordOperation({
+      inverse: [{ op: 'patchElement', id, patch: { [field]: oldValue } }],
+      redo: [{ op: 'patchElement', id, patch: { [field]: value } }],
+      pending: [{ type: 'updateElement', id, data: { [field]: value } }],
+    });
+    applyMutations([{ op: 'patchElement', id, patch: { [field]: value } }]);
   };
 
   const handleDeleteElement = async () => {
     if (deleteElementId === null) return;
-    try {
-      await window.bilpow.elements.delete(deleteElementId);
-      toast.success('Ligne supprimée');
-      await refreshElements();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+    const id = deleteElementId;
+    const element = elements.find((e) => e.id === id);
+    if (!element) {
+      setDeleteElementId(null);
+      return;
     }
+
+    const articles = articlesByElement[id] ?? [];
+    const index = elements.findIndex((e) => e.id === id);
+    const prevElements = elements;
+    const prevArticles = { ...articlesByElement };
+
+    if (id < 0) {
+      removePendingForTempElement(id);
+      recordOperation({
+        inverse: [
+          { op: 'setElements', elements: prevElements },
+          { op: 'setArticles', articlesByElement: prevArticles },
+        ],
+        redo: [
+          { op: 'removeElement', id },
+        ],
+        pending: [],
+      });
+      applyMutations([{ op: 'removeElement', id }]);
+    } else {
+      recordOperation({
+        inverse: [
+          { op: 'insertElement', element, index },
+          ...(articles.length
+            ? [{ op: 'setArticlesForElement' as const, elementId: id, articles }]
+            : []),
+        ],
+        redo: [{ op: 'removeElement', id }],
+        pending: [{ type: 'deleteElement', id }],
+      });
+      applyMutations([{ op: 'removeElement', id }]);
+    }
+
+    toast.success('Ligne supprimée');
     setDeleteElementId(null);
   };
 
   const handleReorder = async (orderedIds: number[]) => {
-    try {
-      await window.bilpow.elements.reorder(panId, orderedIds);
-      await refreshElements();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur de réorganisation');
-    }
+    const prevElements = elements;
+    const reordered = reorderElementsList(elements, orderedIds);
+    recordOperation({
+      inverse: [{ op: 'setElements', elements: prevElements }],
+      redo: [{ op: 'setElements', elements: reordered }],
+      pending: [{ type: 'reorderElements', orderedIds }],
+    });
+    applyMutations([{ op: 'setElements', elements: reordered }]);
   };
 
   const handleDeleteFavorite = async (id: number) => {
@@ -485,10 +700,48 @@ export function PanelView() {
     }
   };
 
-  const handleJdbSuccess = async () => {
-    await refreshElements();
-    const pnl = await window.bilpow.panels.getByLocation(lId);
-    setPanels(pnl);
+  const handleJdbCreate = (typeLabel: string, category: JdbCategory) => {
+    const insertAt = elements.length;
+    const tempId = nextTempId();
+    const element = buildLocalElement(
+      tempId,
+      panId,
+      {
+        type: 'jeu_de_barres',
+        repere: '',
+        type_label: typeLabel,
+        emplacement: '',
+        power_w: 0,
+        quantity: 1,
+        phase_type: 'mono',
+        jdb_category: category,
+        coef_ks: 1,
+        coef_ku: 1,
+      },
+      insertAt
+    );
+    const reordered = [...elements, element].map((el, i) => ({ ...el, order_index: i }));
+
+    recordOperation({
+      inverse: [{ op: 'setElements', elements }],
+      redo: [{ op: 'setElements', elements: reordered }],
+      pending: [
+        createElementPending(tempId, {
+          type: 'jeu_de_barres',
+          repere: '',
+          type_label: typeLabel,
+          emplacement: '',
+          power_w: 0,
+          quantity: 1,
+          phase_type: 'mono',
+          jdb_category: category,
+          coef_ks: 1,
+          coef_ku: 1,
+        }),
+      ],
+    });
+    applyMutations([{ op: 'setElements', elements: reordered }]);
+    toast.success('Jeu de barres ajouté');
   };
 
   const handleAddTypeToDepart = (element: Element) => {
@@ -505,41 +758,115 @@ export function PanelView() {
     field: 'designation' | 'type_label' | 'power_w' | 'quantity' | 'coef_ks' | 'coef_ku',
     value: string | number
   ) => {
-    try {
-      await window.bilpow.elements.updateArticle({ id: articleId, [field]: value });
-      await refreshElements();
-      const pnl = await window.bilpow.panels.getByLocation(lId);
-      setPanels(pnl);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
-    }
+    const elementId = Object.keys(articlesByElement).find((eid) =>
+      (articlesByElement[Number(eid)] ?? []).some((a) => a.id === articleId)
+    );
+    if (!elementId) return;
+    const eid = Number(elementId);
+    const article = (articlesByElement[eid] ?? []).find((a) => a.id === articleId);
+    if (!article) return;
+    const oldValue = article[field];
+
+    recordOperation({
+      inverse: [{ op: 'patchArticle', elementId: eid, articleId, patch: { [field]: oldValue } }],
+      redo: [{ op: 'patchArticle', elementId: eid, articleId, patch: { [field]: value } }],
+      pending: [{ type: 'updateArticle', id: articleId, data: { [field]: value } }],
+    });
+    applyMutations([
+      { op: 'patchArticle', elementId: eid, articleId, patch: { [field]: value } },
+    ]);
   };
 
-  const handleArticleDelete = async (articleId: number, _elementId: number) => {
-    try {
-      await window.bilpow.elements.deleteArticle(articleId);
-      await refreshElements();
-      const pnl = await window.bilpow.panels.getByLocation(lId);
-      setPanels(pnl);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+  const handleArticleDelete = async (articleId: number, elementId: number) => {
+    const articles = articlesByElement[elementId] ?? [];
+    const article = articles.find((a) => a.id === articleId);
+    if (!article) return;
+    const index = articles.findIndex((a) => a.id === articleId);
+
+    if (articleId < 0) {
+      usePanelEditingStore.setState((state) => ({
+        pendingChanges: state.pendingChanges.filter(
+          (c) => !(c.type === 'createArticle' && c.tempId === articleId)
+        ),
+      }));
+      recordOperation({
+        inverse: [{ op: 'insertArticle', elementId, article, index }],
+        redo: [{ op: 'removeArticle', elementId, articleId }],
+        pending: [],
+      });
+    } else {
+      recordOperation({
+        inverse: [{ op: 'insertArticle', elementId, article, index }],
+        redo: [{ op: 'removeArticle', elementId, articleId }],
+        pending: [{ type: 'deleteArticle', id: articleId }],
+      });
     }
+    applyMutations([{ op: 'removeArticle', elementId, articleId }]);
   };
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-full mx-auto space-y-6">
-        <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">
-            Nom du tableau
-          </label>
-          <input
-            type="text"
-            value={panel.name}
-            onChange={(e) => setPanel((p) => ({ ...p, name: e.target.value }))}
-            onBlur={(e) => void savePanelName(e.target.value)}
-            className="input-field text-xl font-bold max-w-md"
-          />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Nom du tableau
+              {unsaved && (
+                <span className="ml-2 text-amber-600 dark:text-amber-400" title="Modifications non enregistrées">
+                  ●
+                </span>
+              )}
+            </label>
+            <input
+              type="text"
+              value={panel.name}
+              onChange={(e) => setPanel((p) => ({ ...p, name: e.target.value }))}
+              onBlur={(e) => void savePanelName(e.target.value)}
+              className="input-field text-xl font-bold max-w-md"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {unsaved && (
+              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                Modifications non enregistrées
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => void save()}
+              disabled={!unsaved}
+              className="btn-primary text-sm disabled:opacity-40"
+              title="Ctrl+S"
+            >
+              Enregistrer
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDiscardConfirm(true)}
+              disabled={!unsaved}
+              className="btn-secondary text-sm disabled:opacity-40"
+            >
+              Abandonner
+            </button>
+            <button
+              type="button"
+              onClick={() => canUndo() && undo()}
+              disabled={!canUndo()}
+              className="btn-secondary text-sm disabled:opacity-40"
+              title="Ctrl+Z"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={() => canRedo() && redo()}
+              disabled={!canRedo()}
+              className="btn-secondary text-sm disabled:opacity-40"
+              title="Ctrl+Y"
+            >
+              Rétablir
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-wrap justify-between items-center gap-3">
@@ -590,13 +917,11 @@ export function PanelView() {
           onArticleUpdate={handleArticleUpdate}
           onArticleDelete={handleArticleDelete}
         />
-          <KsGlobalPanel
-            totalPowerW={totalPower}
-            ks={panel.coef_ks ?? 1}
-            onKsChange={(ks) => void saveKsGlobal(ks)}
-          />
-
-        
+        <KsGlobalPanel
+          totalPowerW={totalPower}
+          ks={panel.coef_ks ?? 1}
+          onKsChange={(ks) => void saveKsGlobal(ks)}
+        />
       </div>
 
       <AddElementModal
@@ -619,9 +944,12 @@ export function PanelView() {
 
       {showAddJdb && (
         <AddJdbModal
-          panelId={panId}
+          jdbCount={elements.filter((e) => e.type === 'jeu_de_barres').length}
           onClose={() => setShowAddJdb(false)}
-          onSuccess={() => void handleJdbSuccess()}
+          onCreate={(typeLabel, category) => {
+            handleJdbCreate(typeLabel, category);
+            setShowAddJdb(false);
+          }}
         />
       )}
 
@@ -631,6 +959,21 @@ export function PanelView() {
         message="Êtes-vous sûr de vouloir supprimer cette ligne ?"
         onConfirm={() => void handleDeleteElement()}
         onCancel={() => setDeleteElementId(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={showDiscardConfirm}
+        title="Modifications non enregistrées"
+        message="Vous avez des modifications non enregistrées. Voulez-vous les abandonner ?"
+        confirmLabel="Abandonner"
+        onConfirm={() => {
+          void discard().then(() => {
+            setShowDiscardConfirm(false);
+          });
+        }}
+        onCancel={() => {
+          setShowDiscardConfirm(false);
+        }}
       />
     </div>
   );

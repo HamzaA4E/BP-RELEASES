@@ -248,6 +248,42 @@ export interface IpcResponse<T> {
   error?: string;
 }
 
+/** Deferred panel edits flushed via panel:saveChanges */
+export type PanelChange =
+  | {
+      type: 'createElement';
+      tempId: number;
+      data: Omit<CreateElementInput, 'panel_id'>;
+    }
+  | {
+      type: 'updateElement';
+      id: number;
+      data: Omit<UpdateElementInput, 'id'>;
+    }
+  | { type: 'deleteElement'; id: number }
+  | { type: 'reorderElements'; orderedIds: number[] }
+  | {
+      type: 'createArticle';
+      tempId: number;
+      data: CreateArticleInput;
+    }
+  | {
+      type: 'updateArticle';
+      id: number;
+      data: Omit<UpdateArticleInput, 'id'>;
+    }
+  | { type: 'deleteArticle'; id: number };
+
+export interface PanelSavePayload {
+  panelId: number;
+  changes: PanelChange[];
+}
+
+export interface PanelSaveResult {
+  idMap: Record<number, number>;
+  articleIdMap: Record<number, number>;
+}
+
 export type SelectionType = 'project' | 'location' | 'panel' | null;
 
 export interface AppSelection {

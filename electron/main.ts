@@ -14,6 +14,7 @@ import * as locationsDb from './database/locations';
 import * as panelsDb from './database/panels';
 import * as elementsDb from './database/elements';
 import * as favoritesDb from './database/favorites';
+import { applyPanelChanges } from './database/panelSave';
 import { getCompanySettings, saveCompanySettings } from './database/settings';
 import { exportLocationToExcel, exportProjectToExcel } from './export/excelExport';
 import type { ProjectExcelExportPayload } from '../shared/types';
@@ -29,6 +30,7 @@ import type {
   UpdateCompanySettingsInput,
   CreateElementInput,
   UpdateElementInput,
+  PanelSavePayload,
 } from '../shared/types';
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -229,6 +231,12 @@ function registerIpcHandlers(): void {
   );
   ipcMain.handle('panels:duplicate', (_e, id: number) =>
     wrapHandler(() => panelsDb.duplicatePanel(id))
+  );
+
+  ipcMain.handle(
+    'panel:saveChanges',
+    (_e, payload: PanelSavePayload) =>
+      wrapHandler(() => applyPanelChanges(payload.panelId, payload.changes))
   );
 
   ipcMain.handle('elements:getByPanel', (_e, panelId: number) =>

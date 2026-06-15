@@ -3,6 +3,7 @@ import { useNavigate, NavLink } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAppStore } from '@/store/useAppStore';
 import { ConfirmDialog } from './ConfirmDialog';
+import { useUnsavedNavigationGuard } from '@/hooks/useUnsavedNavigationGuard';
 
 interface ContextMenuState {
   x: number;
@@ -33,6 +34,8 @@ export function Sidebar() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<ContextMenuState | null>(null);
   const [renaming, setRenaming] = useState<{ type: string; id: number; value: string } | null>(null);
+  const { guardedNavigate, showConfirm, confirmDiscard, cancelDiscard } =
+    useUnsavedNavigationGuard();
 
   const loadTreeForProject = useCallback(async (projectId: number) => {
     try {
@@ -72,7 +75,7 @@ export function Sidebar() {
     const project = await window.bilpow.projects.getById(projectId);
     if (project) setCurrentProject(project);
     setSelection({ type: 'project', projectId, locationId: null, panelId: null });
-    navigate(`/project/${projectId}`);
+    guardedNavigate(() => navigate(`/project/${projectId}`));
   };
 
   const handleLocationClick = async (projectId: number, locationId: number) => {
@@ -81,7 +84,7 @@ export function Sidebar() {
     setSelection({ type: 'location', projectId, locationId, panelId: null });
     const panels = await window.bilpow.panels.getByLocation(locationId);
     setPanels(panels);
-    navigate(`/project/${projectId}/location/${locationId}`);
+    guardedNavigate(() => navigate(`/project/${projectId}/location/${locationId}`));
   };
 
   const handlePanelClick = async (
@@ -90,9 +93,11 @@ export function Sidebar() {
     panelId: number
   ) => {
     setSelection({ type: 'panel', projectId, locationId, panelId });
-    const elements = await window.bilpow.elements.getByPanel(panelId);
-    setElements(elements);
-    navigate(`/project/${projectId}/location/${locationId}/panel/${panelId}`);
+    guardedNavigate(async () => {
+      const elements = await window.bilpow.elements.getByPanel(panelId);
+      setElements(elements);
+      navigate(`/project/${projectId}/location/${locationId}/panel/${panelId}`);
+    });
   };
 
   const handleContextMenu = (
@@ -184,9 +189,11 @@ export function Sidebar() {
         <button
           type="button"
           onClick={() => {
-            resetViewData();
-            setSelection({ type: null, projectId: null, locationId: null, panelId: null });
-            navigate('/');
+            guardedNavigate(() => {
+              resetViewData();
+              setSelection({ type: null, projectId: null, locationId: null, panelId: null });
+              navigate('/');
+            });
           }}
           className="w-full px-4 py-2 text-left text-sm text-blue-200 hover:bg-primary-light hover:text-white flex items-center gap-2"
         >
@@ -195,7 +202,7 @@ export function Sidebar() {
 
         <button
           type="button"
-          onClick={() => navigate('/favorites')}
+          onClick={() => guardedNavigate(() => navigate('/favorites'))}
           className="w-full px-4 py-2 text-left text-sm text-blue-200 hover:bg-primary-light hover:text-white flex items-center gap-2"
         >
           ⭐ Favoris
@@ -371,6 +378,15 @@ export function Sidebar() {
         message={`Êtes-vous sûr de vouloir supprimer "${confirmDelete?.name}" ? Cette action est irréversible.`}
         onConfirm={() => void handleDelete()}
         onCancel={() => setConfirmDelete(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={showConfirm}
+        title="Modifications non enregistrées"
+        message="Vous avez des modifications non enregistrées sur ce tableau. Voulez-vous les abandonner ?"
+        confirmLabel="Abandonner"
+        onConfirm={confirmDiscard}
+        onCancel={cancelDiscard}
       />
     </aside>
   );

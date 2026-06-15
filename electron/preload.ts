@@ -30,6 +30,8 @@ import type {
   ExcelExportResult,
   ProjectExcelExportPayload,
   IpcResponse,
+  PanelSavePayload,
+  PanelSaveResult,
 } from '../shared/types';
 
 async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
@@ -74,6 +76,8 @@ const api = {
     delete: (id: number): Promise<boolean> => invoke('panels:delete', id),
     duplicate: (id: number): Promise<Panel> =>
       invoke('panels:duplicate', id),
+    saveChanges: (payload: PanelSavePayload): Promise<PanelSaveResult> =>
+      invoke('panel:saveChanges', payload),
   },
   elements: {
     getByPanel: (panelId: number): Promise<Element[]> =>

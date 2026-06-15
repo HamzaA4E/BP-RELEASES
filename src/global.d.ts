@@ -28,6 +28,8 @@ import type {
   UploadLogoResult,
   ExcelExportResult,
   ProjectExcelExportPayload,
+  PanelSavePayload,
+  PanelSaveResult,
 } from '../shared/types';
 
 export interface BilPowAPI {
@@ -52,6 +54,7 @@ export interface BilPowAPI {
     update: (data: UpdatePanelInput) => Promise<Panel>;
     delete: (id: number) => Promise<boolean>;
     duplicate: (id: number) => Promise<Panel>;
+    saveChanges: (payload: PanelSavePayload) => Promise<PanelSaveResult>;
   };
   elements: {
     getByPanel: (panelId: number) => Promise<Element[]>;

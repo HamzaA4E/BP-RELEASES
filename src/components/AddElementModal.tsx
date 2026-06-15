@@ -357,6 +357,7 @@ setQuantityInput('1');
     if (fav.type === 'jeu_de_barres') return;
     if (isAddTypeMode && activeJdb && !isTypeAllowedUnderJdb(fav.type, activeJdb)) return;
     const coefs = defaultCoefsForType(fav.type, formData.phase_type);
+    setPowerInput(String(wattsToKw(fav.power_w)));
     setFormData((p) => ({
       ...p,
       type_label: fav.designation,

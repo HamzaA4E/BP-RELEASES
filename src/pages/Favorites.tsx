@@ -141,6 +141,23 @@ export function Favorites() {
         </form>
 
         <section className="mb-8">
+        <div>
+              <label className="block text-xs font-medium text-gray-500 mb-2">Type</label>
+              <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600 max-w-xs">
+                {(['eclairage', 'prise'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setType(t)}
+                    className={`flex-1 py-2 text-sm font-medium ${
+                      type === t ? 'bg-primary text-white' : 'bg-white dark:bg-gray-800'
+                    }`}
+                  >
+                    {t === 'eclairage' ? '💡 Éclairage' : '🔌 Prise'}
+                  </button>
+                ))}
+              </div>
+            </div>
           <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
             💡 Éclairage
             <span className="text-sm font-normal text-gray-400">({eclairageFavs.length})</span>
