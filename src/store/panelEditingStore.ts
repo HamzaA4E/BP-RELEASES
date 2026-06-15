@@ -16,6 +16,7 @@ interface PanelEditingState {
   undoStack: UndoEntry[];
   redoStack: UndoEntry[];
   tempIdCounter: number;
+  savedFilePath: string | null;
 
   initPanel: (panelId: number) => void;
   reset: () => void;
@@ -30,6 +31,7 @@ interface PanelEditingState {
   clearEditingState: () => void;
   getPendingChanges: () => PanelChange[];
   removePendingForTempElement: (tempId: number) => void;
+  setSavedFilePath: (filePath: string | null) => void;
 }
 
 export const usePanelEditingStore = create<PanelEditingState>((set, get) => ({
@@ -38,6 +40,7 @@ export const usePanelEditingStore = create<PanelEditingState>((set, get) => ({
   undoStack: [],
   redoStack: [],
   tempIdCounter: -1,
+  savedFilePath: null,
 
   initPanel: (panelId) =>
     set({
@@ -46,6 +49,7 @@ export const usePanelEditingStore = create<PanelEditingState>((set, get) => ({
       undoStack: [],
       redoStack: [],
       tempIdCounter: -1,
+      savedFilePath: null,
     }),
 
   reset: () =>
@@ -55,6 +59,7 @@ export const usePanelEditingStore = create<PanelEditingState>((set, get) => ({
       undoStack: [],
       redoStack: [],
       tempIdCounter: -1,
+      savedFilePath: null,
     }),
 
   hasUnsavedChanges: () => get().pendingChanges.length > 0,
@@ -125,4 +130,6 @@ export const usePanelEditingStore = create<PanelEditingState>((set, get) => ({
         return true;
       }),
     })),
+
+  setSavedFilePath: (filePath) => set({ savedFilePath: filePath }),
 }));

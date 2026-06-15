@@ -54,7 +54,8 @@ export interface BilPowAPI {
     update: (data: UpdatePanelInput) => Promise<Panel>;
     delete: (id: number) => Promise<boolean>;
     duplicate: (id: number) => Promise<Panel>;
-    saveChanges: (payload: PanelSavePayload) => Promise<PanelSaveResult>;
+    saveChanges: (payload: PanelSavePayload & { filePath?: string }) => Promise<PanelSaveResult>;
+    showSaveDialog: (defaultName: string) => Promise<{ canceled: boolean; filePath: string | null }>;
   };
   elements: {
     getByPanel: (panelId: number) => Promise<Element[]>;

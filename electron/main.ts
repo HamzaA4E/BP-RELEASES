@@ -318,8 +318,32 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(
     'panel:saveChanges',
-    (_e, payload: PanelSavePayload) =>
-      wrapHandler(() => applyPanelChanges(payload.panelId, payload.changes))
+    async (_event, payload: PanelSavePayload & { filePath?: string }) => {
+      const { filePath, ...savePayload } = payload;
+
+      // Si un chemin est fourni, sauvegarder directement
+      if (filePath) {
+        await applyPanelChanges(savePayload.panelId, savePayload.changes);
+        return { success: true, filePath };
+      }
+
+      // Sinon, appliquer les changements dans la base de données
+      await applyPanelChanges(savePayload.panelId, savePayload.changes);
+      return { success: true };
+    }
+  );
+
+  ipcMain.handle(
+    'panel:showSaveDialog',
+    async (_e, defaultName: string) => {
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        title: 'Enregistrer le tableau',
+        defaultPath: `${defaultName}.xlsx`,
+        filters: [{ name: 'Excel', extensions: ['xlsx'] }],
+      });
+      if (canceled || !filePath) return { canceled: true, filePath: null };
+      return { canceled: false, filePath };
+    }
   );
 
   ipcMain.handle('elements:getByPanel', (_e, panelId: number) =>

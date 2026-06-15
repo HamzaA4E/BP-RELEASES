@@ -76,8 +76,10 @@ const api = {
     delete: (id: number): Promise<boolean> => invoke('panels:delete', id),
     duplicate: (id: number): Promise<Panel> =>
       invoke('panels:duplicate', id),
-    saveChanges: (payload: PanelSavePayload): Promise<PanelSaveResult> =>
+    saveChanges: (payload: PanelSavePayload & { filePath?: string }): Promise<PanelSaveResult> =>
       invoke('panel:saveChanges', payload),
+    showSaveDialog: (defaultName: string): Promise<{ canceled: boolean; filePath: string | null }> =>
+      invoke('panel:showSaveDialog', defaultName),
   },
   elements: {
     getByPanel: (panelId: number): Promise<Element[]> =>

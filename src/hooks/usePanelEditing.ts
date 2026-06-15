@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { usePanelEditingStore } from '@/store/panelEditingStore';
+import { useAppStore } from '@/store/useAppStore';
 import { applyLocalMutations } from '@/utils/panelEditing';
 import type { Article, Element } from '@/types';
 
@@ -34,7 +35,11 @@ export function usePanelEditing({
     canRedo,
     initPanel,
     reset,
+    savedFilePath,
+    setSavedFilePath,
   } = usePanelEditingStore();
+
+  const { currentProject } = useAppStore();
 
   const applyMutations = useCallback(
     (mutations: Parameters<typeof applyLocalMutations>[2]) => {
@@ -66,8 +71,25 @@ export function usePanelEditing({
       toast.success('Aucune modification à enregistrer');
       return;
     }
+
     try {
-      await window.bilpow.panels.saveChanges({ panelId, changes });
+      let filePath = savedFilePath;
+
+      // Si aucun chemin n'est défini, ouvrir la boîte de dialogue
+      if (!filePath) {
+        const defaultName = currentProject
+          ? `${currentProject.name}_panel_${panelId}`
+          : `panel_${panelId}`;
+        const result = await window.bilpow.panels.showSaveDialog(defaultName);
+        if (result.canceled || !result.filePath) {
+          return;
+        }
+        filePath = result.filePath;
+        setSavedFilePath(filePath);
+      }
+
+      // Sauvegarder avec le chemin
+      await window.bilpow.panels.saveChanges({ panelId, changes, filePath });
       clearEditingState();
       await refreshElements();
       await refreshPanels();
@@ -75,7 +97,7 @@ export function usePanelEditing({
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
     }
-  }, [getPendingChanges, panelId, clearEditingState, refreshElements, refreshPanels]);
+  }, [getPendingChanges, panelId, savedFilePath, setSavedFilePath, clearEditingState, refreshElements, refreshPanels, currentProject]);
 
   const discard = useCallback(async () => {
     clearEditingState();
