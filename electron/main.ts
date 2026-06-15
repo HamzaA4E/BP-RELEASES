@@ -319,17 +319,40 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     'panel:saveChanges',
     async (_event, payload: PanelSavePayload & { filePath?: string }) => {
-      const { filePath, ...savePayload } = payload;
+      try {
+        const { filePath, ...savePayload } = payload;
 
-      // Si un chemin est fourni, sauvegarder directement
-      if (filePath) {
+        // Appliquer les changements dans la base de données
         await applyPanelChanges(savePayload.panelId, savePayload.changes);
-        return { success: true, filePath };
-      }
 
-      // Sinon, appliquer les changements dans la base de données
-      await applyPanelChanges(savePayload.panelId, savePayload.changes);
-      return { success: true };
+        // Si un chemin est fourni, sauvegarder le fichier .bilpow
+        if (filePath) {
+          const panel = panelsDb.getPanelById(savePayload.panelId);
+          if (!panel) {
+            return { success: false, error: 'Panneau non trouvé' };
+          }
+
+          const location = locationsDb.getLocationById(panel.location_id);
+          if (!location) {
+            return { success: false, error: 'Localisation non trouvée' };
+          }
+
+          const project = projectsDb.getProjectById(location.project_id);
+          if (!project) {
+            return { success: false, error: 'Projet non trouvé' };
+          }
+
+          const data = exportProjectForBilpow(project.id);
+          fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+          return { success: true, filePath };
+        }
+
+        return { success: true };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Erreur inconnue';
+        console.error('[panel:saveChanges]', message);
+        return { success: false, error: message };
+      }
     }
   );
 
@@ -337,9 +360,9 @@ function registerIpcHandlers(): void {
     'panel:showSaveDialog',
     async (_e, defaultName: string) => {
       const { canceled, filePath } = await dialog.showSaveDialog({
-        title: 'Enregistrer le tableau',
-        defaultPath: `${defaultName}.xlsx`,
-        filters: [{ name: 'Excel', extensions: ['xlsx'] }],
+        title: 'Enregistrer le projet',
+        defaultPath: `${defaultName}.bilpow`,
+        filters: [{ name: 'Projet BilPow', extensions: ['bilpow'] }],
       });
       if (canceled || !filePath) return { canceled: true, filePath: null };
       return { canceled: false, filePath };
