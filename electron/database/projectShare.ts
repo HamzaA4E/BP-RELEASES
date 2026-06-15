@@ -266,7 +266,7 @@ export function validateBilpowElements(locations: BilpowFile['locations']): void
         const validTypes: ElementType[] = [
           'eclairage',
           'prise',
-          'attente',
+          'divers',
           'jeu_de_barres',
         ];
         if (!validTypes.includes(el.type)) {

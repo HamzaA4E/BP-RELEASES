@@ -164,7 +164,7 @@ export function duplicateLocation(id: number): LocationRow {
       const elementType =
         el.type === 'jeu_de_barres' || el.row_kind === 'bar_set'
           ? 'jeu_de_barres'
-          : (el.type as 'eclairage' | 'prise' | 'attente');
+          : (el.type as 'eclairage' | 'prise' | 'divers');
       createElement({
         panel_id: newPanelId,
         type: elementType,

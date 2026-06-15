@@ -86,7 +86,7 @@ const TYPE_OPTIONS: Array<{
 }> = [
   { value: 'eclairage', label: 'Éclairage', icon: '💡', color: 'bg-blue-600' },
   { value: 'prise', label: 'Prise', icon: '🔌', color: 'bg-emerald-600' },
-  { value: 'attente', label: 'Attente', icon: '🔌', color: 'bg-slate-500' },
+  { value: 'divers', label: 'Divers', icon: '📦', color: 'bg-slate-500' },
 ];
 
 function buildDefaultForm(
@@ -100,7 +100,7 @@ function buildDefaultForm(
     repere: getNextRepere(existingElements, type),
     type_label: '',
     emplacement: '',
-    power_w: type === 'attente' ? 1000 : 0,
+    power_w: type === 'divers' ? 1000 : 0,
     quantity: 1,
     phase_type,
     ...coefs,
@@ -267,7 +267,7 @@ setQuantityInput('1');
       type,
       phase_type,
       type_label: type === 'prise' ? '' : p.type_label,
-      power_w: type === 'attente' ? (p.power_w > 0 ? p.power_w : 1000) : p.power_w,
+      power_w: type === 'divers' ? (p.power_w > 0 ? p.power_w : 1000) : p.power_w,
       ...coefs,
     }));
   };
@@ -286,7 +286,7 @@ setQuantityInput('1');
     if (!isAddTypeMode && !formData.repere.trim()) newErrors.repere = 'Le repère est requis';
     if (!formData.type_label.trim()) newErrors.type_label = 'Le type est requis';
     if (formData.power_w < 0) newErrors.power_w = 'La puissance ne peut pas être négative';
-    if (formData.type !== 'attente' && formData.power_w === 0) {
+    if (formData.type !== 'divers' && formData.power_w === 0) {
       newErrors.power_w = 'La puissance doit être supérieure à 0';
     }
     if (formData.quantity < 1) newErrors.quantity = 'La quantité doit être au moins 1';
@@ -404,7 +404,7 @@ setQuantityInput('1');
                 </span>
                 <span className="text-slate-600 dark:text-slate-300">
                   {' '}
-                  — même type de ligne ou autre catégorie (mono, tri, attente)
+                  — même type de ligne ou autre catégorie (mono, tri, divers)
                 </span>
               </div>
             )}
@@ -493,8 +493,8 @@ setQuantityInput('1');
                   placeholder={
                     formData.type === 'eclairage'
                       ? 'E1'
-                      : formData.type === 'attente'
-                        ? 'A1'
+                      : formData.type === 'divers'
+                        ? 'D1'
                         : 'P1'
                   }
                 />
@@ -596,7 +596,7 @@ setQuantityInput('1');
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Puissance (kW) {formData.type !== 'attente' ? '*' : ''}
+                  Puissance (kW) {formData.type !== 'divers' ? '*' : ''}
                 </label>
                 <input
                   type="number"

@@ -58,7 +58,7 @@ const VIOLET = '#7C3AED';
 const TYPE_OPTIONS: Array<{ value: DepartType; label: string; icon: string }> = [
   { value: 'eclairage', label: 'Éclairage', icon: '💡' },
   { value: 'prise', label: 'Prise', icon: '🔌' },
-  { value: 'attente', label: 'Attente', icon: '⏳' },
+  { value: 'divers', label: 'Divers', icon: '📦' },
 ];
 
 function emptyArticle(): ArticleFormItem {

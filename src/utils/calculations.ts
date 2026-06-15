@@ -36,7 +36,7 @@ export function defaultCoefsForType(
       return { coef_ks: 1.0, coef_ku: 1.0 };
     case 'prise':
       return { coef_ks: 0.8, coef_ku: 1.0 };
-    case 'attente':
+    case 'divers':
       return { coef_ks: 0.0, coef_ku: 0.0 };
     case 'jeu_de_barres':
       return { coef_ks: 1.0, coef_ku: 1.0 };
@@ -71,7 +71,7 @@ export function formatPowerKwFromWatts(powerW: number, decimals = 3): string {
 const PREFIX_MAP: Record<ElementType, string> = {
   eclairage: 'E',
   prise: 'P',
-  attente: 'A',
+  divers: 'D',
   jeu_de_barres: 'JDB',
 };
 

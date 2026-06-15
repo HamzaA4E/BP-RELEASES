@@ -94,11 +94,12 @@ export function defaultCoefsForType(
       return { coef_ks: 1.0, coef_ku: 1.0 };
     case 'prise':
       return { coef_ks: 0.8, coef_ku: 1.0 };
-    case 'attente':
+    case 'divers':
       return { coef_ks: 0.0, coef_ku: 0.0 };
     case 'jeu_de_barres':
       return { coef_ks: 1.0, coef_ku: 1.0 };
   }
+  return { coef_ks: 1.0, coef_ku: 1.0 };
 }
 
 function mapRow(raw: RawElementRow): ElementRow {

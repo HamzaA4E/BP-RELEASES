@@ -919,7 +919,7 @@ function SortableDataRow({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const isAttente = element.type === 'attente';
+  const isDivers = element.type === 'divers';
   const totalPower = calcPuissanceTotale(element);
   const badge = typeBadge(element);
   const typeLabel = displayTypeLabel(element);
@@ -938,7 +938,7 @@ function SortableDataRow({
         ref={setNodeRef}
         style={style}
         className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 ${
-          isAttente ? 'opacity-60' : ''
+          isDivers ? 'opacity-60' : ''
         }`}
       >
         <td className="px-2 py-2 text-center text-gray-400 cursor-grab" {...attributes} {...listeners}>
@@ -974,7 +974,7 @@ function SortableDataRow({
           />
         </td>
         <td
-          className={`px-3 py-2 text-sm max-w-[140px] ${isAttente ? 'italic text-gray-500' : ''}`}
+          className={`px-3 py-2 text-sm max-w-[140px] ${isDivers ? 'italic text-gray-500' : ''}`}
         >
           <InlineTextCell
             elementId={element.id}

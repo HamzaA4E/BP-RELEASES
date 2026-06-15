@@ -1,4 +1,4 @@
-export type ElementType = 'eclairage' | 'prise' | 'attente' | 'jeu_de_barres';
+export type ElementType = 'eclairage' | 'prise' | 'divers' | 'jeu_de_barres';
 export type FavoriteType = 'eclairage' | 'prise' | 'divers';
 export type ElementRowKind = 'element' | 'bar_set';
 export type PhaseType = 'mono' | 'tri';

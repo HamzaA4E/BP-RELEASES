@@ -23,7 +23,7 @@ const CATEGORY_OPTIONS: Array<{
     value: 'prise',
     label: 'Prise',
     icon: '🔌',
-    desc: 'Prise + Attente',
+    desc: 'Prise + Divers',
   },
 ];
 

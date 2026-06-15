@@ -54,14 +54,14 @@ export function jdbCategoryLabel(category: JdbCategory | null | undefined): stri
   return resolved === 'eclairage' ? 'Éclairage' : 'Prise de courant';
 }
 
-/** Catégorie d'un départ : éclairage, mono, tri ou attente (plusieurs catégories possibles sur un même repère). */
-export type DepartCategory = 'eclairage' | 'prise-mono' | 'prise-tri' | 'attente';
+/** Catégorie d'un départ : éclairage, mono, tri ou divers (plusieurs catégories possibles sur un même repère). */
+export type DepartCategory = 'eclairage' | 'prise-mono' | 'prise-tri' | 'divers';
 
 export function departCategoryOf(element: {
   type: ElementType;
   phase_type?: PhaseType;
 }): DepartCategory {
-  if (element.type === 'attente') return 'attente';
+  if (element.type === 'divers') return 'divers';
   if (element.type === 'eclairage') return 'eclairage';
   if (element.type === 'prise') {
     return element.phase_type === 'tri' ? 'prise-tri' : 'prise-mono';
@@ -77,8 +77,8 @@ export function departCategoryLabel(category: DepartCategory): string {
       return 'Monophasé';
     case 'prise-tri':
       return 'Triphasé';
-    case 'attente':
-      return 'Attente';
+    case 'divers':
+      return 'Divers';
   }
 }
 
@@ -185,8 +185,8 @@ export function isTypeAllowedUnderJdb(
 ): boolean {
   if (!jdb) return true;
   const category = resolveJdbCategory(jdb.jdb_category);
-  if (category === 'eclairage') return elementType === 'eclairage';
-  return elementType === 'prise' || elementType === 'attente';
+  if (category === 'eclairage') return elementType === 'eclairage' || elementType === 'divers';
+  return elementType === 'prise' || elementType === 'divers';
 }
 
 export function normalizeElement(raw: Element): Element {
@@ -287,9 +287,9 @@ export function typeBadge(element: Element): {
       className: 'bg-slate-100 text-slate-700 dark:bg-slate-700/50 dark:text-slate-300',
     };
   }
-  if (element.type === 'attente') {
+  if (element.type === 'divers') {
     return {
-      label: '🔌 Attente',
+      label: '� Divers',
       className: 'bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-400',
     };
   }
