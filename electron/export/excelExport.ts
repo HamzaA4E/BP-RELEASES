@@ -614,6 +614,7 @@ function createPanelSheet(
   const powerRefs = allPowerRows.map((r) => `${colLetter(COL_DYNAMIC.TOTAL)}${r}`).join(',');
   const powerSumFormula = powerRefs ? `SUM(${powerRefs})` : '0';
   totalRow.getCell(COL_DYNAMIC.TOTAL).value = { formula: powerSumFormula };
+  totalRow.getCell(COL_DYNAMIC.TOTAL).numFmt = '0.000';
   totalRow.getCell(COL_DYNAMIC.TOTAL).font = { bold: true };
   totalRow.getCell(COL_DYNAMIC.TOTAL).fill = {
     type: 'pattern',
@@ -624,17 +625,30 @@ function createPanelSheet(
   applyBorder(totalRow.getCell(COL_DYNAMIC.TOTAL));
 
   const totalPowerCell = `${colLetter(COL_DYNAMIC.TOTAL)}${totalRowNum}`;
-  const summaryStart = totalRowNum + 2;
-
-  const ksGlobalRow = summaryStart;
+  const valueCol = COL_DYNAMIC.TOTAL;
+  const ksGlobalRow = totalRowNum + 1;
   const puissanceGlobaleRow = ksGlobalRow + 1;
   const intensiteRow = puissanceGlobaleRow + 1;
 
-  // Ks global
-  sheet.getCell(ksGlobalRow, 1).value = 'Ks global :';
-  sheet.getCell(ksGlobalRow, 1).font = { bold: true, size: 10 };
+  const writeSummaryLabel = (row: number, text: string, bgColor?: string): void => {
+    safeMergeCells(sheet, row, COL_DYNAMIC.REPERE, row, mergeEndCol);
+    const labelCell = sheet.getCell(row, COL_DYNAMIC.REPERE);
+    labelCell.value = text;
+    labelCell.font = { bold: true, size: 10 };
+    labelCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    if (bgColor) {
+      labelCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: bgColor },
+      };
+    }
+    applyBorder(labelCell);
+  };
 
-  const ksGlobalCell = sheet.getCell(ksGlobalRow, 2);
+  // Ks global
+  writeSummaryLabel(ksGlobalRow, 'Ks global :', TOTAL_ROW_COLOR);
+  const ksGlobalCell = sheet.getCell(ksGlobalRow, valueCol);
   ksGlobalCell.value = data.ksGlobal ?? 1;
   ksGlobalCell.numFmt = '0.00';
   ksGlobalCell.font = { bold: true, size: 10, color: { argb: 'FF1E3A5F' } };
@@ -650,34 +664,42 @@ function createPanelSheet(
     right: { style: 'medium', color: { argb: 'FF1E3A5F' } },
   };
   ksGlobalCell.alignment = { horizontal: 'center', vertical: 'middle' };
-
-  sheet.getCell(ksGlobalRow, 3).font = { italic: true, size: 9, color: { argb: 'FF9CA3AF' } };
+  applyBorder(ksGlobalCell);
 
   // Puissance globale = puissance installée × Ks global
-  sheet.getCell(puissanceGlobaleRow, 1).value = 'Puissance globale :';
-  sheet.getCell(puissanceGlobaleRow, 1).font = { bold: true, size: 10 };
-
-  const ksGlobalCellAddress = `${colLetter(2)}${ksGlobalRow}`;
-  const puissanceGlobaleCell = `${colLetter(2)}${puissanceGlobaleRow}`;
-  sheet.getCell(puissanceGlobaleRow, 2).value = {
+  writeSummaryLabel(puissanceGlobaleRow, 'Puissance globale :', TOTAL_ROW_COLOR);
+  const ksGlobalCellAddress = `${colLetter(valueCol)}${ksGlobalRow}`;
+  const puissanceGlobaleCell = `${colLetter(valueCol)}${puissanceGlobaleRow}`;
+  const puissanceGlobaleValueCell = sheet.getCell(puissanceGlobaleRow, valueCol);
+  puissanceGlobaleValueCell.value = {
     formula: `${totalPowerCell}*${ksGlobalCellAddress}`,
   };
-  sheet.getCell(puissanceGlobaleRow, 2).numFmt = '0.00 "kW"';
-  sheet.getCell(puissanceGlobaleRow, 2).font = { bold: true, size: 10, color: { argb: 'FF1E3A5F' } };
-  sheet.getCell(puissanceGlobaleRow, 2).fill = {
+  puissanceGlobaleValueCell.numFmt = '0.00 "kW"';
+  puissanceGlobaleValueCell.font = { bold: true };
+  puissanceGlobaleValueCell.fill = {
     type: 'pattern',
     pattern: 'solid',
     fgColor: { argb: TOTAL_ROW_COLOR },
   };
+  puissanceGlobaleValueCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  applyBorder(puissanceGlobaleValueCell);
 
   // Intensité de calcul basée sur la puissance globale
-  sheet.getCell(intensiteRow, 1).value = 'Intensité de calcul :';
-  sheet.getCell(intensiteRow, 1).font = { bold: true, size: 10 };
-  const currentCellAddress = `${colLetter(2)}${intensiteRow}`;
-  sheet.getCell(intensiteRow, 2).value = {
+  writeSummaryLabel(intensiteRow, 'Intensité de calcul :', TOTAL_ROW_COLOR);
+  const currentCellAddress = `${colLetter(valueCol)}${intensiteRow}`;
+  const intensiteValueCell = sheet.getCell(intensiteRow, valueCol);
+  intensiteValueCell.value = {
     formula: excelCurrentFormula(puissanceGlobaleCell),
   };
-  sheet.getCell(intensiteRow, 2).numFmt = '0.00 "A"';
+  intensiteValueCell.numFmt = '0.00 "A"';
+  intensiteValueCell.font = { bold: true };
+  intensiteValueCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: TOTAL_ROW_COLOR },
+  };
+  intensiteValueCell.alignment = { horizontal: 'center', vertical: 'middle' };
+  applyBorder(intensiteValueCell);
   // Dynamic column widths based on whether Ku is shown
   sheet.columns = showKu
 ? [
@@ -704,7 +726,7 @@ function createPanelSheet(
   sheet.pageSetup = {
     printTitlesRow: '1:4',  // répète les lignes 1 à 4 (header + colonnes) sur chaque page imprimée
     paperSize: 9,           // A4
-    orientation: 'landscape',
+    orientation: 'portrait',
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 0,
