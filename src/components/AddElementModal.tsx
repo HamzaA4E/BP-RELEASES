@@ -23,6 +23,7 @@ import {
   findElementByRepereAndCategory,
 } from '@/utils/elementHelpers';
 
+
 type ElementFormType = Exclude<ElementType, 'jeu_de_barres'>;
 
 interface FormData {
@@ -126,6 +127,8 @@ export function AddElementModal({
   const [saving, setSaving] = useState(false);
   const [duplicateCount, setDuplicateCount] = useState(1);
   const [showCoefs, setShowCoefs] = useState(false);
+  const [powerInput, setPowerInput] = useState('');
+  const [quantityInput, setQuantityInput] = useState('1');
 
   const isEdit = Boolean(editElement);
   const isAddTypeMode = Boolean(addTypeToDepart);
@@ -210,6 +213,8 @@ export function AddElementModal({
         coef_ku: editElement.coef_ku,
         notes: editElement.notes ?? '',
       });
+      setPowerInput(String(wattsToKw(editElement.power_w)));
+  setQuantityInput(String(editElement.quantity));
     } else if (addTypeToDepart) {
       const type = addTypeToDepart.type as ElementFormType;
       const phase_type = addTypeToDepart.phase_type ?? 'mono';
@@ -225,11 +230,17 @@ export function AddElementModal({
         coef_ku: addTypeToDepart.coef_ku,
         notes: '',
       });
+      setPowerInput('1');
+  setQuantityInput('1');
     } else if (contextJdb) {
       const defaultType = defaultElementTypeForJdb(contextJdb);
       setFormData(buildDefaultForm(defaultType, existingElements));
+      setPowerInput('1');
+setQuantityInput('1');
     } else {
       setFormData(buildDefaultForm('eclairage', existingElements));
+      setPowerInput('1');
+setQuantityInput('1');
     }
     setErrors({});
     setDuplicateCount(1);
@@ -590,13 +601,17 @@ export function AddElementModal({
                   type="number"
                   min={0}
                   step={0.001}
-                  value={wattsToKw(formData.power_w)}
-                  onChange={(e) =>
+                  value={powerInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                  
+                    setPowerInput(value);
+                  
                     setFormData((p) => ({
                       ...p,
-                      power_w: Math.round(Number(e.target.value) * 1000),
-                    }))
-                  }
+                      power_w: value === '' ? 0 : Math.round(Number(value) * 1000),
+                    }));
+                  }}
                   className={`input-field ${errors.power_w ? 'border-red-500' : ''}`}
                 />
                 {errors.power_w && (
@@ -610,10 +625,17 @@ export function AddElementModal({
                 <input
                   type="number"
                   min={1}
-                  value={formData.quantity}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, quantity: Number(e.target.value) }))
-                  }
+                  value={quantityInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                  
+                    setQuantityInput(value);
+                  
+                    setFormData((p) => ({
+                      ...p,
+                      quantity: value === '' ? 0 : Number(value),
+                    }));
+                  }}
                   className={`input-field ${errors.quantity ? 'border-red-500' : ''}`}
                 />
               </div>
@@ -686,14 +708,14 @@ export function AddElementModal({
                       </label>
                     ))}
                   </div>
-                  <p className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
+                  {/* <p className="text-xs text-slate-500 bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2">
                     Puissance totale = P. unitaire × Qté × Ks × Ku ={' '}
                     <strong className="text-primary dark:text-accent-light">
                       {formatNumber(wattsToKw(previewUsedPower), 3)} kW
                     </strong>
                     {' · '}
                     {formatCoefsLine(formData.coef_ks, formData.coef_ku)}
-                  </p>
+                  </p> */}
                 </div>
               )}
             </div>

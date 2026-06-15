@@ -17,7 +17,7 @@ import * as favoritesDb from './database/favorites';
 import { getCompanySettings, saveCompanySettings } from './database/settings';
 import { exportLocationToExcel, exportProjectToExcel } from './export/excelExport';
 import type { ProjectExcelExportPayload } from '../shared/types';
-import { exportProjectToPdf } from './export/pdfExport';
+// import { exportProjectToPdf } from './export/pdfExport';
 import {
   exportProjectForBilpow,
   importProjectFromBilpow,
@@ -324,9 +324,9 @@ function registerIpcHandlers(): void {
       wrapAsyncHandler(() => exportLocationToExcel(locationId, company))
   );
 
-  ipcMain.handle('export:exportProjectToPdf', (_e, projectId: number, company?: CompanySettings) =>
-    wrapAsyncHandler(() => exportProjectToPdf(projectId, company))
-  );
+  // ipcMain.handle('export:exportProjectToPdf', (_e, projectId: number, company?: CompanySettings) =>
+  //   wrapAsyncHandler(() => exportProjectToPdf(projectId, company))
+  // );
 
   ipcMain.handle(
     'export:projectExcel',

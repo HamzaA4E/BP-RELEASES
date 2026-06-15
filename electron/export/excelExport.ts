@@ -622,7 +622,8 @@ function createPanelSheet(
   sheet.getCell(summaryStart, 1).value = 'Puissance installée :';
   sheet.getCell(summaryStart, 1).font = { bold: true, size: 10 };
   sheet.getCell(summaryStart, 2).value = { formula: totalPowerCell };
-  sheet.getCell(summaryStart, 3).value = 'kW';
+  sheet.getCell(summaryStart, 2).numFmt = '0.00 "kW"';
+  // sheet.getCell(summaryStart, 3).value = 'kW';
 
   const currentRowNum = summaryStart + 1;
   sheet.getCell(currentRowNum, 1).value = 'Intensité de calcul :';
@@ -631,7 +632,7 @@ function createPanelSheet(
   sheet.getCell(currentRowNum, 2).value = {
     formula: excelCurrentFormula(totalPowerCell),
   };
-  sheet.getCell(currentRowNum, 3).value = 'A';
+  sheet.getCell(currentRowNum, 2).numFmt = '0.00 "A"';
 
   // Dynamic column widths based on whether Ku is shown
   const columns = showKu
@@ -876,24 +877,24 @@ export async function exportProjectToExcel(
     allPanelMetas.push(result.meta);
   }
 
-  if (allPanelMetas.length > 0) {
-    createSyntheseSheet(
-      workbook,
-      company,
-      { name: payload.project.name, client: payload.project.client },
-      'SYNTHESE GENERALE',
-      'SYNTHESE GENERALE',
-      allPanelMetas
-    );
-    const generalSheet = workbook.getWorksheet('SYNTHESE GENERALE');
-    if (generalSheet) {
-      const idx = workbook.worksheets.indexOf(generalSheet);
-      if (idx > 0) {
-        workbook.worksheets.splice(idx, 1);
-        workbook.worksheets.unshift(generalSheet);
-      }
-    }
-  }
+  // if (allPanelMetas.length > 0) {
+  //   createSyntheseSheet(
+  //     workbook,
+  //     company,
+  //     { name: payload.project.name, client: payload.project.client },
+  //     'SYNTHESE GENERALE',
+  //     'SYNTHESE GENERALE',
+  //     allPanelMetas
+  //   );
+  //   const generalSheet = workbook.getWorksheet('SYNTHESE GENERALE');
+  //   if (generalSheet) {
+  //     const idx = workbook.worksheets.indexOf(generalSheet);
+  //     if (idx > 0) {
+  //       workbook.worksheets.splice(idx, 1);
+  //       workbook.worksheets.unshift(generalSheet);
+  //     }
+  //   }
+  // }
 
   await workbook.xlsx.writeFile(filePath);
 

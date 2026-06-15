@@ -244,14 +244,14 @@ export function ProjectView() {
             >
               {exportingExcel ? 'Export...' : '📊 Exporter le projet complet'}
             </button>
-            <button
+            {/* <button
               type="button"
               onClick={() => void handleExportPdf()}
               disabled={exportingPdf || locations.length === 0}
               className="btn-secondary text-sm"
             >
               {exportingPdf ? 'Export...' : '📄 Exporter PDF'}
-            </button>
+            </button> */}
             <button
               type="button"
               onClick={() => setShowAddLocation(true)}

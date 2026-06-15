@@ -2,9 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAppStore } from '@/store/useAppStore';
-import { formatPower } from '@/utils/calculations';
+import { calculationCurrent, formatPower } from '@/utils/calculations';
 import { exportLocationToExcel } from '@/utils/export';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { formatNumber } from '@/utils/calculations';
 
 export function LocationView() {
   const { projectId, locationId } = useParams<{ projectId: string; locationId: string }>();
@@ -140,7 +141,7 @@ export function LocationView() {
                 <div className="space-y-1 text-sm text-gray-500 dark:text-gray-400">
                   <p>{panel.element_count} élément{panel.element_count !== 1 ? 's' : ''}</p>
                   <p>P. installée: {formatPower(panel.installed_power_w)}</p>
-                  <p>P. absorbée: {formatPower(panel.absorbed_power_w)}</p>
+                  <p>Intensité de calcul: {formatNumber(calculationCurrent(panel.installed_power_w), 2)} A</p>
                 </div>
               </div>
             ))}
