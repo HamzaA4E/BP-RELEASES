@@ -217,6 +217,9 @@ export interface CompanySettings {
   logo_path: string;
   logo_base64: string;
   logo_mime: string;
+  client_logo_path: string;
+  client_logo_base64: string;
+  client_logo_mime: string;
   updated_at: string;
 }
 

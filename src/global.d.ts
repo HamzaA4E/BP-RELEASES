@@ -91,6 +91,8 @@ export interface BilPowAPI {
     save: (data: UpdateCompanySettingsInput) => Promise<boolean>;
     uploadLogo: () => Promise<UploadLogoResult | null>;
     removeLogo: () => Promise<boolean>;
+    uploadClientLogo: () => Promise<UploadLogoResult | null>;
+    removeClientLogo: () => Promise<boolean>;
   };
   app: {
     getPlatform: () => Promise<string>;

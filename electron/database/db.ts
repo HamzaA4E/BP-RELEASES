@@ -86,6 +86,9 @@ CREATE TABLE IF NOT EXISTS company_settings (
   logo_path TEXT DEFAULT '',
   logo_base64 TEXT DEFAULT '',
   logo_mime TEXT DEFAULT '',
+  client_logo_path TEXT DEFAULT '',
+  client_logo_base64 TEXT DEFAULT '',
+  client_logo_mime TEXT DEFAULT '',
   updated_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -180,6 +183,7 @@ export function getDatabase(): Database.Database {
   migratePanelCoefficients(db);
   migrateElementsTable(db);
   migrateElementArticles(db);
+  migrateCompanySettings(db);
   seedFavorites();
   db.pragma('wal_checkpoint(PASSIVE)');
   console.log('[DB] Connexion prête');
@@ -377,6 +381,16 @@ export function ensureElementArticlesSchema(database: Database.Database): void {
 
 function migrateElementArticles(database: Database.Database): void {
   ensureElementArticlesSchema(database);
+}
+
+function migrateCompanySettings(database: Database.Database): void {
+  if (!tableExists(database, 'company_settings')) return;
+
+  if (!hasColumn(database, 'company_settings', 'client_logo_path')) {
+    database.exec(`ALTER TABLE company_settings ADD COLUMN client_logo_path TEXT DEFAULT ''`);
+    database.exec(`ALTER TABLE company_settings ADD COLUMN client_logo_base64 TEXT DEFAULT ''`);
+    database.exec(`ALTER TABLE company_settings ADD COLUMN client_logo_mime TEXT DEFAULT ''`);
+  }
 }
 
 function seedFavorites(): void {

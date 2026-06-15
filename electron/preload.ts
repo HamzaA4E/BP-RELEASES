@@ -127,6 +127,9 @@ const api = {
       invoke('settings:save', data),
     uploadLogo: (): Promise<UploadLogoResult | null> => invoke('settings:uploadLogo'),
     removeLogo: (): Promise<boolean> => invoke('settings:removeLogo'),
+    uploadClientLogo: (): Promise<UploadLogoResult | null> =>
+      invoke('settings:uploadClientLogo'),
+    removeClientLogo: (): Promise<boolean> => invoke('settings:removeClientLogo'),
   },
   app: {
     getPlatform: (): Promise<string> => invoke('app:getPlatform'),

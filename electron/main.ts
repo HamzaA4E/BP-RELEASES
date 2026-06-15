@@ -31,6 +31,7 @@ import type {
   CreateElementInput,
   UpdateElementInput,
   PanelSavePayload,
+  UploadLogoResult,
 } from '../shared/types';
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -124,6 +125,87 @@ async function wrapAsyncHandler<T>(
     console.error('[IPC Error]', message);
     return { success: false, error: message };
   }
+}
+
+type SettingsLogoKind = 'company' | 'client';
+
+const SETTINGS_LOGO_FIELDS: Record<
+  SettingsLogoKind,
+  { path: keyof CompanySettings; base64: keyof CompanySettings; mime: keyof CompanySettings; filename: string; title: string }
+> = {
+  company: {
+    path: 'logo_path',
+    base64: 'logo_base64',
+    mime: 'logo_mime',
+    filename: 'company_logo',
+    title: 'Choisir le logo de la société',
+  },
+  client: {
+    path: 'client_logo_path',
+    base64: 'client_logo_base64',
+    mime: 'client_logo_mime',
+    filename: 'client_logo',
+    title: 'Choisir le logo du client',
+  },
+};
+
+async function uploadSettingsLogo(kind: SettingsLogoKind): Promise<UploadLogoResult | null> {
+  const fields = SETTINGS_LOGO_FIELDS[kind];
+  const { filePaths, canceled } = await dialog.showOpenDialog({
+    title: fields.title,
+    filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'svg'] }],
+    properties: ['openFile'],
+  });
+  if (canceled || filePaths.length === 0) return null;
+
+  const srcPath = filePaths[0]!;
+  const ext = path.extname(srcPath).toLowerCase();
+  const mimeMap: Record<string, string> = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.svg': 'image/svg+xml',
+  };
+  const mime = mimeMap[ext] ?? 'image/png';
+
+  const buffer = fs.readFileSync(srcPath);
+  if (buffer.length > 2 * 1024 * 1024) {
+    throw new Error('Le logo ne doit pas dépasser 2 Mo.');
+  }
+
+  const base64 = buffer.toString('base64');
+  const userDataPath = app.getPath('userData');
+  const logoDir = path.join(userDataPath, 'logos');
+  if (!fs.existsSync(logoDir)) fs.mkdirSync(logoDir, { recursive: true });
+  const destPath = path.join(logoDir, `${fields.filename}${ext}`);
+  fs.copyFileSync(srcPath, destPath);
+
+  saveCompanySettings({
+    [fields.path]: destPath,
+    [fields.base64]: base64,
+    [fields.mime]: mime,
+  });
+
+  return { base64, mime, path: destPath };
+}
+
+function removeSettingsLogo(kind: SettingsLogoKind): boolean {
+  const fields = SETTINGS_LOGO_FIELDS[kind];
+  const current = getCompanySettings();
+  const logoPath = current[fields.path] as string;
+  if (logoPath && fs.existsSync(logoPath)) {
+    try {
+      fs.unlinkSync(logoPath);
+    } catch {
+      /* ignore */
+    }
+  }
+  saveCompanySettings({
+    [fields.path]: '',
+    [fields.base64]: '',
+    [fields.mime]: '',
+  });
+  return true;
 }
 
 function registerIpcHandlers(): void {
@@ -352,60 +434,19 @@ function registerIpcHandlers(): void {
   );
 
   ipcMain.handle('settings:uploadLogo', async () =>
-    wrapAsyncHandler(async () => {
-      const { filePaths, canceled } = await dialog.showOpenDialog({
-        title: 'Choisir le logo de la société',
-        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'svg'] }],
-        properties: ['openFile'],
-      });
-      if (canceled || filePaths.length === 0) return null;
-
-      const srcPath = filePaths[0]!;
-      const ext = path.extname(srcPath).toLowerCase();
-      const mimeMap: Record<string, string> = {
-        '.png': 'image/png',
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.svg': 'image/svg+xml',
-      };
-      const mime = mimeMap[ext] ?? 'image/png';
-
-      const buffer = fs.readFileSync(srcPath);
-      if (buffer.length > 2 * 1024 * 1024) {
-        throw new Error('Le logo ne doit pas dépasser 2 Mo.');
-      }
-
-      const base64 = buffer.toString('base64');
-
-      const userDataPath = app.getPath('userData');
-      const logoDir = path.join(userDataPath, 'logos');
-      if (!fs.existsSync(logoDir)) fs.mkdirSync(logoDir, { recursive: true });
-      const destPath = path.join(logoDir, `company_logo${ext}`);
-      fs.copyFileSync(srcPath, destPath);
-
-      saveCompanySettings({
-        logo_path: destPath,
-        logo_base64: base64,
-        logo_mime: mime,
-      });
-
-      return { base64, mime, path: destPath };
-    })
+    wrapAsyncHandler(() => uploadSettingsLogo('company'))
   );
 
   ipcMain.handle('settings:removeLogo', () =>
-    wrapHandler(() => {
-      const current = getCompanySettings();
-      if (current.logo_path && fs.existsSync(current.logo_path)) {
-        try {
-          fs.unlinkSync(current.logo_path);
-        } catch {
-          /* ignore */
-        }
-      }
-      saveCompanySettings({ logo_path: '', logo_base64: '', logo_mime: '' });
-      return true;
-    })
+    wrapHandler(() => removeSettingsLogo('company'))
+  );
+
+  ipcMain.handle('settings:uploadClientLogo', async () =>
+    wrapAsyncHandler(() => uploadSettingsLogo('client'))
+  );
+
+  ipcMain.handle('settings:removeClientLogo', () =>
+    wrapHandler(() => removeSettingsLogo('client'))
   );
 
   ipcMain.handle('app:getPlatform', () => process.platform);

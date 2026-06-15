@@ -13,12 +13,15 @@ const defaultSettings: CompanySettings = {
   logo_path: '',
   logo_base64: '',
   logo_mime: '',
+  client_logo_path: '',
+  client_logo_base64: '',
+  client_logo_mime: '',
   updated_at: '',
 };
 
-function logoDataUri(settings: CompanySettings): string | null {
-  if (!settings.logo_base64 || !settings.logo_mime) return null;
-  return `data:${settings.logo_mime};base64,${settings.logo_base64}`;
+function logoDataUri(base64: string, mime: string): string | null {
+  if (!base64 || !mime) return null;
+  return `data:${mime};base64,${base64}`;
 }
 
 export function SettingsPage() {
@@ -103,7 +106,49 @@ export function SettingsPage() {
     }
   };
 
-  const previewUri = logoDataUri(settings);
+  const handleUploadClientLogo = async () => {
+    try {
+      const result = await window.bilpow.settings.uploadClientLogo();
+      if (!result) return;
+      setSettings((prev) => ({
+        ...prev,
+        client_logo_base64: result.base64,
+        client_logo_mime: result.mime,
+        client_logo_path: result.path,
+      }));
+      updateCompany({
+        client_logo_base64: result.base64,
+        client_logo_mime: result.mime,
+        client_logo_path: result.path,
+      });
+      toast.success('Logo client enregistré avec succès');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const handleRemoveClientLogo = async () => {
+    try {
+      await window.bilpow.settings.removeClientLogo();
+      setSettings((prev) => ({
+        ...prev,
+        client_logo_base64: '',
+        client_logo_mime: '',
+        client_logo_path: '',
+      }));
+      updateCompany({
+        client_logo_base64: '',
+        client_logo_mime: '',
+        client_logo_path: '',
+      });
+      toast.success('Logo client supprimé');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const companyPreviewUri = logoDataUri(settings.logo_base64, settings.logo_mime);
+  const clientPreviewUri = logoDataUri(settings.client_logo_base64, settings.client_logo_mime);
 
   return (
     <div className="flex-1 overflow-y-auto p-6">
@@ -112,7 +157,8 @@ export function SettingsPage() {
           Paramètres société
         </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-          Ces informations et le logo apparaîtront sur tous les exports Excel et PDF.
+          Les logos société et client apparaîtront sur tous les exports Excel (gauche et droite de
+          l&apos;en-tête).
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -219,7 +265,7 @@ export function SettingsPage() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-600">
                     <img
-                      src={previewUri ?? undefined}
+                      src={companyPreviewUri ?? undefined}
                       alt="Logo société"
                       className="max-h-16 max-w-[200px] object-contain"
                     />
@@ -267,9 +313,69 @@ export function SettingsPage() {
                   <li>Utilisez un logo sur fond transparent (PNG recommandé)</li>
                   <li>Résolution minimale recommandée : 300×100 px</li>
                   <li>
-                    Le logo apparaîtra en haut à gauche de chaque feuille Excel et sur la page de
-                    couverture PDF
+                    Le logo société apparaîtra en haut à gauche, le logo client en haut à droite de
+                    chaque feuille Excel
                   </li>
+                </ul>
+              </div>
+            </section>
+
+            <section className="card p-5">
+              <h2 className="font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2">
+                <span>🏢</span> Logo du client
+              </h2>
+
+              {settings.client_logo_base64 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-600">
+                    <img
+                      src={clientPreviewUri ?? undefined}
+                      alt="Logo client"
+                      className="max-h-16 max-w-[200px] object-contain"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-gray-500 truncate">{settings.client_logo_path}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleUploadClientLogo()}
+                      className="btn-secondary flex-1"
+                    >
+                      Changer le logo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleRemoveClientLogo()}
+                      className="btn-danger flex-1"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => void handleUploadClientLogo()}
+                  className="w-full border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl p-8 text-center hover:border-accent hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
+                >
+                  <div className="text-4xl mb-2">🏢</div>
+                  <p className="font-medium text-gray-700 dark:text-gray-200">
+                    Cliquez pour choisir le logo du client
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">PNG, JPG ou SVG — 2 Mo maximum</p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Recommandé : fond transparent, ratio 3:1 ou 4:1
+                  </p>
+                </button>
+              )}
+
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-gray-600 dark:text-gray-300 space-y-1">
+                <p className="font-medium">ℹ️ Ce logo remplace les informations société à droite :</p>
+                <ul className="list-disc list-inside space-y-0.5 text-gray-500 dark:text-gray-400">
+                  <li>Affiché en haut à droite de chaque export Excel</li>
+                  <li>Sans logo client, le nom du client du projet sera affiché à la place</li>
                 </ul>
               </div>
             </section>
@@ -288,10 +394,10 @@ export function SettingsPage() {
                   style={{ backgroundColor: '#1E3A5F' }}
                 >
                   <div className="w-[28%] flex items-center justify-center p-2 border-r border-white/10">
-                    {previewUri ? (
+                    {companyPreviewUri ? (
                       <img
-                        src={previewUri}
-                        alt="Logo"
+                        src={companyPreviewUri}
+                        alt="Logo société"
                         className="max-h-12 max-w-full object-contain"
                       />
                     ) : (
@@ -303,21 +409,17 @@ export function SettingsPage() {
                       BILAN DE PUISSANCE — NOM DU PROJET — RDC
                     </p>
                   </div>
-                  {/* <div className="w-[32%] flex flex-col justify-center items-end p-2 text-right">
-                    <p className="text-white font-bold text-[11px] leading-tight">
-                      {settings.company_name || 'Nom de la société'}
-                    </p>
-                    {settings.address && (
-                      <p className="text-blue-200 text-[9px] leading-tight mt-0.5 whitespace-pre-line">
-                        {settings.address}
-                      </p>
+                  <div className="w-[28%] flex items-center justify-center p-2 border-l border-white/10">
+                    {clientPreviewUri ? (
+                      <img
+                        src={clientPreviewUri}
+                        alt="Logo client"
+                        className="max-h-12 max-w-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-white/50 text-xs text-center px-1">Logo client</span>
                     )}
-                    <div className="text-blue-200 text-[8px] mt-1 space-y-0.5">
-                      {settings.phone && <p>📞 {settings.phone}</p>}
-                      {settings.email && <p>✉ {settings.email}</p>}
-                      {settings.website && <p>🌐 {settings.website}</p>}
-                    </div>
-                  </div> */}
+                  </div>
                 </div>
 
                 <div className="bg-blue-100 dark:bg-blue-900/30 px-2 py-1 text-center">

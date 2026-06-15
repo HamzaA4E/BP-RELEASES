@@ -122,38 +122,6 @@ function toCellValue(value: string | number): string | number {
   return typeof value === 'string' ? toCellString(value) : value;
 }
 
-function buildCompanyInfoRichText(company: CompanySettings): ExcelJS.CellValue {
-  type RichPart = ExcelJS.RichText;
-  const parts: RichPart[] = [];
-  const name = toCellString(company.company_name || '');
-  if (name) {
-    parts.push({
-      text: `${name}\n`,
-      font: { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 },
-    });
-  }
-  if (company.address) {
-    parts.push({
-      text: `${toCellString(company.address)}\n`,
-      font: { color: { argb: 'FFBFDBFE' }, size: 9 },
-    });
-  }
-  if (company.phone) {
-    parts.push({
-      text: `Tel: ${toCellString(company.phone)}   `,
-      font: { color: { argb: 'FFBFDBFE' }, size: 9 },
-    });
-  }
-  if (company.email) {
-    parts.push({
-      text: `Email: ${toCellString(company.email)}`,
-      font: { color: { argb: 'FFBFDBFE' }, size: 9 },
-    });
-  }
-  if (parts.length === 0) return '';
-  return { richText: parts };
-}
-
 function isValidImageBase64(b64: string): boolean {
   try {
     const buf = Buffer.from(stripBase64Prefix(b64), 'base64');
@@ -163,32 +131,59 @@ function isValidImageBase64(b64: string): boolean {
   }
 }
 
+function addWorksheetImageLogo(
+  workbook: ExcelJS.Workbook,
+  worksheet: ExcelJS.Worksheet,
+  base64: string,
+  mime: string,
+  tlCol: number,
+  brCol: number
+): boolean {
+  if (!base64 || !mime || mime === 'image/svg+xml' || !isValidImageBase64(base64)) {
+    return false;
+  }
+  const ext = mime.toLowerCase().includes('png') ? 'png' : 'jpeg';
+  const imageId = workbook.addImage({
+    base64: stripBase64Prefix(base64),
+    extension: ext,
+  });
+  worksheet.addImage(imageId, {
+    tl: { col: tlCol, row: 0 },
+    br: { col: brCol, row: 1 },
+    editAs: 'oneCell',
+  } as ExcelJS.ImageRange & { editAs: string });
+  return true;
+}
+
 function addWorksheetLogo(
   workbook: ExcelJS.Workbook,
   worksheet: ExcelJS.Worksheet,
   company: CompanySettings
 ): boolean {
-  if (
-    !company.logo_base64 ||
-    !company.logo_mime ||
-    company.logo_mime === 'image/svg+xml' ||
-    !isValidImageBase64(company.logo_base64)
-  ) {
-    return false;
-  }
-  const mime = company.logo_mime.toLowerCase();
-  const ext = mime.includes('png') ? 'png' : 'jpeg';
-  const imageId = workbook.addImage({
-    base64: stripBase64Prefix(company.logo_base64),
-    extension: ext,
-  });
-  // Ancrage sur la ligne 1 uniquement — évite le conflit avec la fusion de la ligne 2.
-  worksheet.addImage(imageId, {
-    tl: { col: 0, row: 0 },
-    br: { col: 2, row: 1 },
-    editAs: 'oneCell',
-  } as ExcelJS.ImageRange & { editAs: string });
-  return true;
+  return addWorksheetImageLogo(
+    workbook,
+    worksheet,
+    company.logo_base64,
+    company.logo_mime,
+    0,
+    2
+  );
+}
+
+function addWorksheetClientLogo(
+  workbook: ExcelJS.Workbook,
+  worksheet: ExcelJS.Worksheet,
+  company: CompanySettings,
+  colCount: number
+): boolean {
+  return addWorksheetImageLogo(
+    workbook,
+    worksheet,
+    company.client_logo_base64,
+    company.client_logo_mime,
+    5,
+    colCount
+  );
 }
 
 function applyProjectInfoStyle(cell: ExcelJS.Cell, isLabel: boolean): void {
@@ -272,13 +267,22 @@ function addCompanyHeader(
   titleCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
   const infoCell = worksheet.getCell(1, 6);
-  infoCell.value = buildCompanyInfoRichText(company);
   infoCell.fill = {
     type: 'pattern',
     pattern: 'solid',
     fgColor: { argb: PRIMARY_COLOR },
   };
-  infoCell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true };
+  infoCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+  const clientLogoEmbedded = addWorksheetClientLogo(workbook, worksheet, company, colCount);
+  if (!clientLogoEmbedded) {
+    if (company.client_logo_base64 && company.client_logo_mime === 'image/svg+xml') {
+      svgSkipped = true;
+    }
+    const clientFallback = projectInfo.client?.trim() || 'Logo client';
+    infoCell.value = toCellString(clientFallback);
+    infoCell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+  }
 
   writeProjectInfoZone(worksheet, 2, 1, projetEndCol, 'Projet', true);
   writeProjectInfoZone(worksheet, 2, clientStartCol, clientEndCol, 'Client', true);
