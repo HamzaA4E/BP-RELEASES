@@ -320,7 +320,7 @@ function hasColumn(database: Database.Database, table: string, column: string): 
 }
 
 export function ensureElementArticlesSchema(database: Database.Database): void {
-  console.log('[DB] ensureElementArticlesSchema — début');
+  
   database.exec(`
     CREATE TABLE IF NOT EXISTS element_articles (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -331,7 +331,7 @@ export function ensureElementArticlesSchema(database: Database.Database): void {
       order_index INTEGER DEFAULT 0
     );
   `);
-  console.log('[DB] ensureElementArticlesSchema — fin');
+ 
   if (!hasColumn(database, 'element_articles', 'coef_ks')) {
     database.exec(`ALTER TABLE element_articles ADD COLUMN coef_ks REAL DEFAULT 1.0`);
     database.exec(`ALTER TABLE element_articles ADD COLUMN coef_ku REAL DEFAULT 1.0`);

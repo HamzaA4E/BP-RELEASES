@@ -418,6 +418,7 @@ function createPanelSheet(
     company: CompanySettings;
     sheetTitle: string;
     sheetName: string;
+    ksGlobal?: number;
   }
 ): PanelSheetResult {
   const sheetName = uniqueSheetName(workbook, data.sheetName);
@@ -625,21 +626,58 @@ function createPanelSheet(
   const totalPowerCell = `${colLetter(COL_DYNAMIC.TOTAL)}${totalRowNum}`;
   const summaryStart = totalRowNum + 2;
 
-  sheet.getCell(summaryStart, 1).value = 'Puissance installée :';
-  sheet.getCell(summaryStart, 1).font = { bold: true, size: 10 };
-  sheet.getCell(summaryStart, 2).value = { formula: totalPowerCell };
-  sheet.getCell(summaryStart, 2).numFmt = '0.00 "kW"';
-  // sheet.getCell(summaryStart, 3).value = 'kW';
+  const ksGlobalRow = summaryStart;
+  const puissanceGlobaleRow = ksGlobalRow + 1;
+  const intensiteRow = puissanceGlobaleRow + 1;
 
-  const currentRowNum = summaryStart + 1;
-  sheet.getCell(currentRowNum, 1).value = 'Intensité de calcul :';
-  sheet.getCell(currentRowNum, 1).font = { bold: true, size: 10 };
-  const currentCellAddress = `${colLetter(2)}${currentRowNum}`;
-  sheet.getCell(currentRowNum, 2).value = {
-    formula: excelCurrentFormula(totalPowerCell),
+  // Ks global
+  sheet.getCell(ksGlobalRow, 1).value = 'Ks global :';
+  sheet.getCell(ksGlobalRow, 1).font = { bold: true, size: 10 };
+
+  const ksGlobalCell = sheet.getCell(ksGlobalRow, 2);
+  ksGlobalCell.value = data.ksGlobal ?? 1;
+  ksGlobalCell.numFmt = '0.00';
+  ksGlobalCell.font = { bold: true, size: 10, color: { argb: 'FF1E3A5F' } };
+  ksGlobalCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFFEF9C3' },
   };
-  sheet.getCell(currentRowNum, 2).numFmt = '0.00 "A"';
+  ksGlobalCell.border = {
+    top: { style: 'medium', color: { argb: 'FF1E3A5F' } },
+    left: { style: 'medium', color: { argb: 'FF1E3A5F' } },
+    bottom: { style: 'medium', color: { argb: 'FF1E3A5F' } },
+    right: { style: 'medium', color: { argb: 'FF1E3A5F' } },
+  };
+  ksGlobalCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
+  sheet.getCell(ksGlobalRow, 3).font = { italic: true, size: 9, color: { argb: 'FF9CA3AF' } };
+
+  // Puissance globale = puissance installée × Ks global
+  sheet.getCell(puissanceGlobaleRow, 1).value = 'Puissance globale :';
+  sheet.getCell(puissanceGlobaleRow, 1).font = { bold: true, size: 10 };
+
+  const ksGlobalCellAddress = `${colLetter(2)}${ksGlobalRow}`;
+  const puissanceGlobaleCell = `${colLetter(2)}${puissanceGlobaleRow}`;
+  sheet.getCell(puissanceGlobaleRow, 2).value = {
+    formula: `${totalPowerCell}*${ksGlobalCellAddress}`,
+  };
+  sheet.getCell(puissanceGlobaleRow, 2).numFmt = '0.00 "kW"';
+  sheet.getCell(puissanceGlobaleRow, 2).font = { bold: true, size: 10, color: { argb: 'FF1E3A5F' } };
+  sheet.getCell(puissanceGlobaleRow, 2).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: TOTAL_ROW_COLOR },
+  };
+
+  // Intensité de calcul basée sur la puissance globale
+  sheet.getCell(intensiteRow, 1).value = 'Intensité de calcul :';
+  sheet.getCell(intensiteRow, 1).font = { bold: true, size: 10 };
+  const currentCellAddress = `${colLetter(2)}${intensiteRow}`;
+  sheet.getCell(intensiteRow, 2).value = {
+    formula: excelCurrentFormula(puissanceGlobaleCell),
+  };
+  sheet.getCell(intensiteRow, 2).numFmt = '0.00 "A"';
   // Dynamic column widths based on whether Ku is shown
   sheet.columns = showKu
 ? [
@@ -761,6 +799,7 @@ function buildWorkbookFromPanels(
     panelName: string;
     elements: ElementRow[];
     sheetName?: string;
+    ksGlobal?: number;
   }>,
   syntheseTitle: string
 ): { filePath: null; warning?: string } | { svgWarning: boolean; panelMetas: PanelSheetMeta[] } {
@@ -778,6 +817,7 @@ function buildWorkbookFromPanels(
       company,
       sheetTitle,
       sheetName: panel.sheetName ?? panel.panelName,
+      ksGlobal: panel.ksGlobal,
     });
     if (result.svgSkipped) svgWarning = true;
     panelMetas.push(result.meta);
@@ -819,6 +859,7 @@ export async function exportLocationToExcel(
     locationName: location.name,
     panelName: panel.name,
     elements: getElementsByPanel(panel.id),
+    ksGlobal: panel.coef_ks ?? 1,
   }));
 
   const buildResult = buildWorkbookFromPanels(
@@ -863,6 +904,7 @@ export async function exportProjectToExcel(
     panelName: string;
     elements: ElementRow[];
     sheetName: string;
+    ksGlobal: number;
   }> = [];
 
   for (const location of payload.locations) {
@@ -876,6 +918,7 @@ export async function exportProjectToExcel(
         panelName: panel.name,
         elements,
         sheetName: baseSheetName,
+        ksGlobal: panel.coef_ks ?? 1,
       });
     }
   }
@@ -894,6 +937,7 @@ export async function exportProjectToExcel(
       company,
       sheetTitle,
       sheetName: panel.sheetName,
+      ksGlobal: panel.ksGlobal,
     });
     if (result.svgSkipped) svgWarning = true;
     allPanelMetas.push(result.meta);

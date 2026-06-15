@@ -15,6 +15,7 @@ export interface PanelRow {
   description: string | null;
   general_breaker_ampere: number;
   order_index: number;
+  coef_ks?: number;
 }
 
 export interface PanelWithStatsRow extends PanelRow {
@@ -95,27 +96,52 @@ export function updatePanel(data: {
   name?: string;
   description?: string;
   general_breaker_ampere?: number;
+  coef_ks?: number;
 }): PanelRow {
   const db = getDatabase();
   const existing = getPanelById(data.id);
   if (!existing) throw new Error('Panel not found');
 
-  db.prepare(
-    `UPDATE panels SET
-      name = @name,
-      description = @description,
-      general_breaker_ampere = @general_breaker_ampere
-    WHERE id = @id`
-  ).run({
-    id: data.id,
-    name: data.name ?? existing.name,
-    description:
-      data.description !== undefined ? data.description : existing.description,
-    general_breaker_ampere:
-      data.general_breaker_ampere !== undefined
-        ? data.general_breaker_ampere
-        : existing.general_breaker_ampere,
-  });
+  const cols = db.pragma('table_info(panels)') as Array<{ name: string }>;
+  const hasCoefKs = cols.some((c) => c.name === 'coef_ks');
+
+  if (hasCoefKs) {
+    db.prepare(
+      `UPDATE panels SET
+        name = @name,
+        description = @description,
+        general_breaker_ampere = @general_breaker_ampere,
+        coef_ks = @coef_ks
+      WHERE id = @id`
+    ).run({
+      id: data.id,
+      name: data.name ?? existing.name,
+      description:
+        data.description !== undefined ? data.description : existing.description,
+      general_breaker_ampere:
+        data.general_breaker_ampere !== undefined
+          ? data.general_breaker_ampere
+          : existing.general_breaker_ampere,
+      coef_ks: data.coef_ks !== undefined ? data.coef_ks : (existing.coef_ks ?? 1),
+    });
+  } else {
+    db.prepare(
+      `UPDATE panels SET
+        name = @name,
+        description = @description,
+        general_breaker_ampere = @general_breaker_ampere
+      WHERE id = @id`
+    ).run({
+      id: data.id,
+      name: data.name ?? existing.name,
+      description:
+        data.description !== undefined ? data.description : existing.description,
+      general_breaker_ampere:
+        data.general_breaker_ampere !== undefined
+          ? data.general_breaker_ampere
+          : existing.general_breaker_ampere,
+    });
+  }
 
   const panel = getPanelById(data.id);
   if (!panel) throw new Error('Failed to update panel');
@@ -138,6 +164,10 @@ export function duplicatePanel(id: number): PanelRow {
     description: source.description ?? undefined,
     general_breaker_ampere: source.general_breaker_ampere,
   });
+
+  if (source.coef_ks != null) {
+    updatePanel({ id: newPanel.id, coef_ks: source.coef_ks });
+  }
 
   const elements = getElementsByPanel(id);
   for (const el of elements) {

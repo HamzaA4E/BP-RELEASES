@@ -52,14 +52,35 @@ type ElementSavePayload = {
 };
 import { formatPower } from '@/utils/calculations';
 
-function KsGlobalPanel({ totalPowerW }: { totalPowerW: number }) {
-  const [ks, setKs] = useState(1);
-  const corrected = totalPowerW * ks;
+function KsGlobalPanel({
+  totalPowerW,
+  ks,
+  onKsChange,
+}: {
+  totalPowerW: number;
+  ks: number;
+  onKsChange: (ks: number) => void;
+}) {
+  const [localKs, setLocalKs] = useState(ks);
+
+  useEffect(() => {
+    setLocalKs(ks);
+  }, [ks]);
+
+  const corrected = totalPowerW * localKs;
+
+  const commitKs = () => {
+    const clamped = Math.min(1, Math.max(0, localKs));
+    setLocalKs(clamped);
+    if (clamped !== ks) {
+      onKsChange(clamped);
+    }
+  };
 
   return (
     <div className="card p-4 border border-blue-100 dark:border-blue-900">
       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
-        Puissance corrigée
+        Puissance globale
       </h3>
       <div className="flex flex-wrap items-center gap-6">
         <div className="flex items-center gap-2">
@@ -71,8 +92,11 @@ function KsGlobalPanel({ totalPowerW }: { totalPowerW: number }) {
             min={0}
             max={1}
             step={0.01}
-            value={ks}
-            onChange={(e) => setKs(Math.min(1, Math.max(0, parseFloat(e.target.value) || 0)))}
+            value={localKs}
+            onChange={(e) =>
+              setLocalKs(Math.min(1, Math.max(0, parseFloat(e.target.value) || 0)))
+            }
+            onBlur={commitKs}
             className="input-field w-24 text-center font-mono"
           />
         </div>
@@ -86,7 +110,7 @@ function KsGlobalPanel({ totalPowerW }: { totalPowerW: number }) {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            Puissance corrigée :
+            Puissance globale :
           </span>
           <span className="text-lg font-bold text-blue-700 dark:text-blue-400">
             {formatPower(corrected)}
@@ -181,6 +205,18 @@ export function PanelView() {
       setPanels(pnl);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erreur');
+    }
+  };
+
+  const saveKsGlobal = async (coef_ks: number) => {
+    setPanel((p) => ({ ...p, coef_ks }));
+    try {
+      await window.bilpow.panels.update({ id: panId, coef_ks });
+      const pnl = await window.bilpow.panels.getByLocation(lId);
+      setPanels(pnl);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur');
+      await loadData();
     }
   };
 
@@ -554,7 +590,11 @@ export function PanelView() {
           onArticleUpdate={handleArticleUpdate}
           onArticleDelete={handleArticleDelete}
         />
-          <KsGlobalPanel totalPowerW={totalPower} />
+          <KsGlobalPanel
+            totalPowerW={totalPower}
+            ks={panel.coef_ks ?? 1}
+            onKsChange={(ks) => void saveKsGlobal(ks)}
+          />
 
         
       </div>

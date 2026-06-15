@@ -42,6 +42,7 @@ export interface Panel {
   description: string | null;
   general_breaker_ampere: number;
   order_index: number;
+  coef_ks?: number;
 }
 
 export interface PanelWithStats extends Panel {
@@ -154,6 +155,7 @@ export interface UpdatePanelInput {
   name?: string;
   description?: string;
   general_breaker_ampere?: number;
+  coef_ks?: number;
 }
 
 export interface CreateElementInput {
