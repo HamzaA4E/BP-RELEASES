@@ -9,7 +9,7 @@ export function Favorites() {
   const { favorites, setFavorites } = useAppStore();
   const [type, setType] = useState<ElementType>('eclairage');
   const [designation, setDesignation] = useState('');
-  const [powerW, setPowerW] = useState(0);
+  const [powerW, setPowerW] = useState<number | ''>('');
   const [color, setColor] = useState('#3B82F6');
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
@@ -114,12 +114,15 @@ export function Favorites() {
                   Puissance (W) *
                 </label>
                 <input
-                  type="number"
-                  min={1}
-                  value={powerW}
-                  onChange={(e) => setPowerW(Number(e.target.value))}
-                  className="input-field"
-                />
+                type="number"
+                min={1}
+                placeholder='0'
+                value={powerW}
+                onChange={(e) =>
+                  setPowerW(e.target.value === '' ? '' : Number(e.target.value))
+                }
+                className="input-field"
+              />
               </div>
               {/* <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Couleur</label>
