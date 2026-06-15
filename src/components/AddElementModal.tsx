@@ -695,7 +695,7 @@ export function AddElementModal({
               )}
             </div>
 
-            <div>
+            {/* <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Notes</label>
               <textarea
                 value={formData.notes}
@@ -704,7 +704,7 @@ export function AddElementModal({
                 rows={2}
                 placeholder="Notes optionnelles"
               />
-            </div>
+            </div> */}
 
             {!isEdit && !isAddTypeMode && (
               <div className="rounded-lg border border-slate-200 dark:border-slate-600 p-4 space-y-3">

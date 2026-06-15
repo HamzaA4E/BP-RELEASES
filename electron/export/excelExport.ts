@@ -184,8 +184,8 @@ function addWorksheetLogo(
   });
   // Ancrage sur la ligne 1 uniquement — évite le conflit avec la fusion de la ligne 2.
   worksheet.addImage(imageId, {
-    tl: { col: 0.05, row: 0.05 },
-    br: { col: 2.95, row: 0.95 },
+    tl: { col: 0, row: 0 },
+    br: { col: 2, row: 1 },
     editAs: 'oneCell',
   } as ExcelJS.ImageRange & { editAs: string });
   return true;

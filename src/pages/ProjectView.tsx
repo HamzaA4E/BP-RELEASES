@@ -198,7 +198,7 @@ export function ProjectView() {
                 className="input-field"
               />
             </div>
-            <div className="md:col-span-2">
+            {/* <div className="md:col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
               <textarea
                 value={editFields.description}
@@ -209,7 +209,7 @@ export function ProjectView() {
                 className="input-field resize-none"
                 rows={2}
               />
-            </div>
+            </div> */}
           </div>
         </div>
 
