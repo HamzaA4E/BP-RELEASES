@@ -191,6 +191,35 @@ function addWorksheetLogo(
   return true;
 }
 
+function applyProjectInfoStyle(cell: ExcelJS.Cell, isLabel: boolean): void {
+  cell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: PROJECT_INFO_COLOR },
+  };
+  cell.font = isLabel
+    ? { bold: true, size: 10, color: { argb: 'FF1E3A5F' } }
+    : { size: 11, color: { argb: 'FF1E3A5F' } };
+  cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  applyBorder(cell);
+}
+
+function writeProjectInfoZone(
+  worksheet: ExcelJS.Worksheet,
+  row: number,
+  startCol: number,
+  endCol: number,
+  value: string,
+  isLabel: boolean
+): void {
+  if (endCol > startCol) {
+    safeMergeCells(worksheet, row, startCol, row, endCol);
+  }
+  const cell = worksheet.getCell(row, startCol);
+  cell.value = toCellString(value);
+  applyProjectInfoStyle(cell, isLabel);
+}
+
 function addCompanyHeader(
   worksheet: ExcelJS.Worksheet,
   workbook: ExcelJS.Workbook,
@@ -200,8 +229,13 @@ function addCompanyHeader(
   colCount: number = 7
 ): { headerRow: number; svgSkipped: boolean } {
   worksheet.getRow(1).height = 55;
-  worksheet.getRow(2).height = 27;
-  worksheet.getRow(3).height = 0;
+  worksheet.getRow(2).height = 22;
+  worksheet.getRow(3).height = 24;
+
+  const projetEndCol = 4;
+  const clientStartCol = 5;
+  const clientEndCol = colCount >= 8 ? 7 : 6;
+  const dateCol = colCount;
 
   let svgSkipped = false;
 
@@ -209,7 +243,6 @@ function addCompanyHeader(
   safeMergeCells(worksheet, 1, 1, 1, 2);
   safeMergeCells(worksheet, 1, 3, 1, 5);
   safeMergeCells(worksheet, 1, 6, 1, colCount);
-  safeMergeCells(worksheet, 2, 1, 2, colCount);
 
   const logoCell = worksheet.getCell(1, 1);
   logoCell.fill = {
@@ -247,20 +280,22 @@ function addCompanyHeader(
   };
   infoCell.alignment = { vertical: 'middle', horizontal: 'right', wrapText: true };
 
-  const projectCell = worksheet.getCell(2, 1);
-  const clientPart = projectInfo.client ? ` | Client : ${projectInfo.client}` : '';
-  projectCell.value = toCellString(
-    `Projet : ${projectInfo.name}${clientPart} | Date : ${formatExportDate()}`
-  );
-  projectCell.font = { size: 18, color: { argb: 'FF1E3A5F' } };
-  projectCell.fill = {
-    type: 'pattern',
-    pattern: 'solid',
-    fgColor: { argb: PROJECT_INFO_COLOR },
-  };
-  projectCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  writeProjectInfoZone(worksheet, 2, 1, projetEndCol, 'Projet', true);
+  writeProjectInfoZone(worksheet, 2, clientStartCol, clientEndCol, 'Client', true);
+  writeProjectInfoZone(worksheet, 2, dateCol, dateCol, 'Date', true);
 
-  return { headerRow: 4, svgSkipped };
+  writeProjectInfoZone(worksheet, 3, 1, projetEndCol, projectInfo.name, false);
+  writeProjectInfoZone(
+    worksheet,
+    3,
+    clientStartCol,
+    clientEndCol,
+    projectInfo.client?.trim() || '—',
+    false
+  );
+  writeProjectInfoZone(worksheet, 3, dateCol, dateCol, formatExportDate(), false);
+
+  return { headerRow: 5, svgSkipped };
 }
 
 function isJeuDeBarresRow(el: { type?: string; row_kind?: string }): boolean {
@@ -741,7 +776,7 @@ function createPanelSheet(
 
   sheet.views = [{ state: 'frozen', ySplit: headerRow }];
   sheet.pageSetup = {
-    printTitlesRow: '1:4',  // répète les lignes 1 à 4 (header + colonnes) sur chaque page imprimée
+    printTitlesRow: '1:5',  // répète les lignes 1 à 5 (header + colonnes) sur chaque page imprimée
     paperSize: 9,           // A4
     orientation: 'portrait',
     fitToPage: true,
