@@ -663,7 +663,22 @@ function createPanelSheet(
   ];
 
   sheet.views = [{ state: 'frozen', ySplit: headerRow }];
-
+  sheet.pageSetup = {
+    printTitlesRow: '1:4',  // répète les lignes 1 à 4 (header + colonnes) sur chaque page imprimée
+    paperSize: 9,           // A4
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    margins: {
+      left: 0.5,
+      right: 0.5,
+      top: 0.75,
+      bottom: 0.75,
+      header: 0.3,
+      footer: 0.3,
+    },
+  };
   return {
     svgSkipped,
     meta: {
