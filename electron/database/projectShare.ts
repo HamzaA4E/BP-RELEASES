@@ -221,13 +221,27 @@ export function importProjectFromBilpow(file: BilpowFile): {
   const db = getDatabase();
 
   // Vérifier si le projet existe déjà par son original_id (si disponible)
-  const existingProject = db
+  const existingProjectByOriginalId = db
     .prepare('SELECT id, name FROM projects WHERE original_id = ?')
     .get(file.project.id) as { id: number; name: string } | undefined;
 
-  if (existingProject) {
+  if (existingProjectByOriginalId) {
     // Le projet existe déjà, retourner ses informations
-    return { projectId: existingProject.id, projectName: existingProject.name, isNew: false };
+    return { projectId: existingProjectByOriginalId.id, projectName: existingProjectByOriginalId.name, isNew: false };
+  }
+
+  // Vérifier si le projet existe déjà par son id local (pour les projets exportés avant la migration)
+  const existingProjectById = db
+    .prepare('SELECT id, name, original_id FROM projects WHERE id = ?')
+    .get(file.project.id) as { id: number; name: string; original_id: number | null } | undefined;
+
+  if (existingProjectById) {
+    // Si le projet n'a pas d'original_id, c'est probablement le même projet
+    if (!existingProjectById.original_id) {
+      // Mettre à jour le projet avec l'original_id pour les futures imports
+      db.prepare('UPDATE projects SET original_id = ? WHERE id = ?').run(file.project.id, file.project.id);
+      return { projectId: existingProjectById.id, projectName: existingProjectById.name, isNew: false };
+    }
   }
 
   // Le projet n'existe pas, l'importer
