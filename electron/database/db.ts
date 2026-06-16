@@ -237,11 +237,6 @@ function elementsTypeAllowsJeuDeBarres(database: Database.Database): boolean {
   return sql != null && sql.includes("'jeu_de_barres'");
 }
 
-function elementsTypeAllowsDivers(database: Database.Database): boolean {
-  const sql = getElementsTableSql(database);
-  return sql != null && sql.includes("'divers'");
-}
-
 function recreateElementsTable(database: Database.Database): void {
   ensureElementsColumns(database);
   const run = database.transaction(() => {
@@ -253,7 +248,22 @@ function recreateElementsTable(database: Database.Database): void {
 function migrateElementsTypeToDivers(database: Database.Database): void {
   if (!tableExists(database, 'elements')) return;
 
-  if (!elementsTypeAllowsDivers(database)) {
+  // Vérifier si la table a la contrainte CHECK avec 'attente'
+  const sql = getElementsTableSql(database);
+  if (sql && sql.includes("'attente'")) {
+    // S'assurer que toutes les colonnes existent avant la migration
+    ensureElementsColumns(database);
+    // Créer une nouvelle table sans contrainte CHECK pour permettre la migration
+    database.exec(`
+      CREATE TABLE elements_temp AS SELECT * FROM elements;
+    `);
+    // Supprimer l'ancienne table
+    database.exec(`DROP TABLE elements;`);
+    // Renommer la table temporaire
+    database.exec(`ALTER TABLE elements_temp RENAME TO elements;`);
+    // Maintenant mettre à jour les éléments de type 'attente' vers 'divers'
+    database.exec(`UPDATE elements SET type = 'divers' WHERE type = 'attente';`);
+    // Recréer la table avec la nouvelle contrainte
     recreateElementsTable(database);
   }
 }

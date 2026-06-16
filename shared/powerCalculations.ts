@@ -70,7 +70,7 @@ export function calcPuissanceTotale(
   el: PowerElementInput,
   articles?: ArticlePowerInput[]
 ): number {
-  if (el.type === 'attente' || el.type === 'jeu_de_barres') return 0;
+  if (el.type === 'divers' || el.type === 'jeu_de_barres') return 0;
   if (el.is_multi && articles && articles.length > 0) {
     return articlesTotalPower(articles);
   }
@@ -84,7 +84,7 @@ export function panelTotalPower(
   articlesByElementId?: Record<number, ArticlePowerInput[]>
 ): number {
   return elements
-    .filter((el) => el.type !== 'jeu_de_barres' && el.type !== 'attente')
+    .filter((el) => el.type !== 'jeu_de_barres' && el.type !== 'divers')
     .reduce((sum, el) => {
       const articles =
         el.id != null && el.is_multi ? articlesByElementId?.[el.id] : undefined;

@@ -310,7 +310,7 @@ function departCategoryOf(el: {
   type?: string;
   phase_type?: string | null;
 }): string {
-  if (el.type === 'attente') return 'attente';
+  if (el.type === 'divers') return 'divers';
   if (el.type === 'eclairage') return 'eclairage';
   if (el.type === 'prise') {
     return el.phase_type === 'tri' ? 'prise-tri' : 'prise-mono';

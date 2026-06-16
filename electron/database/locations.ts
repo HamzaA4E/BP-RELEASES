@@ -23,7 +23,7 @@ export function getLocationsByProject(projectId: number): LocationWithStatsRow[]
           SELECT SUM(${ELEMENT_INSTALLED_POWER_SQL})
           FROM elements e
           JOIN panels pa ON e.panel_id = pa.id
-          WHERE pa.location_id = l.id AND e.type NOT IN ('jeu_de_barres', 'attente')
+          WHERE pa.location_id = l.id AND e.type NOT IN ('jeu_de_barres', 'divers')
         ), 0) as total_power_w
       FROM locations l
       WHERE l.project_id = ?

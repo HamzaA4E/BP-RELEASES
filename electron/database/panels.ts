@@ -33,7 +33,7 @@ export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
         (SELECT COUNT(*) FROM elements e WHERE e.panel_id = p.id) as element_count,
         COALESCE((
           SELECT SUM(${ELEMENT_INSTALLED_POWER_SQL}) FROM elements e
-          WHERE e.panel_id = p.id AND e.type != 'jeu_de_barres' AND e.type != 'attente'
+          WHERE e.panel_id = p.id AND e.type != 'jeu_de_barres' AND e.type != 'divers'
         ), 0) as installed_power_w
       FROM panels p
       WHERE p.location_id = ?
