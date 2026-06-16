@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS panels (
 CREATE TABLE IF NOT EXISTS elements (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   panel_id INTEGER NOT NULL REFERENCES panels(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'attente', 'jeu_de_barres')),
+  type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'divers', 'jeu_de_barres')),
   repere TEXT NOT NULL,
   designation TEXT NOT NULL,
   power_w REAL NOT NULL DEFAULT 0,
@@ -180,9 +180,10 @@ export function getDatabase(): Database.Database {
 
   db.exec(MIGRATIONS);
   recoverInterruptedElementsMigration(db);
-  ensureElementsColumns(db);  
+  ensureElementsColumns(db);
   migratePanelCoefficients(db);
   migrateElementsTable(db);
+  migrateElementsTypeToDivers(db);
   migrateElementArticles(db);
   migrateCompanySettings(db);
   migrateFavoritesTable(db);
@@ -236,12 +237,25 @@ function elementsTypeAllowsJeuDeBarres(database: Database.Database): boolean {
   return sql != null && sql.includes("'jeu_de_barres'");
 }
 
+function elementsTypeAllowsDivers(database: Database.Database): boolean {
+  const sql = getElementsTableSql(database);
+  return sql != null && sql.includes("'divers'");
+}
+
 function recreateElementsTable(database: Database.Database): void {
   ensureElementsColumns(database);
   const run = database.transaction(() => {
     database.exec(RECREATE_ELEMENTS_SQL);
   });
   run();
+}
+
+function migrateElementsTypeToDivers(database: Database.Database): void {
+  if (!tableExists(database, 'elements')) return;
+
+  if (!elementsTypeAllowsDivers(database)) {
+    recreateElementsTable(database);
+  }
 }
 
 /** Add every optional column on elements if missing (each column checked separately). */
