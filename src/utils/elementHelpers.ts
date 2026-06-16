@@ -289,7 +289,7 @@ export function typeBadge(element: Element): {
   }
   if (element.type === 'divers') {
     return {
-      label: '� Divers',
+      label: '📦 Divers',
       className: 'bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-400',
     };
   }

@@ -110,7 +110,7 @@ const RECREATE_ELEMENTS_SQL = `
   CREATE TABLE elements_new (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     panel_id INTEGER NOT NULL REFERENCES panels(id) ON DELETE CASCADE,
-    type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'attente', 'jeu_de_barres')),
+    type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'divers', 'jeu_de_barres')),
     repere TEXT NOT NULL,
     designation TEXT NOT NULL,
     type_label TEXT DEFAULT '',

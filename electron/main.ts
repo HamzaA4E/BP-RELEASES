@@ -318,30 +318,8 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(
     'panel:saveChanges',
-    async (_event, payload: PanelSavePayload) => {
-      try {
-        // Appliquer les changements dans la base de données
-        await applyPanelChanges(payload.panelId, payload.changes);
-        return { success: true };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Erreur inconnue';
-        console.error('[panel:saveChanges]', message, err);
-        return { success: false, error: message };
-      }
-    }
-  );
-
-  ipcMain.handle(
-    'panel:showSaveDialog',
-    async (_e, defaultName: string) => {
-      const { canceled, filePath } = await dialog.showSaveDialog({
-        title: 'Enregistrer le projet',
-        defaultPath: `${defaultName}.bilpow`,
-        filters: [{ name: 'Projet BilPow', extensions: ['bilpow'] }],
-      });
-      if (canceled || !filePath) return { canceled: true, filePath: null };
-      return { canceled: false, filePath };
-    }
+    (_e, payload: PanelSavePayload) =>
+      wrapHandler(() => applyPanelChanges(payload.panelId, payload.changes))
   );
 
   ipcMain.handle('elements:getByPanel', (_e, panelId: number) =>
@@ -494,18 +472,6 @@ function registerIpcHandlers(): void {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue';
       console.error('[project:export]', message);
-      return { success: false, error: message };
-    }
-  });
-
-  ipcMain.handle('project:exportWithPath', async (_e, projectId: number, filePath: string) => {
-    try {
-      const data = exportProjectForBilpow(projectId);
-      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-      return { success: true, filePath };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erreur inconnue';
-      console.error('[project:exportWithPath]', message);
       return { success: false, error: message };
     }
   });
