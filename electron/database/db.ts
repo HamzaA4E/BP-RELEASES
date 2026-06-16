@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS projects (
   client TEXT,
   description TEXT,
   created_at TEXT DEFAULT (datetime('now')),
-  updated_at TEXT DEFAULT (datetime('now'))
+  updated_at TEXT DEFAULT (datetime('now')),
+  original_id INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS locations (
@@ -182,6 +183,7 @@ export function getDatabase(): Database.Database {
   recoverInterruptedElementsMigration(db);
   ensureElementsColumns(db);
   migratePanelCoefficients(db);
+  migrateProjectsOriginalId(db);
   migrateElementsTable(db);
   migrateElementsTypeToDivers(db);
   migrateElementArticles(db);
@@ -311,6 +313,17 @@ function migratePanelCoefficients(database: Database.Database): void {
     database.exec(`ALTER TABLE panels ADD COLUMN coef_ks REAL DEFAULT 0.8`);
     database.exec(`ALTER TABLE panels ADD COLUMN coef_ku REAL DEFAULT 1.0`);
     database.exec(`ALTER TABLE panels ADD COLUMN coef_fp REAL DEFAULT 1.0`);
+  }
+}
+
+function migrateProjectsOriginalId(database: Database.Database): void {
+  if (!tableExists(database, 'projects')) return;
+
+  const cols = database.pragma('table_info(projects)') as Array<{ name: string }>;
+  const names = new Set(cols.map((c) => c.name));
+
+  if (!names.has('original_id')) {
+    database.exec(`ALTER TABLE projects ADD COLUMN original_id INTEGER`);
   }
 }
 

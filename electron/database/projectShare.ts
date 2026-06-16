@@ -97,6 +97,7 @@ export function exportProjectForBilpow(projectId: number): BilpowFile {
     exported_at: new Date().toISOString(),
     exported_by: BILPOW_EXPORTED_BY,
     project: {
+      id: project.original_id || project.id,
       name: project.name,
       client: project.client ?? '',
       description: project.description ?? '',
@@ -215,21 +216,35 @@ function insertPanel(
 export function importProjectFromBilpow(file: BilpowFile): {
   projectId: number;
   projectName: string;
+  isNew: boolean;
 } {
   const db = getDatabase();
+
+  // Vérifier si le projet existe déjà par son original_id (si disponible)
+  const existingProject = db
+    .prepare('SELECT id, name FROM projects WHERE original_id = ?')
+    .get(file.project.id) as { id: number; name: string } | undefined;
+
+  if (existingProject) {
+    // Le projet existe déjà, retourner ses informations
+    return { projectId: existingProject.id, projectName: existingProject.name, isNew: false };
+  }
+
+  // Le projet n'existe pas, l'importer
   const projectName = resolveImportProjectName(file.project.name);
 
   const importTx = db.transaction(() => {
     const projectResult = db
       .prepare(
-        `INSERT INTO projects (name, client, description, created_at)
-         VALUES (@name, @client, @description, @created_at)`
+        `INSERT INTO projects (name, client, description, created_at, original_id)
+         VALUES (@name, @client, @description, @created_at, @original_id)`
       )
       .run({
         name: projectName,
         client: file.project.client || null,
         description: file.project.description || null,
         created_at: file.project.created_at || new Date().toISOString(),
+        original_id: file.project.id,
       });
 
     const projectId = Number(projectResult.lastInsertRowid);
@@ -253,7 +268,7 @@ export function importProjectFromBilpow(file: BilpowFile): {
       }
     }
 
-    return { projectId, projectName };
+    return { projectId, projectName, isNew: true };
   });
 
   return importTx();

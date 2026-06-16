@@ -9,6 +9,7 @@ export const BILPOW_VERSION = '1.0';
 export const BILPOW_EXPORTED_BY = 'BilPow Desktop';
 
 export interface BilpowProjectData {
+  id: number;
   name: string;
   client: string;
   description: string;
@@ -74,6 +75,7 @@ export interface ProjectImportResult {
   success: boolean;
   projectId?: number;
   projectName?: string;
+  isNew?: boolean;
   error?: string;
 }
 

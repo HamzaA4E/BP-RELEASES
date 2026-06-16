@@ -9,6 +9,13 @@ export async function importBilpowProject(filePath?: string): Promise<boolean> {
     console.log('[IMPORT][util] Résultat IPC:', result);
 
     if (result.success && result.projectName) {
+      if (result.isNew === false) {
+        // Le projet existe déjà, ne pas recharger le store
+        console.log('[IMPORT][util] Projet existant ouvert');
+        toast.success(`Projet « ${result.projectName} » ouvert !`);
+        return true;
+      }
+
       console.log('[IMPORT][util] Succès — rechargement store...');
       const projects = await window.bilpow.projects.getAll();
       console.log('[IMPORT][util] Projets récupérés:', projects.length);

@@ -7,6 +7,7 @@ export interface ProjectRow {
   description: string | null;
   created_at: string;
   updated_at: string;
+  original_id: number | null;
 }
 
 export interface ProjectWithStatsRow extends ProjectRow {

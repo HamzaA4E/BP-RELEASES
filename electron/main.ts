@@ -514,8 +514,8 @@ function registerIpcHandlers(): void {
       }
 
       validateBilpowElements(parsed.locations ?? []);
-      const { projectId, projectName } = importProjectFromBilpow(parsed);
-      return { success: true, projectId, projectName };
+      const { projectId, projectName, isNew } = importProjectFromBilpow(parsed);
+      return { success: true, projectId, projectName, isNew };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue';
       console.error('[project:import]', message);
