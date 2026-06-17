@@ -105,14 +105,14 @@ export function LocationView() {
             </p>
           </div>
           <div className="flex gap-2">
-            <button
+            {/* <button
               type="button"
               onClick={() => void handleExport()}
               disabled={exporting || panels.length === 0}
               className="btn-secondary text-sm"
             >
               {exporting ? 'Export...' : '📊 Exporter Excel'}
-            </button>
+            </button> */}
             <button
               type="button"
               onClick={() => setShowAddPanel(true)}
