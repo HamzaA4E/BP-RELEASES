@@ -1,7 +1,7 @@
 import toast from 'react-hot-toast';
 import { useAppStore } from '@/store/useAppStore';
 
-export async function importBilpowProject(filePath?: string): Promise<boolean> {
+export async function importBilpowProject(filePath?: string): Promise<{ success: boolean; projectId?: number; isNew?: boolean }> {
   console.log('[IMPORT][util] importBilpowProject appelé', { filePath });
   try {
     console.log('[IMPORT][util] Appel window.bilpow.project.import...');
@@ -13,7 +13,7 @@ export async function importBilpowProject(filePath?: string): Promise<boolean> {
         // Le projet existe déjà, ne pas recharger le store
         console.log('[IMPORT][util] Projet existant ouvert');
         toast.success(`Projet « ${result.projectName} » ouvert !`);
-        return true;
+        return { success: true, projectId: result.projectId, isNew: false };
       }
 
       console.log('[IMPORT][util] Succès — rechargement store...');
@@ -21,7 +21,7 @@ export async function importBilpowProject(filePath?: string): Promise<boolean> {
       console.log('[IMPORT][util] Projets récupérés:', projects.length);
       useAppStore.getState().setProjects(projects);
       toast.success(`Projet « ${result.projectName} » importé avec succès !`);
-      return true;
+      return { success: true, projectId: result.projectId, isNew: true };
     }
 
     if (result.error && result.error !== 'Import annulé') {
@@ -30,7 +30,7 @@ export async function importBilpowProject(filePath?: string): Promise<boolean> {
     } else {
       console.log('[IMPORT][util] Import annulé ou pas de projectName');
     }
-    return false;
+    return { success: false };
   } catch (err) {
     console.error('[IMPORT][util] Exception non gérée:', err);
     throw err;

@@ -18,9 +18,15 @@ function AutoImportListener() {
     const unsubscribe = window.bilpow.project.onAutoImport((filePath) => {
       void (async () => {
         try {
-          const ok = await importBilpowProject(filePath);
-          if (ok) {
-            navigate('/');
+          const result = await importBilpowProject(filePath);
+          if (result.success && result.projectId) {
+            if (result.isNew === false) {
+              // Le projet existe déjà, naviguer directement vers le projet
+              navigate(`/project/${result.projectId}`);
+            } else {
+              // Nouveau projet importé, naviguer vers le dashboard
+              navigate('/');
+            }
           }
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Erreur d'import");

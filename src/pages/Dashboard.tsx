@@ -111,12 +111,18 @@ export function Dashboard() {
     setImporting(true);
     try {
       console.log('[IMPORT][renderer] Appel importBilpowProject...');
-      const ok = await importBilpowProject(filePath);
-      console.log('[IMPORT][renderer] importBilpowProject résultat:', ok);
-      if (ok) {
-        console.log('[IMPORT][renderer] Rechargement des projets...');
-        await loadProjects();
-        console.log('[IMPORT][renderer] Projets rechargés');
+      const result = await importBilpowProject(filePath);
+      console.log('[IMPORT][renderer] importBilpowProject résultat:', result);
+      if (result.success && result.projectId) {
+        if (result.isNew === false) {
+          // Le projet existe déjà, naviguer directement vers le projet
+          navigate(`/project/${result.projectId}`);
+        } else {
+          // Nouveau projet importé, recharger les projets
+          console.log('[IMPORT][renderer] Rechargement des projets...');
+          await loadProjects();
+          console.log('[IMPORT][renderer] Projets rechargés');
+        }
       }
     } catch (err) {
       console.error('[IMPORT][renderer] Erreur catch:', err);
