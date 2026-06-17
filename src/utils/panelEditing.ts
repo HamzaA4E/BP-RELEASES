@@ -1,51 +1,65 @@
-import type { Article, Element, ElementType, JdbCategory, PanelChange, PhaseType } from '@/types';
+import type {
+  Article,
+  Element,
+  ElementType,
+  JdbCategory,
+  PanelChange,
+  PhaseType,
+} from "@/types";
 
 export type LocalMutation =
-  | { op: 'setElements'; elements: Element[] }
-  | { op: 'setArticles'; articlesByElement: Record<number, Article[]> }
-  | { op: 'patchElement'; id: number; patch: Partial<Element> }
-  | { op: 'insertElement'; element: Element; index: number }
-  | { op: 'removeElement'; id: number }
-  | { op: 'reorderElements'; orderedIds: number[] }
-  | { op: 'setArticlesForElement'; elementId: number; articles: Article[] }
-  | { op: 'patchArticle'; elementId: number; articleId: number; patch: Partial<Article> }
-  | { op: 'insertArticle'; elementId: number; article: Article; index: number }
-  | { op: 'removeArticle'; elementId: number; articleId: number };
+  | { op: "setElements"; elements: Element[] }
+  | { op: "setArticles"; articlesByElement: Record<number, Article[]> }
+  | { op: "patchElement"; id: number; patch: Partial<Element> }
+  | { op: "insertElement"; element: Element; index: number }
+  | { op: "removeElement"; id: number }
+  | { op: "reorderElements"; orderedIds: number[] }
+  | { op: "setArticlesForElement"; elementId: number; articles: Article[] }
+  | {
+      op: "patchArticle";
+      elementId: number;
+      articleId: number;
+      patch: Partial<Article>;
+    }
+  | { op: "insertArticle"; elementId: number; article: Article; index: number }
+  | { op: "removeArticle"; elementId: number; articleId: number };
 
 export interface EditOperation {
   inverse: LocalMutation[];
   redo: LocalMutation[];
   pending: PanelChange[];
+  undoPending?: PanelChange[];
+  redoPending?: PanelChange[];
 }
 
 export function applyLocalMutations(
   elements: Element[],
   articlesByElement: Record<number, Article[]>,
-  mutations: LocalMutation[]
+  mutations: LocalMutation[],
 ): { elements: Element[]; articlesByElement: Record<number, Article[]> } {
   let nextElements = elements;
   let nextArticles = { ...articlesByElement };
 
   for (const mutation of mutations) {
     switch (mutation.op) {
-      case 'setElements':
+      case "setElements":
         nextElements = mutation.elements;
         break;
-      case 'setArticles':
+      case "setArticles":
         nextArticles = mutation.articlesByElement;
         break;
-      case 'patchElement':
+      case "patchElement":
         nextElements = nextElements.map((el) =>
-          el.id === mutation.id ? { ...el, ...mutation.patch } : el
+          el.id === mutation.id ? { ...el, ...mutation.patch } : el,
         );
         break;
-      case 'insertElement': {
+      case "insertElement": {
         const copy = [...nextElements];
         copy.splice(mutation.index, 0, mutation.element);
         nextElements = copy.map((el, i) => ({ ...el, order_index: i }));
         break;
       }
-      case 'removeElement': {
+      case "removeElement": {
         const { [mutation.id]: _removed, ...restArticles } = nextArticles;
         nextArticles = restArticles;
         nextElements = nextElements
@@ -53,7 +67,7 @@ export function applyLocalMutations(
           .map((el, i) => ({ ...el, order_index: i }));
         break;
       }
-      case 'reorderElements': {
+      case "reorderElements": {
         const byId = new Map(nextElements.map((el) => [el.id, el]));
         nextElements = mutation.orderedIds
           .map((id, i) => {
@@ -63,28 +77,31 @@ export function applyLocalMutations(
           .filter((el): el is Element => el != null);
         break;
       }
-      case 'setArticlesForElement':
-        nextArticles = { ...nextArticles, [mutation.elementId]: mutation.articles };
+      case "setArticlesForElement":
+        nextArticles = {
+          ...nextArticles,
+          [mutation.elementId]: mutation.articles,
+        };
         break;
-      case 'patchArticle': {
+      case "patchArticle": {
         const list = nextArticles[mutation.elementId] ?? [];
         nextArticles = {
           ...nextArticles,
           [mutation.elementId]: list.map((a) =>
-            a.id === mutation.articleId ? { ...a, ...mutation.patch } : a
+            a.id === mutation.articleId ? { ...a, ...mutation.patch } : a,
           ),
         };
         break;
       }
-      case 'insertArticle': {
+      case "insertArticle": {
         const list = [...(nextArticles[mutation.elementId] ?? [])];
         list.splice(mutation.index, 0, mutation.article);
         nextArticles = { ...nextArticles, [mutation.elementId]: list };
         break;
       }
-      case 'removeArticle': {
+      case "removeArticle": {
         const list = (nextArticles[mutation.elementId] ?? []).filter(
-          (a) => a.id !== mutation.articleId
+          (a) => a.id !== mutation.articleId,
         );
         if (list.length === 0) {
           const { [mutation.elementId]: _, ...rest } = nextArticles;
@@ -96,7 +113,9 @@ export function applyLocalMutations(
       }
       default: {
         const _exhaustive: never = mutation;
-        throw new Error(`Unknown mutation: ${(_exhaustive as LocalMutation).op}`);
+        throw new Error(
+          `Unknown mutation: ${(_exhaustive as LocalMutation).op}`,
+        );
       }
     }
   }
@@ -104,7 +123,10 @@ export function applyLocalMutations(
   return { elements: nextElements, articlesByElement: nextArticles };
 }
 
-export function reorderElementsList(elements: Element[], orderedIds: number[]): Element[] {
+export function reorderElementsList(
+  elements: Element[],
+  orderedIds: number[],
+): Element[] {
   const byId = new Map(elements.map((el) => [el.id, el]));
   return orderedIds
     .map((id, i) => {
@@ -114,13 +136,13 @@ export function reorderElementsList(elements: Element[], orderedIds: number[]): 
     .filter((el): el is Element => el != null);
 }
 
-type ElementFormType = Exclude<ElementType, 'jeu_de_barres'>;
+type ElementFormType = Exclude<ElementType, "jeu_de_barres">;
 
 export function buildLocalElement(
   tempId: number,
   panelId: number,
   data: {
-    type: ElementFormType | 'jeu_de_barres';
+    type: ElementFormType | "jeu_de_barres";
     repere: string;
     type_label: string;
     emplacement?: string;
@@ -133,9 +155,9 @@ export function buildLocalElement(
     notes?: string | null;
     is_multi?: boolean;
   },
-  orderIndex: number
+  orderIndex: number,
 ): Element {
-  const isJdb = data.type === 'jeu_de_barres';
+  const isJdb = data.type === "jeu_de_barres";
   return {
     id: tempId,
     panel_id: panelId,
@@ -143,11 +165,11 @@ export function buildLocalElement(
     repere: data.repere,
     type_label: data.type_label,
     designation: data.type_label,
-    emplacement: data.emplacement ?? '',
-    row_kind: isJdb ? 'bar_set' : 'element',
+    emplacement: data.emplacement ?? "",
+    row_kind: isJdb ? "bar_set" : "element",
     bar_set_index: 0,
-    phase_type: data.phase_type ?? 'mono',
-    jdb_category: isJdb ? (data.jdb_category ?? 'eclairage') : null,
+    phase_type: data.phase_type ?? "mono",
+    jdb_category: isJdb ? (data.jdb_category ?? "eclairage") : null,
     power_w: data.power_w,
     quantity: data.quantity,
     distance_m: 0,
@@ -173,7 +195,7 @@ export function buildLocalArticle(
     coef_ks: number;
     coef_ku: number;
     order_index: number;
-  }
+  },
 ): Article {
   return {
     id: tempId,
@@ -190,10 +212,10 @@ export function buildLocalArticle(
 
 export function createElementPending(
   tempId: number,
-  data: Parameters<typeof buildLocalElement>[2]
+  data: Parameters<typeof buildLocalElement>[2],
 ): PanelChange {
   return {
-    type: 'createElement',
+    type: "createElement",
     tempId,
     data: {
       type: data.type,

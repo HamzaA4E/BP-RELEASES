@@ -1,18 +1,18 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { useAppStore } from '@/store/useAppStore';
-import { usePanelEditingStore } from '@/store/panelEditingStore';
-import { usePanelEditing } from '@/hooks/usePanelEditing';
-import { ElementTable } from '@/components/ElementTable';
-import { AddElementModal } from '@/components/AddElementModal';
-import { AddJdbModal } from '@/components/AddJdbModal';
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { useParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useAppStore } from "@/store/useAppStore";
+import { usePanelEditingStore } from "@/store/panelEditingStore";
+import { usePanelEditing } from "@/hooks/usePanelEditing";
+import { ElementTable } from "@/components/ElementTable";
+import { AddElementModal } from "@/components/AddElementModal";
+import { AddJdbModal } from "@/components/AddJdbModal";
 import {
   elementToArticleDesignation,
   elementToArticleTypeLabel,
   payloadToArticleDesignation,
-} from '@/utils/multiDepartHelpers';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
+} from "@/utils/multiDepartHelpers";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
   normalizeElement,
   isJeuDeBarres,
@@ -21,27 +21,27 @@ import {
   departCategoryOf,
   findElementByRepereAndCategory,
   getInsertIndexAfterRepereGroup,
-} from '@/utils/elementHelpers';
+} from "@/utils/elementHelpers";
 import {
   panelTotalPower,
   calculationCurrent,
   formatPower,
-} from '@/utils/calculations';
+} from "@/utils/calculations";
 import {
   buildLocalArticle,
   buildLocalElement,
   createElementPending,
   reorderElementsList,
-} from '@/utils/panelEditing';
-import { LoadGauge } from '@/components/LoadGauge';
-import type { Article, Element, JdbCategory, Panel, PhaseType } from '@/types';
+} from "@/utils/panelEditing";
+import { LoadGauge } from "@/components/LoadGauge";
+import type { Article, Element, JdbCategory, Panel, PhaseType } from "@/types";
 
-type ElementFormType = Exclude<Element['type'], 'jeu_de_barres'>;
+type ElementFormType = Exclude<Element["type"], "jeu_de_barres">;
 
 const DEFAULT_PANEL: Panel = {
   id: 0,
   location_id: 0,
-  name: '',
+  name: "",
   description: null,
   general_breaker_ampere: 0,
   order_index: 0,
@@ -102,7 +102,9 @@ function KsGlobalPanel({
             step={0.01}
             value={localKs}
             onChange={(e) =>
-              setLocalKs(Math.min(1, Math.max(0, parseFloat(e.target.value) || 0)))
+              setLocalKs(
+                Math.min(1, Math.max(0, parseFloat(e.target.value) || 0)),
+              )
             }
             onBlur={commitKs}
             className="input-field w-24 text-center font-mono"
@@ -149,15 +151,21 @@ export function PanelView() {
   } = useAppStore();
 
   const nextTempId = usePanelEditingStore((s) => s.nextTempId);
-  const removePendingForTempElement = usePanelEditingStore((s) => s.removePendingForTempElement);
+  const removePendingForTempElement = usePanelEditingStore(
+    (s) => s.removePendingForTempElement,
+  );
   const unsaved = usePanelEditingStore((s) => s.pendingChanges.length > 0);
 
   const [panel, setPanel] = useState<Panel>(DEFAULT_PANEL);
   const [showAddElement, setShowAddElement] = useState(false);
   const [showAddJdb, setShowAddJdb] = useState(false);
   const [editElement, setEditElement] = useState<Element | null>(null);
-  const [articlesByElement, setArticlesByElement] = useState<Record<number, Article[]>>({});
-  const [departForNewType, setDepartForNewType] = useState<Element | null>(null);
+  const [articlesByElement, setArticlesByElement] = useState<
+    Record<number, Article[]>
+  >({});
+  const [departForNewType, setDepartForNewType] = useState<Element | null>(
+    null,
+  );
   const [contextJdb, setContextJdb] = useState<Element | null>(null);
   const [deleteElementId, setDeleteElementId] = useState<number | null>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -168,7 +176,7 @@ export function PanelView() {
       multiElements.map(async (el) => {
         const articles = await window.bilpow.elements.getArticles(el.id);
         return [el.id, articles] as const;
-      })
+      }),
     );
     const map: Record<number, Article[]> = {};
     for (const [id, articles] of entries) {
@@ -177,8 +185,9 @@ export function PanelView() {
     setArticlesByElement((prev) => {
       const tempArticles: Record<number, Article[]> = {};
       for (const el of els) {
-        if (el.id < 0 && prev[el.id]) {
-          tempArticles[el.id] = prev[el.id];
+        const tempList = prev[el.id];
+        if (el.id < 0 && tempList) {
+          tempArticles[el.id] = tempList;
         }
       }
       return { ...map, ...tempArticles };
@@ -227,9 +236,14 @@ export function PanelView() {
         setPanel(panelData);
       }
       await refreshElements();
-      setSelection({ type: 'panel', projectId: pId, locationId: lId, panelId: panId });
+      setSelection({
+        type: "panel",
+        projectId: pId,
+        locationId: lId,
+        panelId: panId,
+      });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
   }, [lId, panId, pId, refreshElements, setPanels, setSelection]);
 
@@ -248,7 +262,7 @@ export function PanelView() {
         target instanceof HTMLTextAreaElement ||
         target instanceof HTMLSelectElement;
 
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
         void save();
         return;
@@ -256,13 +270,16 @@ export function PanelView() {
 
       if (isInput) return;
 
-      if ((e.ctrlKey || e.metaKey)) {
-        if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key.toLowerCase() === "z" && !e.shiftKey) {
           e.preventDefault();
           if (canUndo()) undo();
           return;
         }
-        if (e.key.toLowerCase() === 'y' || (e.key.toLowerCase() === 'z' && e.shiftKey)) {
+        if (
+          e.key.toLowerCase() === "y" ||
+          (e.key.toLowerCase() === "z" && e.shiftKey)
+        ) {
           e.preventDefault();
           if (canRedo()) redo();
           return;
@@ -270,15 +287,18 @@ export function PanelView() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [undo, redo, save, canUndo, canRedo]);
 
   const totalPower = useMemo(
     () => panelTotalPower(elements, articlesByElement),
-    [elements, articlesByElement]
+    [elements, articlesByElement],
   );
-  const calcCurrent = useMemo(() => calculationCurrent(totalPower), [totalPower]);
+  const calcCurrent = useMemo(
+    () => calculationCurrent(totalPower),
+    [totalPower],
+  );
 
   const savePanelName = async (name: string) => {
     try {
@@ -286,7 +306,7 @@ export function PanelView() {
       setPanel((p) => ({ ...p, name }));
       await refreshPanels();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
   };
 
@@ -296,7 +316,7 @@ export function PanelView() {
       await window.bilpow.panels.update({ id: panId, coef_ks });
       await refreshPanels();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
       await loadData();
     }
   };
@@ -313,11 +333,11 @@ export function PanelView() {
         const existingSameCategory = findElementByRepereAndCategory(
           elements,
           departForNewType.repere,
-          formCategory
+          formCategory,
         );
         if (existingSameCategory) {
           toast.error(
-            'Ce repère existe déjà pour cette catégorie — utilisez + sur la ligne correspondante'
+            "Ce repère existe déjà pour cette catégorie — utilisez + sur la ligne correspondante",
           );
           return;
         }
@@ -325,28 +345,31 @@ export function PanelView() {
         const insertAt = getInsertIndexAfterRepereGroup(
           elements,
           departForNewType.repere,
-          departForNewType.id
+          departForNewType.id,
         );
         const tempId = nextTempId();
         const element = buildLocalElement(
           tempId,
           panId,
           { ...data, repere: departForNewType.repere },
-          insertAt
+          insertAt,
         );
         const newIds = elements.map((e) => e.id);
         newIds.splice(insertAt, 0, tempId);
         const reordered = reorderElementsList([...elements, element], newIds);
         recordOperation({
-          inverse: [{ op: 'setElements', elements }],
-          redo: [{ op: 'setElements', elements: reordered }],
+          inverse: [{ op: "setElements", elements }],
+          redo: [{ op: "setElements", elements: reordered }],
           pending: [
-            createElementPending(tempId, { ...data, repere: departForNewType.repere }),
-            { type: 'reorderElements', orderedIds: newIds },
+            createElementPending(tempId, {
+              ...data,
+              repere: departForNewType.repere,
+            }),
+            { type: "reorderElements", orderedIds: newIds },
           ],
         });
-        applyMutations([{ op: 'setElements', elements: reordered }]);
-        toast.success('Élément ajouté au repère');
+        applyMutations([{ op: "setElements", elements: reordered }]);
+        toast.success("Élément ajouté au repère");
         setDepartForNewType(null);
         setContextJdb(null);
         return;
@@ -354,7 +377,6 @@ export function PanelView() {
 
       const articleTypeLabel = data.type_label.trim();
       const articleDesignation = payloadToArticleDesignation(data);
-      const articleCoefs = { coef_ks: data.coef_ks, coef_ku: data.coef_ku };
       const elementId = departForNewType.id;
       const prevArticles = [...(articlesByElement[elementId] ?? [])];
       const prevElement = { ...departForNewType };
@@ -390,21 +412,26 @@ export function PanelView() {
 
         recordOperation({
           inverse: [
-            { op: 'patchElement', id: elementId, patch: prevElement },
-            { op: 'setArticlesForElement', elementId, articles: prevArticles },
+            { op: "patchElement", id: elementId, patch: prevElement },
+            { op: "setArticlesForElement", elementId, articles: prevArticles },
           ],
           redo: [
-            { op: 'patchElement', id: elementId, patch: updatedElement },
-            { op: 'setArticlesForElement', elementId, articles: [art1, art2] },
+            { op: "patchElement", id: elementId, patch: updatedElement },
+            { op: "setArticlesForElement", elementId, articles: [art1, art2] },
           ],
           pending: [
             {
-              type: 'updateElement',
+              type: "updateElement",
               id: elementId,
-              data: { is_multi: true, power_w: 0, quantity: 1, notes: data.notes },
+              data: {
+                is_multi: true,
+                power_w: 0,
+                quantity: 1,
+                notes: data.notes,
+              },
             },
             {
-              type: 'createArticle',
+              type: "createArticle",
               tempId: art1Temp,
               data: {
                 element_id: elementId,
@@ -418,7 +445,7 @@ export function PanelView() {
               },
             },
             {
-              type: 'createArticle',
+              type: "createArticle",
               tempId: art2Temp,
               data: {
                 element_id: elementId,
@@ -434,8 +461,8 @@ export function PanelView() {
           ],
         });
         applyMutations([
-          { op: 'patchElement', id: elementId, patch: updatedElement },
-          { op: 'setArticlesForElement', elementId, articles: [art1, art2] },
+          { op: "patchElement", id: elementId, patch: updatedElement },
+          { op: "setArticlesForElement", elementId, articles: [art1, art2] },
         ]);
       } else {
         const artTemp = nextTempId();
@@ -451,11 +478,15 @@ export function PanelView() {
         const nextArticles = [...prevArticles, newArticle];
 
         recordOperation({
-          inverse: [{ op: 'setArticlesForElement', elementId, articles: prevArticles }],
-          redo: [{ op: 'setArticlesForElement', elementId, articles: nextArticles }],
+          inverse: [
+            { op: "setArticlesForElement", elementId, articles: prevArticles },
+          ],
+          redo: [
+            { op: "setArticlesForElement", elementId, articles: nextArticles },
+          ],
           pending: [
             {
-              type: 'createArticle',
+              type: "createArticle",
               tempId: artTemp,
               data: {
                 element_id: elementId,
@@ -471,16 +502,16 @@ export function PanelView() {
           ],
         });
         applyMutations([
-          { op: 'setArticlesForElement', elementId, articles: nextArticles },
+          { op: "setArticlesForElement", elementId, articles: nextArticles },
         ]);
       }
-      toast.success('Type ajouté au départ');
+      toast.success("Type ajouté au départ");
       setDepartForNewType(null);
       setContextJdb(null);
       return;
     }
 
-    if (editElement && editElement.type !== 'jeu_de_barres') {
+    if (editElement && editElement.type !== "jeu_de_barres") {
       const formCategory = departCategoryOf({
         type: data.type,
         phase_type: data.phase_type,
@@ -489,10 +520,10 @@ export function PanelView() {
         elements,
         data.repere,
         formCategory,
-        editElement.id
+        editElement.id,
       );
       if (existing) {
-        toast.error('Ce repère est déjà utilisé pour cette catégorie');
+        toast.error("Ce repère est déjà utilisé pour cette catégorie");
         return;
       }
       const prev = { ...editElement };
@@ -510,21 +541,43 @@ export function PanelView() {
         notes: data.notes ?? null,
       };
       recordOperation({
-        inverse: [{ op: 'patchElement', id: editElement.id, patch: prev }],
-        redo: [{ op: 'patchElement', id: editElement.id, patch }],
-        pending: [{ type: 'updateElement', id: editElement.id, data }],
+        inverse: [{ op: "patchElement", id: editElement.id, patch: prev }],
+        redo: [{ op: "patchElement", id: editElement.id, patch }],
+        pending: [{ type: "updateElement", id: editElement.id, data }],
+        undoPending: [
+          {
+            type: "updateElement",
+            id: editElement.id,
+            data: {
+              type: prev.type,
+              repere: prev.repere,
+              type_label: prev.type_label,
+              emplacement: prev.emplacement,
+              power_w: prev.power_w,
+              quantity: prev.quantity,
+              phase_type: prev.phase_type,
+              coef_ks: prev.coef_ks,
+              coef_ku: prev.coef_ku,
+              notes: prev.notes ?? undefined,
+            },
+          },
+        ],
       });
-      applyMutations([{ op: 'patchElement', id: editElement.id, patch }]);
-      toast.success('Élément mis à jour');
+      applyMutations([{ op: "patchElement", id: editElement.id, patch }]);
+      toast.success("Élément mis à jour");
     } else {
       const formCategory = departCategoryOf({
         type: data.type,
         phase_type: data.phase_type,
       });
-      const existing = findElementByRepereAndCategory(elements, data.repere, formCategory);
+      const existing = findElementByRepereAndCategory(
+        elements,
+        data.repere,
+        formCategory,
+      );
       if (existing) {
         toast.error(
-          'Ce repère existe déjà pour cette catégorie — utilisez + sur la ligne pour ajouter un autre type'
+          "Ce repère existe déjà pour cette catégorie — utilisez + sur la ligne pour ajouter un autre type",
         );
         return;
       }
@@ -538,15 +591,15 @@ export function PanelView() {
       const reordered = reorderElementsList([...elements, element], newIds);
       const pending = [createElementPending(tempId, data)];
       if (contextJdb) {
-        pending.push({ type: 'reorderElements', orderedIds: newIds });
+        pending.push({ type: "reorderElements", orderedIds: newIds });
       }
       recordOperation({
-        inverse: [{ op: 'setElements', elements }],
-        redo: [{ op: 'setElements', elements: reordered }],
+        inverse: [{ op: "setElements", elements }],
+        redo: [{ op: "setElements", elements: reordered }],
         pending,
       });
-      applyMutations([{ op: 'setElements', elements: reordered }]);
-      toast.success('Élément ajouté');
+      applyMutations([{ op: "setElements", elements: reordered }]);
+      toast.success("Élément ajouté");
     }
     setContextJdb(null);
   };
@@ -554,10 +607,10 @@ export function PanelView() {
   const handleSaveMultiple = async (items: ElementSavePayload[]) => {
     const batchKeys = items.map(
       (i) =>
-        `${i.repere.trim().toUpperCase()}|${departCategoryOf({ type: i.type, phase_type: i.phase_type })}`
+        `${i.repere.trim().toUpperCase()}|${departCategoryOf({ type: i.type, phase_type: i.phase_type })}`,
     );
     if (batchKeys.some((key, idx) => batchKeys.indexOf(key) !== idx)) {
-      toast.error('Des repères en double sont présents dans la sélection');
+      toast.error("Des repères en double sont présents dans la sélection");
       return;
     }
     for (const item of items) {
@@ -565,9 +618,15 @@ export function PanelView() {
         type: item.type,
         phase_type: item.phase_type,
       });
-      const existing = findElementByRepereAndCategory(elements, item.repere, category);
+      const existing = findElementByRepereAndCategory(
+        elements,
+        item.repere,
+        category,
+      );
       if (existing) {
-        toast.error(`Le repère ${item.repere} existe déjà pour cette catégorie`);
+        toast.error(
+          `Le repère ${item.repere} existe déjà pour cette catégorie`,
+        );
         return;
       }
     }
@@ -578,7 +637,7 @@ export function PanelView() {
     const prevElements = elements;
     const newElements = [...elements];
     const newIds = elements.map((e) => e.id);
-    const pending: Parameters<typeof recordOperation>[0]['pending'] = [];
+    const pending: Parameters<typeof recordOperation>[0]["pending"] = [];
 
     for (const item of items) {
       const tempId = nextTempId();
@@ -591,15 +650,15 @@ export function PanelView() {
 
     const reordered = reorderElementsList(newElements, newIds);
     if (contextJdb) {
-      pending.push({ type: 'reorderElements', orderedIds: newIds });
+      pending.push({ type: "reorderElements", orderedIds: newIds });
     }
 
     recordOperation({
-      inverse: [{ op: 'setElements', elements: prevElements }],
-      redo: [{ op: 'setElements', elements: reordered }],
+      inverse: [{ op: "setElements", elements: prevElements }],
+      redo: [{ op: "setElements", elements: reordered }],
       pending,
     });
-    applyMutations([{ op: 'setElements', elements: reordered }]);
+    applyMutations([{ op: "setElements", elements: reordered }]);
     setContextJdb(null);
     toast.success(`${items.length} éléments ajoutés avec succès`);
   };
@@ -613,24 +672,25 @@ export function PanelView() {
   const handleFieldUpdate = async (
     id: number,
     field:
-      | 'emplacement'
-      | 'type_label'
-      | 'power_w'
-      | 'repere'
-      | 'quantity'
-      | 'coef_ks'
-      | 'coef_ku',
-    value: number | string
+      | "emplacement"
+      | "type_label"
+      | "power_w"
+      | "repere"
+      | "quantity"
+      | "coef_ks"
+      | "coef_ku",
+    value: number | string,
   ) => {
     const el = elements.find((e) => e.id === id);
     if (!el) return;
     const oldValue = el[field];
     recordOperation({
-      inverse: [{ op: 'patchElement', id, patch: { [field]: oldValue } }],
-      redo: [{ op: 'patchElement', id, patch: { [field]: value } }],
-      pending: [{ type: 'updateElement', id, data: { [field]: value } }],
+      inverse: [{ op: "patchElement", id, patch: { [field]: oldValue } }],
+      redo: [{ op: "patchElement", id, patch: { [field]: value } }],
+      pending: [{ type: "updateElement", id, data: { [field]: value } }],
+      undoPending: [{ type: "updateElement", id, data: { [field]: oldValue } }],
     });
-    applyMutations([{ op: 'patchElement', id, patch: { [field]: value } }]);
+    applyMutations([{ op: "patchElement", id, patch: { [field]: value } }]);
   };
 
   const handleDeleteElement = async () => {
@@ -651,30 +711,34 @@ export function PanelView() {
       removePendingForTempElement(id);
       recordOperation({
         inverse: [
-          { op: 'setElements', elements: prevElements },
-          { op: 'setArticles', articlesByElement: prevArticles },
+          { op: "setElements", elements: prevElements },
+          { op: "setArticles", articlesByElement: prevArticles },
         ],
-        redo: [
-          { op: 'removeElement', id },
-        ],
+        redo: [{ op: "removeElement", id }],
         pending: [],
       });
-      applyMutations([{ op: 'removeElement', id }]);
+      applyMutations([{ op: "removeElement", id }]);
     } else {
       recordOperation({
         inverse: [
-          { op: 'insertElement', element, index },
+          { op: "insertElement", element, index },
           ...(articles.length
-            ? [{ op: 'setArticlesForElement' as const, elementId: id, articles }]
+            ? [
+                {
+                  op: "setArticlesForElement" as const,
+                  elementId: id,
+                  articles,
+                },
+              ]
             : []),
         ],
-        redo: [{ op: 'removeElement', id }],
-        pending: [{ type: 'deleteElement', id }],
+        redo: [{ op: "removeElement", id }],
+        pending: [{ type: "deleteElement", id }],
       });
-      applyMutations([{ op: 'removeElement', id }]);
+      applyMutations([{ op: "removeElement", id }]);
     }
 
-    toast.success('Ligne supprimée');
+    toast.success("Ligne supprimée");
     setDeleteElementId(null);
   };
 
@@ -682,11 +746,14 @@ export function PanelView() {
     const prevElements = elements;
     const reordered = reorderElementsList(elements, orderedIds);
     recordOperation({
-      inverse: [{ op: 'setElements', elements: prevElements }],
-      redo: [{ op: 'setElements', elements: reordered }],
-      pending: [{ type: 'reorderElements', orderedIds }],
+      inverse: [{ op: "setElements", elements: prevElements }],
+      redo: [{ op: "setElements", elements: reordered }],
+      pending: [{ type: "reorderElements", orderedIds }],
+      undoPending: [
+        { type: "reorderElements", orderedIds: prevElements.map((e) => e.id) },
+      ],
     });
-    applyMutations([{ op: 'setElements', elements: reordered }]);
+    applyMutations([{ op: "setElements", elements: reordered }]);
   };
 
   const handleDeleteFavorite = async (id: number) => {
@@ -694,9 +761,9 @@ export function PanelView() {
       await window.bilpow.favorites.delete(id);
       const favs = await window.bilpow.favorites.getAll();
       setFavorites(favs);
-      toast.success('Favori supprimé');
+      toast.success("Favori supprimé");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
   };
 
@@ -707,45 +774,48 @@ export function PanelView() {
       tempId,
       panId,
       {
-        type: 'jeu_de_barres',
-        repere: '',
+        type: "jeu_de_barres",
+        repere: "",
         type_label: typeLabel,
-        emplacement: '',
+        emplacement: "",
         power_w: 0,
         quantity: 1,
-        phase_type: 'mono',
+        phase_type: "mono",
         jdb_category: category,
         coef_ks: 1,
         coef_ku: 1,
       },
-      insertAt
+      insertAt,
     );
-    const reordered = [...elements, element].map((el, i) => ({ ...el, order_index: i }));
+    const reordered = [...elements, element].map((el, i) => ({
+      ...el,
+      order_index: i,
+    }));
 
     recordOperation({
-      inverse: [{ op: 'setElements', elements }],
-      redo: [{ op: 'setElements', elements: reordered }],
+      inverse: [{ op: "setElements", elements }],
+      redo: [{ op: "setElements", elements: reordered }],
       pending: [
         createElementPending(tempId, {
-          type: 'jeu_de_barres',
-          repere: '',
+          type: "jeu_de_barres",
+          repere: "",
           type_label: typeLabel,
-          emplacement: '',
+          emplacement: "",
           power_w: 0,
           quantity: 1,
-          phase_type: 'mono',
+          phase_type: "mono",
           jdb_category: category,
           coef_ks: 1,
           coef_ku: 1,
         }),
       ],
     });
-    applyMutations([{ op: 'setElements', elements: reordered }]);
-    toast.success('Jeu de barres ajouté');
+    applyMutations([{ op: "setElements", elements: reordered }]);
+    toast.success("Jeu de barres ajouté");
   };
 
   const handleAddTypeToDepart = (element: Element) => {
-    if (element.type === 'jeu_de_barres') return;
+    if (element.type === "jeu_de_barres") return;
     const jdb = getJeuDeBarresForElement(elements, element.id);
     setEditElement(null);
     setContextJdb(jdb);
@@ -755,25 +825,57 @@ export function PanelView() {
 
   const handleArticleUpdate = async (
     articleId: number,
-    field: 'designation' | 'type_label' | 'power_w' | 'quantity' | 'coef_ks' | 'coef_ku',
-    value: string | number
+    field:
+      | "designation"
+      | "type_label"
+      | "power_w"
+      | "quantity"
+      | "coef_ks"
+      | "coef_ku",
+    value: string | number,
   ) => {
     const elementId = Object.keys(articlesByElement).find((eid) =>
-      (articlesByElement[Number(eid)] ?? []).some((a) => a.id === articleId)
+      (articlesByElement[Number(eid)] ?? []).some((a) => a.id === articleId),
     );
     if (!elementId) return;
     const eid = Number(elementId);
-    const article = (articlesByElement[eid] ?? []).find((a) => a.id === articleId);
+    const article = (articlesByElement[eid] ?? []).find(
+      (a) => a.id === articleId,
+    );
     if (!article) return;
     const oldValue = article[field];
 
     recordOperation({
-      inverse: [{ op: 'patchArticle', elementId: eid, articleId, patch: { [field]: oldValue } }],
-      redo: [{ op: 'patchArticle', elementId: eid, articleId, patch: { [field]: value } }],
-      pending: [{ type: 'updateArticle', id: articleId, data: { [field]: value } }],
+      inverse: [
+        {
+          op: "patchArticle",
+          elementId: eid,
+          articleId,
+          patch: { [field]: oldValue },
+        },
+      ],
+      redo: [
+        {
+          op: "patchArticle",
+          elementId: eid,
+          articleId,
+          patch: { [field]: value },
+        },
+      ],
+      pending: [
+        { type: "updateArticle", id: articleId, data: { [field]: value } },
+      ],
+      undoPending: [
+        { type: "updateArticle", id: articleId, data: { [field]: oldValue } },
+      ],
     });
     applyMutations([
-      { op: 'patchArticle', elementId: eid, articleId, patch: { [field]: value } },
+      {
+        op: "patchArticle",
+        elementId: eid,
+        articleId,
+        patch: { [field]: value },
+      },
     ]);
   };
 
@@ -786,22 +888,22 @@ export function PanelView() {
     if (articleId < 0) {
       usePanelEditingStore.setState((state) => ({
         pendingChanges: state.pendingChanges.filter(
-          (c) => !(c.type === 'createArticle' && c.tempId === articleId)
+          (c) => !(c.type === "createArticle" && c.tempId === articleId),
         ),
       }));
       recordOperation({
-        inverse: [{ op: 'insertArticle', elementId, article, index }],
-        redo: [{ op: 'removeArticle', elementId, articleId }],
+        inverse: [{ op: "insertArticle", elementId, article, index }],
+        redo: [{ op: "removeArticle", elementId, articleId }],
         pending: [],
       });
     } else {
       recordOperation({
-        inverse: [{ op: 'insertArticle', elementId, article, index }],
-        redo: [{ op: 'removeArticle', elementId, articleId }],
-        pending: [{ type: 'deleteArticle', id: articleId }],
+        inverse: [{ op: "insertArticle", elementId, article, index }],
+        redo: [{ op: "removeArticle", elementId, articleId }],
+        pending: [{ type: "deleteArticle", id: articleId }],
       });
     }
-    applyMutations([{ op: 'removeArticle', elementId, articleId }]);
+    applyMutations([{ op: "removeArticle", elementId, articleId }]);
   };
 
   return (
@@ -812,7 +914,10 @@ export function PanelView() {
             <label className="block text-xs font-medium text-gray-500 mb-1">
               Nom du tableau
               {unsaved && (
-                <span className="ml-2 text-amber-600 dark:text-amber-400" title="Modifications non enregistrées">
+                <span
+                  className="ml-2 text-amber-600 dark:text-amber-400"
+                  title="Modifications non enregistrées"
+                >
                   ●
                 </span>
               )}
@@ -820,7 +925,9 @@ export function PanelView() {
             <input
               type="text"
               value={panel.name}
-              onChange={(e) => setPanel((p) => ({ ...p, name: e.target.value }))}
+              onChange={(e) =>
+                setPanel((p) => ({ ...p, name: e.target.value }))
+              }
               onBlur={(e) => void savePanelName(e.target.value)}
               className="input-field text-xl font-bold max-w-md"
             />
@@ -904,7 +1011,7 @@ export function PanelView() {
           elements={elements}
           articlesByElement={articlesByElement}
           onEdit={(el) => {
-            if (el.type === 'jeu_de_barres' || el.is_multi) return;
+            if (el.type === "jeu_de_barres" || el.is_multi) return;
             setContextJdb(null);
             setEditElement(el);
             setShowAddElement(true);
@@ -944,7 +1051,7 @@ export function PanelView() {
 
       {showAddJdb && (
         <AddJdbModal
-          jdbCount={elements.filter((e) => e.type === 'jeu_de_barres').length}
+          jdbCount={elements.filter((e) => e.type === "jeu_de_barres").length}
           onClose={() => setShowAddJdb(false)}
           onCreate={(typeLabel, category) => {
             handleJdbCreate(typeLabel, category);
