@@ -4,8 +4,7 @@ import toast from "react-hot-toast";
 import { Share2, Loader2 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { formatPower } from "@/utils/calculations";
-import { exportProjectToExcel } from "@/utils/exportExcel";
-import type { PanelWithStats, Element } from "@/types";
+import { exportProjectExcelById } from "@/utils/projectExcelExport";
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -113,28 +112,7 @@ export function ProjectView() {
     if (!currentProject) return;
     setExportingExcel(true);
     try {
-      const panelsByLocation: Record<number, PanelWithStats[]> = {};
-      const elementsByPanel: Record<number, Element[]> = {};
-
-      for (const loc of locations) {
-        const panels = await window.bilpow.panels.getByLocation(loc.id);
-        panelsByLocation[loc.id] = panels;
-        for (const panel of panels) {
-          elementsByPanel[panel.id] = await window.bilpow.elements.getByPanel(
-            panel.id,
-          );
-        }
-      }
-
-      const result = await exportProjectToExcel(
-        {
-          project: currentProject,
-          locations,
-          panelsByLocation,
-          elementsByPanel,
-        },
-        company ?? undefined,
-      );
+      const result = await exportProjectExcelById(id, company ?? undefined);
 
       if (result.filePath) {
         toast.success(`Export réussi: ${result.filePath}`);
@@ -256,7 +234,7 @@ export function ProjectView() {
             {locations.map((loc) => (
               <div
                 key={loc.id}
-                className="card p-4 flex items-center justify-between hover:shadow-md transition-shadow cursor-pointer"
+                className="card card-hover-readable p-4 flex items-center justify-between hover:shadow-md transition-colors cursor-pointer"
                 onClick={() => void openLocation(loc.id)}
               >
                 <div>

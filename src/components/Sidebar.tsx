@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, NavLink } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { useAppStore } from '@/store/useAppStore';
-import { ConfirmDialog } from './ConfirmDialog';
-import { useUnsavedNavigationGuard } from '@/hooks/useUnsavedNavigationGuard';
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, NavLink } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useAppStore } from "@/store/useAppStore";
+import { exportProjectExcelById } from "@/utils/projectExcelExport";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { useUnsavedNavigationGuard } from "@/hooks/useUnsavedNavigationGuard";
 
 interface ContextMenuState {
   x: number;
   y: number;
-  type: 'project' | 'location' | 'panel';
+  type: "project" | "location" | "panel";
   id: number;
   name: string;
 }
@@ -26,14 +27,33 @@ export function Sidebar() {
     setElements,
     setCurrentProject,
     resetViewData,
+    company,
   } = useAppStore();
 
   const [treeData, setTreeData] = useState<
-    Record<number, { locations: Array<{ id: number; name: string; panels: Array<{ id: number; name: string }> }> }>
+    Record<
+      number,
+      {
+        locations: Array<{
+          id: number;
+          name: string;
+          panels: Array<{ id: number; name: string }>;
+        }>;
+      }
+    >
   >({});
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<ContextMenuState | null>(null);
-  const [renaming, setRenaming] = useState<{ type: string; id: number; value: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<ContextMenuState | null>(
+    null,
+  );
+  const [renaming, setRenaming] = useState<{
+    type: string;
+    id: number;
+    value: string;
+  } | null>(null);
+  const [exportingProjectId, setExportingProjectId] = useState<number | null>(
+    null,
+  );
   const { guardedNavigate, showConfirm, confirmDiscard, cancelDiscard } =
     useUnsavedNavigationGuard();
 
@@ -43,8 +63,12 @@ export function Sidebar() {
       const locData = await Promise.all(
         locations.map(async (loc) => {
           const panels = await window.bilpow.panels.getByLocation(loc.id);
-          return { id: loc.id, name: loc.name, panels: panels.map((p) => ({ id: p.id, name: p.name })) };
-        })
+          return {
+            id: loc.id,
+            name: loc.name,
+            panels: panels.map((p) => ({ id: p.id, name: p.name })),
+          };
+        }),
       );
       setTreeData((prev) => ({ ...prev, [projectId]: { locations: locData } }));
     } catch {
@@ -74,25 +98,32 @@ export function Sidebar() {
 
     const project = await window.bilpow.projects.getById(projectId);
     if (project) setCurrentProject(project);
-    setSelection({ type: 'project', projectId, locationId: null, panelId: null });
+    setSelection({
+      type: "project",
+      projectId,
+      locationId: null,
+      panelId: null,
+    });
     guardedNavigate(() => navigate(`/project/${projectId}`));
   };
 
   const handleLocationClick = async (projectId: number, locationId: number) => {
     const key = `location-${locationId}`;
     setSidebarExpanded(key, !sidebarExpanded[key]);
-    setSelection({ type: 'location', projectId, locationId, panelId: null });
+    setSelection({ type: "location", projectId, locationId, panelId: null });
     const panels = await window.bilpow.panels.getByLocation(locationId);
     setPanels(panels);
-    guardedNavigate(() => navigate(`/project/${projectId}/location/${locationId}`));
+    guardedNavigate(() =>
+      navigate(`/project/${projectId}/location/${locationId}`),
+    );
   };
 
   const handlePanelClick = async (
     projectId: number,
     locationId: number,
-    panelId: number
+    panelId: number,
   ) => {
-    setSelection({ type: 'panel', projectId, locationId, panelId });
+    setSelection({ type: "panel", projectId, locationId, panelId });
     guardedNavigate(async () => {
       const elements = await window.bilpow.elements.getByPanel(panelId);
       setElements(elements);
@@ -102,9 +133,9 @@ export function Sidebar() {
 
   const handleContextMenu = (
     e: React.MouseEvent,
-    type: 'project' | 'location' | 'panel',
+    type: "project" | "location" | "panel",
     id: number,
-    name: string
+    name: string,
   ) => {
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY, type, id, name });
@@ -113,19 +144,28 @@ export function Sidebar() {
   const handleRename = async () => {
     if (!renaming) return;
     try {
-      if (renaming.type === 'project') {
-        await window.bilpow.projects.update({ id: renaming.id, name: renaming.value });
+      if (renaming.type === "project") {
+        await window.bilpow.projects.update({
+          id: renaming.id,
+          name: renaming.value,
+        });
         const all = await window.bilpow.projects.getAll();
         setProjects(all);
-      } else if (renaming.type === 'location') {
-        await window.bilpow.locations.update({ id: renaming.id, name: renaming.value });
-      } else if (renaming.type === 'panel') {
-        await window.bilpow.panels.update({ id: renaming.id, name: renaming.value });
+      } else if (renaming.type === "location") {
+        await window.bilpow.locations.update({
+          id: renaming.id,
+          name: renaming.value,
+        });
+      } else if (renaming.type === "panel") {
+        await window.bilpow.panels.update({
+          id: renaming.id,
+          name: renaming.value,
+        });
       }
-      toast.success('Renommé avec succès');
+      toast.success("Renommé avec succès");
       if (selection.projectId) await loadTreeForProject(selection.projectId);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
     setRenaming(null);
   };
@@ -133,44 +173,68 @@ export function Sidebar() {
   const handleDelete = async () => {
     if (!confirmDelete) return;
     try {
-      if (confirmDelete.type === 'project') {
+      if (confirmDelete.type === "project") {
         await window.bilpow.projects.delete(confirmDelete.id);
         const all = await window.bilpow.projects.getAll();
         setProjects(all);
-        navigate('/');
-      } else if (confirmDelete.type === 'location') {
+        navigate("/");
+      } else if (confirmDelete.type === "location") {
         await window.bilpow.locations.delete(confirmDelete.id);
         if (selection.projectId) await loadTreeForProject(selection.projectId);
         navigate(`/project/${selection.projectId}`);
-      } else if (confirmDelete.type === 'panel') {
+      } else if (confirmDelete.type === "panel") {
         await window.bilpow.panels.delete(confirmDelete.id);
         if (selection.projectId) await loadTreeForProject(selection.projectId);
         if (selection.locationId) {
-          navigate(`/project/${selection.projectId}/location/${selection.locationId}`);
+          navigate(
+            `/project/${selection.projectId}/location/${selection.locationId}`,
+          );
         }
       }
-      toast.success('Supprimé avec succès');
+      toast.success("Supprimé avec succès");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
     setConfirmDelete(null);
   };
 
   const handleDuplicate = async (type: string, id: number) => {
     try {
-      if (type === 'location') {
+      if (type === "location") {
         await window.bilpow.locations.duplicate(id);
         if (selection.projectId) await loadTreeForProject(selection.projectId);
-        toast.success('Emplacement dupliqué');
-      } else if (type === 'panel') {
+        toast.success("Emplacement dupliqué");
+      } else if (type === "panel") {
         await window.bilpow.panels.duplicate(id);
         if (selection.projectId) await loadTreeForProject(selection.projectId);
-        toast.success('Tableau dupliqué');
+        toast.success("Tableau dupliqué");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
     setContextMenu(null);
+  };
+
+  const handleProjectExcelExport = async (projectId: number) => {
+    setExportingProjectId(projectId);
+    try {
+      const result = await exportProjectExcelById(
+        projectId,
+        company ?? undefined,
+      );
+      if (result.filePath) {
+        toast.success(`Export réussi: ${result.filePath}`);
+        if (result.warning) {
+          toast(result.warning, { icon: "ℹ️", duration: 6000 });
+        }
+        await window.bilpow.shell.openPath(result.filePath);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur d'export Excel");
+    } finally {
+      setExportingProjectId(null);
+      setContextMenu(null);
+    }
   };
 
   return (
@@ -179,7 +243,9 @@ export function Sidebar() {
         <div className="flex items-center gap-2">
           <span className="text-2xl">⚡</span>
           <div>
-            <h1 className="text-white font-bold text-lg leading-tight">BilPow</h1>
+            <h1 className="text-white font-bold text-lg leading-tight">
+              BilPow
+            </h1>
             <p className="text-blue-300 text-xs">Bilan de Puissance</p>
           </div>
         </div>
@@ -191,8 +257,13 @@ export function Sidebar() {
           onClick={() => {
             guardedNavigate(() => {
               resetViewData();
-              setSelection({ type: null, projectId: null, locationId: null, panelId: null });
-              navigate('/');
+              setSelection({
+                type: null,
+                projectId: null,
+                locationId: null,
+                panelId: null,
+              });
+              navigate("/");
             });
           }}
           className="w-full px-4 py-2 text-left text-sm text-blue-200 hover:bg-primary-light hover:text-white flex items-center gap-2"
@@ -202,7 +273,7 @@ export function Sidebar() {
 
         <button
           type="button"
-          onClick={() => guardedNavigate(() => navigate('/favorites'))}
+          onClick={() => guardedNavigate(() => navigate("/favorites"))}
           className="w-full px-4 py-2 text-left text-sm text-blue-200 hover:bg-primary-light hover:text-white flex items-center gap-2"
         >
           ⭐ Favoris
@@ -216,7 +287,8 @@ export function Sidebar() {
 
         {projects.map((project) => {
           const isExpanded = sidebarExpanded[`project-${project.id}`];
-          const isActive = selection.projectId === project.id && selection.type === 'project';
+          const isActive =
+            selection.projectId === project.id && selection.type === "project";
           const tree = treeData[project.id];
 
           return (
@@ -224,66 +296,82 @@ export function Sidebar() {
               <div
                 className={`flex items-center px-3 py-1.5 cursor-pointer text-sm ${
                   isActive
-                    ? 'bg-accent text-white'
-                    : 'text-blue-100 hover:bg-primary-light'
+                    ? "bg-accent text-white"
+                    : "text-blue-100 hover:bg-primary-light"
                 }`}
                 onClick={() => void handleProjectClick(project.id)}
                 onContextMenu={(e) =>
-                  handleContextMenu(e, 'project', project.id, project.name)
+                  handleContextMenu(e, "project", project.id, project.name)
                 }
               >
-                <span className="mr-1 text-xs">{isExpanded ? '▼' : '▶'}</span>
+                <span className="mr-1 text-xs">{isExpanded ? "▼" : "▶"}</span>
                 <span className="truncate flex-1">📁 {project.name}</span>
               </div>
 
-              {isExpanded && tree?.locations.map((loc) => {
-                const locActive =
-                  selection.locationId === loc.id && selection.type === 'location';
-                const locExpanded = sidebarExpanded[`location-${loc.id}`];
+              {isExpanded &&
+                tree?.locations.map((loc) => {
+                  const locActive =
+                    selection.locationId === loc.id &&
+                    selection.type === "location";
+                  const locExpanded = sidebarExpanded[`location-${loc.id}`];
 
-                return (
-                  <div key={loc.id}>
-                    <div
-                      className={`flex items-center pl-6 pr-3 py-1.5 cursor-pointer text-sm ${
-                        locActive
-                          ? 'bg-accent/80 text-white'
-                          : 'text-blue-200 hover:bg-primary-light'
-                      }`}
-                      onClick={() => void handleLocationClick(project.id, loc.id)}
-                      onContextMenu={(e) =>
-                        handleContextMenu(e, 'location', loc.id, loc.name)
-                      }
-                    >
-                      <span className="mr-1 text-xs">{locExpanded ? '▼' : '▶'}</span>
-                      <span className="truncate flex-1">📍 {loc.name}</span>
+                  return (
+                    <div key={loc.id}>
+                      <div
+                        className={`flex items-center pl-6 pr-3 py-1.5 cursor-pointer text-sm ${
+                          locActive
+                            ? "bg-accent/80 text-white"
+                            : "text-blue-200 hover:bg-primary-light"
+                        }`}
+                        onClick={() =>
+                          void handleLocationClick(project.id, loc.id)
+                        }
+                        onContextMenu={(e) =>
+                          handleContextMenu(e, "location", loc.id, loc.name)
+                        }
+                      >
+                        <span className="mr-1 text-xs">
+                          {locExpanded ? "▼" : "▶"}
+                        </span>
+                        <span className="truncate flex-1">📍 {loc.name}</span>
+                      </div>
+
+                      {locExpanded &&
+                        loc.panels.map((panel) => {
+                          const panelActive =
+                            selection.panelId === panel.id &&
+                            selection.type === "panel";
+                          return (
+                            <div
+                              key={panel.id}
+                              className={`pl-10 pr-3 py-1.5 cursor-pointer text-sm truncate ${
+                                panelActive
+                                  ? "bg-accent/60 text-white font-medium"
+                                  : "text-blue-300 hover:bg-primary-light hover:text-white"
+                              }`}
+                              onClick={() =>
+                                void handlePanelClick(
+                                  project.id,
+                                  loc.id,
+                                  panel.id,
+                                )
+                              }
+                              onContextMenu={(e) =>
+                                handleContextMenu(
+                                  e,
+                                  "panel",
+                                  panel.id,
+                                  panel.name,
+                                )
+                              }
+                            >
+                              ⚡ {panel.name}
+                            </div>
+                          );
+                        })}
                     </div>
-
-                    {locExpanded &&
-                      loc.panels.map((panel) => {
-                        const panelActive =
-                          selection.panelId === panel.id && selection.type === 'panel';
-                        return (
-                          <div
-                            key={panel.id}
-                            className={`pl-10 pr-3 py-1.5 cursor-pointer text-sm truncate ${
-                              panelActive
-                                ? 'bg-accent/60 text-white font-medium'
-                                : 'text-blue-300 hover:bg-primary-light hover:text-white'
-                            }`}
-                            onClick={() =>
-                              void handlePanelClick(project.id, loc.id, panel.id)
-                            }
-                            onContextMenu={(e) =>
-                              handleContextMenu(e, 'panel', panel.id, panel.name)
-                            }
-                          >
-                            ⚡ {panel.name}
-                          </div>
-                        );
-                      })}
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           );
         })}
@@ -295,8 +383,8 @@ export function Sidebar() {
           className={({ isActive }) =>
             `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
               isActive
-                ? 'bg-accent text-white font-medium'
-                : 'text-blue-200 hover:bg-primary-light hover:text-white'
+                ? "bg-accent text-white font-medium"
+                : "text-blue-200 hover:bg-primary-light hover:text-white"
             }`
           }
         >
@@ -307,14 +395,17 @@ export function Sidebar() {
 
       {contextMenu && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setContextMenu(null)} />
           <div
-            className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 py-1 min-w-[160px]"
+            className="fixed inset-0 z-40"
+            onClick={() => setContextMenu(null)}
+          />
+          <div
+            className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 py-1 w-max min-w-[136px]"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button
               type="button"
-              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="menu-item-hover w-full whitespace-nowrap px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-100"
               onClick={() => {
                 setRenaming({
                   type: contextMenu.type,
@@ -326,18 +417,33 @@ export function Sidebar() {
             >
               ✏️ Renommer
             </button>
-            {(contextMenu.type === 'location' || contextMenu.type === 'panel') && (
+            {contextMenu.type === "project" && (
               <button
                 type="button"
-                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700"
-                onClick={() => void handleDuplicate(contextMenu.type, contextMenu.id)}
+                disabled={exportingProjectId === contextMenu.id}
+                className="menu-item-hover w-full whitespace-nowrap px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-100 disabled:opacity-50"
+                onClick={() => void handleProjectExcelExport(contextMenu.id)}
+              >
+                {exportingProjectId === contextMenu.id
+                  ? "⏳ Export Excel..."
+                  : "📊 Exporter Excel"}
+              </button>
+            )}
+            {(contextMenu.type === "location" ||
+              contextMenu.type === "panel") && (
+              <button
+                type="button"
+                className="menu-item-hover w-full whitespace-nowrap px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-100"
+                onClick={() =>
+                  void handleDuplicate(contextMenu.type, contextMenu.id)
+                }
               >
                 📋 Dupliquer
               </button>
             )}
             <button
               type="button"
-              className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="w-full whitespace-nowrap px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
               onClick={() => {
                 setConfirmDelete(contextMenu);
                 setContextMenu(null);
@@ -356,15 +462,25 @@ export function Sidebar() {
             <input
               type="text"
               value={renaming.value}
-              onChange={(e) => setRenaming({ ...renaming, value: e.target.value })}
+              onChange={(e) =>
+                setRenaming({ ...renaming, value: e.target.value })
+              }
               className="input-field mb-3"
               autoFocus
             />
             <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => setRenaming(null)} className="btn-secondary">
+              <button
+                type="button"
+                onClick={() => setRenaming(null)}
+                className="btn-secondary"
+              >
                 Annuler
               </button>
-              <button type="button" onClick={() => void handleRename()} className="btn-primary">
+              <button
+                type="button"
+                onClick={() => void handleRename()}
+                className="btn-primary"
+              >
                 OK
               </button>
             </div>

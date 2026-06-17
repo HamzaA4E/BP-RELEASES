@@ -63,4 +63,20 @@
   .card {
     @apply bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm;
   }
+
+  .interactive-hover {
+    @apply hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-700 dark:hover:text-white;
+  }
+
+  .row-hover {
+    @apply hover:bg-slate-50 dark:hover:bg-slate-800;
+  }
+
+  .card-hover-readable {
+    @apply hover:bg-slate-50 dark:hover:bg-slate-700/40 hover:border-slate-300 dark:hover:border-slate-500;
+  }
+
+  .menu-item-hover {
+    @apply hover:bg-slate-100 dark:hover:bg-slate-700;
+  }
 }

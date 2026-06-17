@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -7,16 +7,16 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import type { Article, Element } from '@/types';
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import type { Article, Element } from "@/types";
 import {
   calcPuissanceTotale,
   calcArticlePower,
@@ -26,7 +26,7 @@ import {
   formatKuDisplay,
   wattsToKw,
   formatNumber,
-} from '@/utils/calculations';
+} from "@/utils/calculations";
 import {
   displayTypeLabel,
   displayEmplacement,
@@ -34,11 +34,11 @@ import {
   jeuDeBarresTitle,
   jdbCategoryLabel,
   buildElementTableRows,
-} from '@/utils/elementHelpers';
+} from "@/utils/elementHelpers";
 import {
   displayArticleTypeLabel,
   displayArticleDesignation,
-} from '@/utils/multiDepartHelpers';
+} from "@/utils/multiDepartHelpers";
 
 /** drag + + + Cat + Repère + Type + Désignation + Puiss + Qté + Ks + Ku + P.totale + Actions */
 const TOTAL_COLUMN_COUNT = 12;
@@ -55,7 +55,7 @@ function AddTypeButton({
     <button
       type="button"
       onClick={onClick}
-      className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-500 hover:text-blue-600 text-sm font-bold leading-none transition-colors"
+      className="w-6 h-6 flex items-center justify-center rounded border border-gray-300 dark:border-gray-600 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 text-gray-500 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white text-sm font-bold leading-none transition-colors"
       title="Ajouter un autre type sur ce départ"
     >
       +
@@ -63,17 +63,22 @@ function AddTypeButton({
   );
 }
 
-type EditableField = 'emplacement' | 'power_w' | 'repere' | 'quantity' | 'type_label';
+type EditableField =
+  | "emplacement"
+  | "power_w"
+  | "repere"
+  | "quantity"
+  | "type_label";
 
 type ArticleEditableField =
-  | 'designation'
-  | 'type_label'
-  | 'power_w'
-  | 'quantity'
-  | 'coef_ks'
-  | 'coef_ku';
+  | "designation"
+  | "type_label"
+  | "power_w"
+  | "quantity"
+  | "coef_ks"
+  | "coef_ku";
 
-type CoefField = 'coef_ks' | 'coef_ku';
+type CoefField = "coef_ks" | "coef_ku";
 
 interface ElementTableProps {
   elements: Element[];
@@ -86,18 +91,24 @@ interface ElementTableProps {
   onFieldUpdate: (
     id: number,
     field:
-      | 'emplacement'
-      | 'type_label'
-      | 'power_w'
-      | 'repere'
-      | 'quantity'
+      | "emplacement"
+      | "type_label"
+      | "power_w"
+      | "repere"
+      | "quantity"
       | CoefField,
-    value: number | string
+    value: number | string,
   ) => Promise<void>;
   onArticleUpdate: (
     articleId: number,
-    field: 'designation' | 'type_label' | 'power_w' | 'quantity' | 'coef_ks' | 'coef_ku',
-    value: string | number
+    field:
+      | "designation"
+      | "type_label"
+      | "power_w"
+      | "quantity"
+      | "coef_ks"
+      | "coef_ku",
+    value: string | number,
   ) => Promise<void>;
   onArticleDelete: (articleId: number, elementId: number) => Promise<void>;
 }
@@ -109,19 +120,22 @@ function InlineTextCell({
   editingField,
   setEditingField,
   onCommit,
-  className = '',
-  inputClassName = 'input-field py-1 text-sm w-full',
+  className = "",
+  inputClassName = "input-field py-1 text-sm w-full",
 }: {
   elementId: number;
   field: EditableField;
   value: string;
   editingField: { id: number; field: EditableField | CoefField } | null;
-  setEditingField: (v: { id: number; field: EditableField | CoefField } | null) => void;
+  setEditingField: (
+    v: { id: number; field: EditableField | CoefField } | null,
+  ) => void;
   onCommit: (v: string) => void;
   className?: string;
   inputClassName?: string;
 }) {
-  const isEditing = editingField?.id === elementId && editingField?.field === field;
+  const isEditing =
+    editingField?.id === elementId && editingField?.field === field;
 
   if (isEditing) {
     return (
@@ -134,8 +148,8 @@ function InlineTextCell({
           setEditingField(null);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-          if (e.key === 'Escape') setEditingField(null);
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setEditingField(null);
         }}
         className={inputClassName}
       />
@@ -148,12 +162,12 @@ function InlineTextCell({
       tabIndex={0}
       onClick={() => setEditingField({ id: elementId, field })}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') setEditingField({ id: elementId, field });
+        if (e.key === "Enter") setEditingField({ id: elementId, field });
       }}
-      className={`cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors ${className}`}
+      className={`cursor-pointer interactive-hover px-2 py-0.5 rounded transition-colors ${className}`}
       title="Cliquer pour modifier"
     >
-      {value || '—'}
+      {value || "—"}
     </span>
   );
 }
@@ -175,7 +189,9 @@ function InlineNumberCell({
   field: EditableField | CoefField;
   value: number;
   editingField: { id: number; field: EditableField | CoefField } | null;
-  setEditingField: (v: { id: number; field: EditableField | CoefField } | null) => void;
+  setEditingField: (
+    v: { id: number; field: EditableField | CoefField } | null,
+  ) => void;
   onCommit: (v: number) => void;
   min?: number;
   max?: number;
@@ -183,7 +199,8 @@ function InlineNumberCell({
   format?: (v: number) => string;
   title?: string;
 }) {
-  const isEditing = editingField?.id === elementId && editingField?.field === field;
+  const isEditing =
+    editingField?.id === elementId && editingField?.field === field;
   const display = format ? format(value) : String(value);
 
   if (isEditing) {
@@ -201,8 +218,8 @@ function InlineNumberCell({
           setEditingField(null);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-          if (e.key === 'Escape') setEditingField(null);
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setEditingField(null);
         }}
         className="input-field py-1 text-sm w-14 text-center font-mono"
       />
@@ -215,10 +232,10 @@ function InlineNumberCell({
       tabIndex={0}
       onClick={() => setEditingField({ id: elementId, field })}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') setEditingField({ id: elementId, field });
+        if (e.key === "Enter") setEditingField({ id: elementId, field });
       }}
-      className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors font-mono text-sm"
-      title={title ?? 'Cliquer pour modifier'}
+      className="cursor-pointer interactive-hover px-2 py-0.5 rounded transition-colors font-mono text-sm"
+      title={title ?? "Cliquer pour modifier"}
     >
       {display}
     </span>
@@ -233,11 +250,13 @@ function InlineRepereCell({
 }: {
   element: Element;
   editingField: { id: number; field: EditableField | CoefField } | null;
-  setEditingField: (v: { id: number; field: EditableField | CoefField } | null) => void;
+  setEditingField: (
+    v: { id: number; field: EditableField | CoefField } | null,
+  ) => void;
   onCommit: (v: string) => void;
 }) {
   const isEditing =
-    editingField?.id === element.id && editingField?.field === 'repere';
+    editingField?.id === element.id && editingField?.field === "repere";
 
   if (isEditing) {
     return (
@@ -251,8 +270,8 @@ function InlineRepereCell({
           setEditingField(null);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-          if (e.key === 'Escape') setEditingField(null);
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setEditingField(null);
         }}
         className="input-field py-1 text-sm min-w-[4rem] max-w-[8rem] font-mono font-bold"
       />
@@ -263,14 +282,15 @@ function InlineRepereCell({
     <span
       role="button"
       tabIndex={0}
-      onClick={() => setEditingField({ id: element.id, field: 'repere' })}
+      onClick={() => setEditingField({ id: element.id, field: "repere" })}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') setEditingField({ id: element.id, field: 'repere' });
+        if (e.key === "Enter")
+          setEditingField({ id: element.id, field: "repere" });
       }}
-      className="inline-block font-mono font-bold text-sm px-2 py-0.5 rounded cursor-pointer hover:bg-blue-50 hover:text-blue-700 text-slate-700 dark:text-slate-300 transition-colors"
+      className="inline-block font-mono font-bold text-sm px-2 py-0.5 rounded cursor-pointer interactive-hover text-slate-700 dark:text-slate-300 transition-colors"
       title="Cliquer pour modifier le repère"
     >
-      {element.repere || '—'}
+      {element.repere || "—"}
     </span>
   );
 }
@@ -283,11 +303,13 @@ function InlinePowerCell({
 }: {
   element: Element;
   editingField: { id: number; field: EditableField | CoefField } | null;
-  setEditingField: (v: { id: number; field: EditableField | CoefField } | null) => void;
+  setEditingField: (
+    v: { id: number; field: EditableField | CoefField } | null,
+  ) => void;
   onCommit: (v: number) => void;
 }) {
   const isEditing =
-    editingField?.id === element.id && editingField?.field === 'power_w';
+    editingField?.id === element.id && editingField?.field === "power_w";
 
   if (isEditing) {
     return (
@@ -303,8 +325,8 @@ function InlinePowerCell({
           setEditingField(null);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-          if (e.key === 'Escape') setEditingField(null);
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setEditingField(null);
         }}
         className="input-field py-1 text-sm w-24 text-right"
       />
@@ -315,11 +337,12 @@ function InlinePowerCell({
     <span
       role="button"
       tabIndex={0}
-      onClick={() => setEditingField({ id: element.id, field: 'power_w' })}
+      onClick={() => setEditingField({ id: element.id, field: "power_w" })}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') setEditingField({ id: element.id, field: 'power_w' });
+        if (e.key === "Enter")
+          setEditingField({ id: element.id, field: "power_w" });
       }}
-      className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors"
+      className="cursor-pointer interactive-hover px-2 py-0.5 rounded transition-colors"
       title="Cliquer pour modifier"
     >
       {formatNumber(wattsToKw(element.power_w), 3)} kW
@@ -338,12 +361,20 @@ function JeuDeBarresRow({
   element: Element;
   onDelete: (id: number) => void;
   onAddElement: (jdb: Element) => void;
-  onFieldUpdate: ElementTableProps['onFieldUpdate'];
+  onFieldUpdate: ElementTableProps["onFieldUpdate"];
   editingField: { id: number; field: EditableField | CoefField } | null;
-  setEditingField: (v: { id: number; field: EditableField | CoefField } | null) => void;
+  setEditingField: (
+    v: { id: number; field: EditableField | CoefField } | null,
+  ) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: element.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: element.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -380,8 +411,8 @@ function JeuDeBarresRow({
                 onCommit={(v) =>
                   void onFieldUpdate(
                     element.id,
-                    'type_label',
-                    v.trim() || 'Jeu de barres'
+                    "type_label",
+                    v.trim() || "Jeu de barres",
                   )
                 }
                 className="block text-white font-semibold text-sm tracking-wide truncate hover:bg-white/15 hover:text-white px-2 py-0.5 rounded"
@@ -420,12 +451,21 @@ function JeuDeBarresRow({
   );
 }
 
-function SubtotalRow({ label, totalPower }: { label: string; totalPower: number }) {
+function SubtotalRow({
+  label,
+  totalPower,
+}: {
+  label: string;
+  totalPower: number;
+}) {
   return (
     <tr className="bg-blue-50/80 dark:bg-blue-900/15">
       <td />
       <td />
-      <td colSpan={2} className="px-3 py-2 text-sm font-bold italic text-primary dark:text-blue-300">
+      <td
+        colSpan={2}
+        className="px-3 py-2 text-sm font-bold italic text-primary dark:text-blue-300"
+      >
         {label}
       </td>
       <td colSpan={6} />
@@ -447,13 +487,14 @@ function ArticleCoefCell({
   onCommit,
 }: {
   article: Article;
-  field: 'coef_ks' | 'coef_ku';
+  field: "coef_ks" | "coef_ku";
   articleEditing: ArticleEditingState;
   setArticleEditing: (v: ArticleEditingState) => void;
   onCommit: (value: number) => void;
 }) {
   const value = article[field] ?? 1;
-  const isEditing = articleEditing?.id === article.id && articleEditing.field === field;
+  const isEditing =
+    articleEditing?.id === article.id && articleEditing.field === field;
 
   if (isEditing) {
     return (
@@ -470,15 +511,16 @@ function ArticleCoefCell({
           setArticleEditing(null);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-          if (e.key === 'Escape') setArticleEditing(null);
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setArticleEditing(null);
         }}
         className="input-field py-1 text-sm w-14 text-center"
       />
     );
   }
 
-  const display = field === 'coef_ku' ? formatKuDisplay(value) : value.toFixed(2);
+  const display =
+    field === "coef_ku" ? formatKuDisplay(value) : value.toFixed(2);
 
   return (
     <span
@@ -486,9 +528,9 @@ function ArticleCoefCell({
       tabIndex={0}
       onClick={() => setArticleEditing({ id: article.id, field })}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') setArticleEditing({ id: article.id, field });
+        if (e.key === "Enter") setArticleEditing({ id: article.id, field });
       }}
-      className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors font-mono text-sm"
+      className="cursor-pointer interactive-hover px-2 py-0.5 rounded transition-colors font-mono text-sm"
       title="Cliquer pour modifier"
     >
       {display}
@@ -513,8 +555,7 @@ function ArticleTypeLabelCell({
 }) {
   const display = displayArticleTypeLabel(article, element, isFirstArticle);
   const isEditing =
-    articleEditing?.id === article.id &&
-    articleEditing.field === 'type_label';
+    articleEditing?.id === article.id && articleEditing.field === "type_label";
 
   if (isEditing) {
     return (
@@ -527,8 +568,8 @@ function ArticleTypeLabelCell({
           setArticleEditing(null);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-          if (e.key === 'Escape') setArticleEditing(null);
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setArticleEditing(null);
         }}
         className="input-field py-1 text-sm w-full"
         placeholder="Type"
@@ -540,11 +581,12 @@ function ArticleTypeLabelCell({
     <span
       role="button"
       tabIndex={0}
-      onClick={() => setArticleEditing({ id: article.id, field: 'type_label' })}
+      onClick={() => setArticleEditing({ id: article.id, field: "type_label" })}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') setArticleEditing({ id: article.id, field: 'type_label' });
+        if (e.key === "Enter")
+          setArticleEditing({ id: article.id, field: "type_label" });
       }}
-      className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors truncate block"
+      className="cursor-pointer interactive-hover px-2 py-0.5 rounded transition-colors truncate block"
       title="Cliquer pour modifier"
     >
       {display}
@@ -568,7 +610,7 @@ function ArticleDesignationCell({
   onDelete: () => void;
 }) {
   const isEditing =
-    articleEditing?.id === article.id && articleEditing.field === 'designation';
+    articleEditing?.id === article.id && articleEditing.field === "designation";
 
   if (isEditing) {
     return (
@@ -581,8 +623,8 @@ function ArticleDesignationCell({
           setArticleEditing(null);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-          if (e.key === 'Escape') setArticleEditing(null);
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setArticleEditing(null);
         }}
         className="input-field py-1 text-sm w-full"
         placeholder="Désignation"
@@ -595,11 +637,14 @@ function ArticleDesignationCell({
       <span
         role="button"
         tabIndex={0}
-        onClick={() => setArticleEditing({ id: article.id, field: 'designation' })}
+        onClick={() =>
+          setArticleEditing({ id: article.id, field: "designation" })
+        }
         onKeyDown={(e) => {
-          if (e.key === 'Enter') setArticleEditing({ id: article.id, field: 'designation' });
+          if (e.key === "Enter")
+            setArticleEditing({ id: article.id, field: "designation" });
         }}
-        className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors truncate flex-1"
+        className="cursor-pointer interactive-hover px-2 py-0.5 rounded transition-colors truncate flex-1"
         title="Cliquer pour modifier"
       >
         {displayArticleDesignation(article)}
@@ -629,7 +674,8 @@ function ArticlePowerCell({
   setArticleEditing: (v: ArticleEditingState) => void;
   onCommit: (powerW: number) => void;
 }) {
-  const isEditing = articleEditing?.id === article.id && articleEditing.field === 'power_w';
+  const isEditing =
+    articleEditing?.id === article.id && articleEditing.field === "power_w";
 
   if (isEditing) {
     return (
@@ -645,8 +691,8 @@ function ArticlePowerCell({
           setArticleEditing(null);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-          if (e.key === 'Escape') setArticleEditing(null);
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setArticleEditing(null);
         }}
         className="input-field py-1 text-sm w-24 text-right"
       />
@@ -657,11 +703,12 @@ function ArticlePowerCell({
     <span
       role="button"
       tabIndex={0}
-      onClick={() => setArticleEditing({ id: article.id, field: 'power_w' })}
+      onClick={() => setArticleEditing({ id: article.id, field: "power_w" })}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') setArticleEditing({ id: article.id, field: 'power_w' });
+        if (e.key === "Enter")
+          setArticleEditing({ id: article.id, field: "power_w" });
       }}
-      className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors"
+      className="cursor-pointer interactive-hover px-2 py-0.5 rounded transition-colors"
       title="Cliquer pour modifier"
     >
       {formatNumber(wattsToKw(article.power_w), 3)} kW
@@ -680,7 +727,8 @@ function ArticleQuantityCell({
   setArticleEditing: (v: ArticleEditingState) => void;
   onCommit: (qty: number) => void;
 }) {
-  const isEditing = articleEditing?.id === article.id && articleEditing.field === 'quantity';
+  const isEditing =
+    articleEditing?.id === article.id && articleEditing.field === "quantity";
 
   if (isEditing) {
     return (
@@ -696,8 +744,8 @@ function ArticleQuantityCell({
           setArticleEditing(null);
         }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') e.currentTarget.blur();
-          if (e.key === 'Escape') setArticleEditing(null);
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") setArticleEditing(null);
         }}
         className="input-field py-1 text-sm w-14 text-center font-mono"
       />
@@ -708,11 +756,12 @@ function ArticleQuantityCell({
     <span
       role="button"
       tabIndex={0}
-      onClick={() => setArticleEditing({ id: article.id, field: 'quantity' })}
+      onClick={() => setArticleEditing({ id: article.id, field: "quantity" })}
       onKeyDown={(e) => {
-        if (e.key === 'Enter') setArticleEditing({ id: article.id, field: 'quantity' });
+        if (e.key === "Enter")
+          setArticleEditing({ id: article.id, field: "quantity" });
       }}
-      className="cursor-pointer hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 px-2 py-0.5 rounded transition-colors font-mono text-sm"
+      className="cursor-pointer interactive-hover px-2 py-0.5 rounded transition-colors font-mono text-sm"
       title="Cliquer pour modifier"
     >
       {article.quantity}
@@ -737,16 +786,24 @@ function SortableMultiDepartRow({
   articles: Article[];
   onAddTypeToDepart: (el: Element) => void;
   onDelete: (id: number) => void;
-  onFieldUpdate: ElementTableProps['onFieldUpdate'];
-  onArticleUpdate: ElementTableProps['onArticleUpdate'];
+  onFieldUpdate: ElementTableProps["onFieldUpdate"];
+  onArticleUpdate: ElementTableProps["onArticleUpdate"];
   onArticleDelete: (articleId: number, elementId: number) => Promise<void>;
   editingField: { id: number; field: EditableField | CoefField } | null;
-  setEditingField: (v: { id: number; field: EditableField | CoefField } | null) => void;
+  setEditingField: (
+    v: { id: number; field: EditableField | CoefField } | null,
+  ) => void;
   articleEditing: ArticleEditingState;
   setArticleEditing: (v: ArticleEditingState) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: element.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: element.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -763,8 +820,8 @@ function SortableMultiDepartRow({
           {
             id: -1,
             element_id: element.id,
-            type_label: '',
-            designation: '',
+            type_label: "",
+            designation: "",
             power_w: 0,
             quantity: 1,
             coef_ks: 1,
@@ -773,7 +830,7 @@ function SortableMultiDepartRow({
           },
         ];
 
-  const groupBorder = 'border-l-2 border-l-blue-200 dark:border-l-blue-800';
+  const groupBorder = "border-l-2 border-l-blue-200 dark:border-l-blue-800";
 
   return (
     <>
@@ -782,10 +839,10 @@ function SortableMultiDepartRow({
           key={article.id}
           ref={idx === 0 ? setNodeRef : undefined}
           style={idx === 0 ? style : undefined}
-          className={`hover:bg-gray-50 dark:hover:bg-gray-750 ${
+          className={`row-hover ${
             idx < rowCount - 1
-              ? 'border-b border-dashed border-gray-200 dark:border-gray-600'
-              : 'border-b border-gray-100 dark:border-gray-700'
+              ? "border-b border-dashed border-gray-200 dark:border-gray-600"
+              : "border-b border-gray-100 dark:border-gray-700"
           }`}
         >
           {idx === 0 && (
@@ -798,7 +855,10 @@ function SortableMultiDepartRow({
               >
                 ⋮⋮
               </td>
-              <td rowSpan={rowCount} className="px-1 py-2 text-center align-middle">
+              <td
+                rowSpan={rowCount}
+                className="px-1 py-2 text-center align-middle"
+              >
                 <AddTypeButton onClick={() => onAddTypeToDepart(element)} />
               </td>
               <td rowSpan={rowCount} className="px-3 py-2 align-middle">
@@ -813,19 +873,24 @@ function SortableMultiDepartRow({
                   element={element}
                   editingField={editingField}
                   setEditingField={setEditingField}
-                  onCommit={(v) => void onFieldUpdate(element.id, 'repere', v)}
+                  onCommit={(v) => void onFieldUpdate(element.id, "repere", v)}
                 />
               </td>
             </>
           )}
-          <td className="px-3 py-2 text-sm max-w-[140px]" title={displayArticleTypeLabel(article, element, idx === 0)}>
+          <td
+            className="px-3 py-2 text-sm max-w-[140px]"
+            title={displayArticleTypeLabel(article, element, idx === 0)}
+          >
             <ArticleTypeLabelCell
               article={article}
               element={element}
               isFirstArticle={idx === 0}
               articleEditing={articleEditing}
               setArticleEditing={setArticleEditing}
-              onCommit={(v) => void onArticleUpdate(article.id, 'type_label', v)}
+              onCommit={(v) =>
+                void onArticleUpdate(article.id, "type_label", v)
+              }
             />
           </td>
           <td className="px-3 py-2 text-sm max-w-[180px]">
@@ -833,7 +898,9 @@ function SortableMultiDepartRow({
               article={article}
               articleEditing={articleEditing}
               setArticleEditing={setArticleEditing}
-              onCommit={(v) => void onArticleUpdate(article.id, 'designation', v)}
+              onCommit={(v) =>
+                void onArticleUpdate(article.id, "designation", v)
+              }
               canDelete={articles.length > 1}
               onDelete={() => void onArticleDelete(article.id, element.id)}
             />
@@ -843,7 +910,7 @@ function SortableMultiDepartRow({
               article={article}
               articleEditing={articleEditing}
               setArticleEditing={setArticleEditing}
-              onCommit={(v) => void onArticleUpdate(article.id, 'power_w', v)}
+              onCommit={(v) => void onArticleUpdate(article.id, "power_w", v)}
             />
           </td>
           <td className="px-3 py-2 text-sm text-center">
@@ -851,7 +918,7 @@ function SortableMultiDepartRow({
               article={article}
               articleEditing={articleEditing}
               setArticleEditing={setArticleEditing}
-              onCommit={(v) => void onArticleUpdate(article.id, 'quantity', v)}
+              onCommit={(v) => void onArticleUpdate(article.id, "quantity", v)}
             />
           </td>
           <td className="px-3 py-2 text-sm text-center">
@@ -860,7 +927,7 @@ function SortableMultiDepartRow({
               field="coef_ks"
               articleEditing={articleEditing}
               setArticleEditing={setArticleEditing}
-              onCommit={(v) => void onArticleUpdate(article.id, 'coef_ks', v)}
+              onCommit={(v) => void onArticleUpdate(article.id, "coef_ks", v)}
             />
           </td>
           <td className="px-3 py-2 text-sm text-center">
@@ -869,7 +936,7 @@ function SortableMultiDepartRow({
               field="coef_ku"
               articleEditing={articleEditing}
               setArticleEditing={setArticleEditing}
-              onCommit={(v) => void onArticleUpdate(article.id, 'coef_ku', v)}
+              onCommit={(v) => void onArticleUpdate(article.id, "coef_ku", v)}
             />
           </td>
           <td className="px-3 py-2 text-sm text-right font-medium">
@@ -880,7 +947,7 @@ function SortableMultiDepartRow({
               <button
                 type="button"
                 onClick={() => onDelete(element.id)}
-                className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+                className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
                 title="Supprimer le départ"
               >
                 🗑️
@@ -906,12 +973,20 @@ function SortableDataRow({
   onEdit: (el: Element) => void;
   onAddTypeToDepart: (el: Element) => void;
   onDelete: (id: number) => void;
-  onFieldUpdate: ElementTableProps['onFieldUpdate'];
+  onFieldUpdate: ElementTableProps["onFieldUpdate"];
   editingField: { id: number; field: EditableField | CoefField } | null;
-  setEditingField: (v: { id: number; field: EditableField | CoefField } | null) => void;
+  setEditingField: (
+    v: { id: number; field: EditableField | CoefField } | null,
+  ) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: element.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: element.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -919,7 +994,7 @@ function SortableDataRow({
     opacity: isDragging ? 0.5 : 1,
   };
 
-  const isDivers = element.type === 'divers';
+  const isDivers = element.type === "divers";
   const totalPower = calcPuissanceTotale(element);
   const badge = typeBadge(element);
   const typeLabel = displayTypeLabel(element);
@@ -928,8 +1003,8 @@ function SortableDataRow({
   const coefsLine = formatCoefsLine(ks, ku);
 
   const coefFields: Array<{ key: CoefField; label: string }> = [
-    { key: 'coef_ks', label: 'Ks' },
-    { key: 'coef_ku', label: 'Ku' },
+    { key: "coef_ks", label: "Ks" },
+    { key: "coef_ku", label: "Ku" },
   ];
 
   return (
@@ -937,11 +1012,15 @@ function SortableDataRow({
       <tr
         ref={setNodeRef}
         style={style}
-        className={`border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 ${
-          isDivers ? 'opacity-60' : ''
+        className={`border-b border-gray-100 dark:border-gray-700 row-hover ${
+          isDivers ? "opacity-60" : ""
         }`}
       >
-        <td className="px-2 py-2 text-center text-gray-400 cursor-grab" {...attributes} {...listeners}>
+        <td
+          className="px-2 py-2 text-center text-gray-400 cursor-grab"
+          {...attributes}
+          {...listeners}
+        >
           ⋮⋮
         </td>
         <td className="px-1 py-2 text-center">
@@ -959,7 +1038,7 @@ function SortableDataRow({
             element={element}
             editingField={editingField}
             setEditingField={setEditingField}
-            onCommit={(v) => void onFieldUpdate(element.id, 'repere', v)}
+            onCommit={(v) => void onFieldUpdate(element.id, "repere", v)}
           />
         </td>
         <td className="px-3 py-2 text-sm max-w-[140px]" title={typeLabel}>
@@ -969,12 +1048,12 @@ function SortableDataRow({
             value={typeLabel}
             editingField={editingField}
             setEditingField={setEditingField}
-            onCommit={(v) => void onFieldUpdate(element.id, 'type_label', v)}
+            onCommit={(v) => void onFieldUpdate(element.id, "type_label", v)}
             className="truncate block"
           />
         </td>
         <td
-          className={`px-3 py-2 text-sm max-w-[140px] ${isDivers ? 'italic text-gray-500' : ''}`}
+          className={`px-3 py-2 text-sm max-w-[140px] ${isDivers ? "italic text-gray-500" : ""}`}
         >
           <InlineTextCell
             elementId={element.id}
@@ -982,7 +1061,7 @@ function SortableDataRow({
             value={emplacement}
             editingField={editingField}
             setEditingField={setEditingField}
-            onCommit={(v) => void onFieldUpdate(element.id, 'emplacement', v)}
+            onCommit={(v) => void onFieldUpdate(element.id, "emplacement", v)}
           />
         </td>
         <td className="px-3 py-2 text-sm text-right">
@@ -990,7 +1069,7 @@ function SortableDataRow({
             element={element}
             editingField={editingField}
             setEditingField={setEditingField}
-            onCommit={(v) => void onFieldUpdate(element.id, 'power_w', v)}
+            onCommit={(v) => void onFieldUpdate(element.id, "power_w", v)}
           />
         </td>
         <td className="px-3 py-2 text-sm text-center">
@@ -1004,7 +1083,7 @@ function SortableDataRow({
             step={1}
             onCommit={(v) => {
               const q = Math.max(1, Math.round(v));
-              void onFieldUpdate(element.id, 'quantity', q);
+              void onFieldUpdate(element.id, "quantity", q);
             }}
           />
         </td>
@@ -1020,7 +1099,7 @@ function SortableDataRow({
               max={1}
               step={0.05}
               format={(v) =>
-                c.key === 'coef_ku' ? formatKuDisplay(v) : v.toFixed(2)
+                c.key === "coef_ku" ? formatKuDisplay(v) : v.toFixed(2)
               }
               title={coefsLine}
               onCommit={(v) => {
@@ -1030,15 +1109,15 @@ function SortableDataRow({
             />
           </td>
         ))}
-      <td className="px-3 py-2 text-sm text-right font-medium">
+        <td className="px-3 py-2 text-sm text-right font-medium">
           {formatNumber(wattsToKw(totalPower), 3)}
-      </td>
+        </td>
         <td className="px-3 py-2">
           <div className="flex gap-1">
             <button
               type="button"
               onClick={() => onEdit(element)}
-              className="p-1 text-accent hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded"
+              className="p-1 text-accent interactive-hover rounded transition-colors"
               title="Modifier"
             >
               ✏️
@@ -1046,7 +1125,7 @@ function SortableDataRow({
             <button
               type="button"
               onClick={() => onDelete(element.id)}
-              className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded"
+              className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
               title="Supprimer"
             >
               🗑️
@@ -1057,7 +1136,10 @@ function SortableDataRow({
       <tr className="border-b border-gray-50 dark:border-gray-800">
         <td />
         <td />
-        <td colSpan={TOTAL_COLUMN_COUNT - 2} className="px-3 py-0.5 text-xs text-gray-400 italic">
+        <td
+          colSpan={TOTAL_COLUMN_COUNT - 2}
+          className="px-3 py-0.5 text-xs text-gray-400 italic"
+        >
           {coefsLine}
         </td>
       </tr>
@@ -1081,11 +1163,14 @@ export function ElementTable({
     id: number;
     field: EditableField | CoefField;
   } | null>(null);
-  const [articleEditing, setArticleEditing] = useState<ArticleEditingState>(null);
+  const [articleEditing, setArticleEditing] =
+    useState<ArticleEditingState>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -1103,22 +1188,35 @@ export function ElementTable({
 
   return (
     <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
         <table className="w-full text-left min-w-[1000px]">
           <thead>
             <tr className="bg-primary text-white text-xs uppercase tracking-wide">
               <th className="w-8 px-2 py-3" />
-              <th className="w-8 px-1 py-3" title="Ajouter un type sur le départ" />
+              <th
+                className="w-8 px-1 py-3"
+                title="Ajouter un type sur le départ"
+              />
               <th className="px-3 py-3">Cat.</th>
               <th className="px-3 py-3">Repère</th>
               <th className="px-3 py-3 min-w-[100px]">Type</th>
               <th className="px-3 py-3 min-w-[100px]">Désignation</th>
               <th className="px-3 py-3 text-right">P. Unitaire (kW)</th>
               <th className="px-3 py-3 text-center">Qté</th>
-              <th className="px-3 py-3 text-center w-14" title="Coefficient de simultanéité">
+              <th
+                className="px-3 py-3 text-center w-14"
+                title="Coefficient de simultanéité"
+              >
                 Ks
               </th>
-              <th className="px-3 py-3 text-center w-14" title="Coefficient d'utilisation">
+              <th
+                className="px-3 py-3 text-center w-14"
+                title="Coefficient d'utilisation"
+              >
                 Ku
               </th>
               <th className="px-3 py-3 text-right">P. totale (kW)</th>
@@ -1131,7 +1229,7 @@ export function ElementTable({
               strategy={verticalListSortingStrategy}
             >
               {tableRows.map((row, idx) => {
-                if (row.kind === 'jdb') {
+                if (row.kind === "jdb") {
                   return (
                     <JeuDeBarresRow
                       key={`jdb-${row.element.id}`}
@@ -1144,7 +1242,7 @@ export function ElementTable({
                     />
                   );
                 }
-                if (row.kind === 'subtotal') {
+                if (row.kind === "subtotal") {
                   return (
                     <SubtotalRow
                       key={`subtotal-${idx}`}
@@ -1191,7 +1289,8 @@ export function ElementTable({
                   colSpan={TOTAL_COLUMN_COUNT}
                   className="px-4 py-12 text-center text-gray-400 text-sm"
                 >
-                  Aucun élément. Ajoutez un élément ou un jeu de barres pour commencer.
+                  Aucun élément. Ajoutez un élément ou un jeu de barres pour
+                  commencer.
                 </td>
               </tr>
             )}

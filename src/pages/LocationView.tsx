@@ -136,7 +136,7 @@ export function LocationView() {
             {panels.map((panel) => (
               <div
                 key={panel.id}
-                className="card p-5 hover:shadow-md transition-all cursor-pointer border-2 border-transparent hover:border-accent/30"
+                className="card card-hover-readable p-5 hover:shadow-md transition-all cursor-pointer border-2 border-transparent hover:border-accent/30"
                 onClick={() => openPanel(panel.id)}
               >
                 <h3 className="font-semibold text-primary dark:text-white mb-2">

@@ -1,5 +1,5 @@
-import type { Favorite } from '@/types';
-import { formatPower } from '@/utils/calculations';
+import type { Favorite } from "@/types";
+import { formatPower } from "@/utils/calculations";
 
 interface FavoriteCardProps {
   favorite: Favorite;
@@ -15,15 +15,18 @@ export function FavoriteCard({
   compact = false,
 }: FavoriteCardProps) {
   const typeIcon =
-    favorite.type === 'eclairage' ? '💡' : favorite.type === 'prise' ? '🔌' : '📦';
+    favorite.type === "eclairage"
+      ? "💡"
+      : favorite.type === "prise"
+        ? "🔌"
+        : "📦";
 
   return (
     <button
       type="button"
       onClick={() => onSelect(favorite)}
       className={`group relative flex items-start gap-2 p-2 rounded-lg border border-gray-200 dark:border-gray-600
-        hover:border-accent hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all text-left w-full
-        ${compact ? 'text-xs' : 'text-sm'}`}
+        card-hover-readable transition-all text-left w-full ${compact ? "text-xs" : "text-sm"}`}
     >
       <span
         className="flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-white text-xs"
@@ -35,7 +38,9 @@ export function FavoriteCard({
         <p className="font-medium text-gray-900 dark:text-white truncate">
           {favorite.designation}
         </p>
-        <p className="text-accent text-xs font-semibold">{formatPower(favorite.power_w)}</p>
+        <p className="text-accent text-xs font-semibold">
+          {formatPower(favorite.power_w)}
+        </p>
       </div>
       {onDelete && (
         <span
@@ -46,7 +51,7 @@ export function FavoriteCard({
             onDelete(favorite.id);
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            if (e.key === "Enter") {
               e.stopPropagation();
               onDelete(favorite.id);
             }
