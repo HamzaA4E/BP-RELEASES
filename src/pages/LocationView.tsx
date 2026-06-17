@@ -1,22 +1,26 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { useAppStore } from '@/store/useAppStore';
-import { calculationCurrent, formatPower } from '@/utils/calculations';
-import { exportLocationToExcel } from '@/utils/export';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { formatNumber } from '@/utils/calculations';
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { useAppStore } from "@/store/useAppStore";
+import { calculationCurrent, formatPower } from "@/utils/calculations";
+import { exportLocationToExcel } from "@/utils/export";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { formatNumber } from "@/utils/calculations";
 
 export function LocationView() {
-  const { projectId, locationId } = useParams<{ projectId: string; locationId: string }>();
+  const { projectId, locationId } = useParams<{
+    projectId: string;
+    locationId: string;
+  }>();
   const navigate = useNavigate();
   const pId = Number(projectId);
   const lId = Number(locationId);
-  const { panels, setPanels, setSelection, setLocations, company } = useAppStore();
-  const [locationName, setLocationName] = useState('');
+  const { panels, setPanels, setSelection, setLocations, company } =
+    useAppStore();
+  const [locationName, setLocationName] = useState("");
   const [showAddPanel, setShowAddPanel] = useState(false);
-  const [newPanelName, setNewPanelName] = useState('');
-  const [exporting, setExporting] = useState(false);
+  const [newPanelName, setNewPanelName] = useState("");
+  const [, setExporting] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -26,9 +30,14 @@ export function LocationView() {
       if (loc) setLocationName(loc.name);
       const pnl = await window.bilpow.panels.getByLocation(lId);
       setPanels(pnl);
-      setSelection({ type: 'location', projectId: pId, locationId: lId, panelId: null });
+      setSelection({
+        type: "location",
+        projectId: pId,
+        locationId: lId,
+        panelId: null,
+      });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
   }, [pId, lId, setLocations, setPanels, setSelection]);
 
@@ -43,30 +52,33 @@ export function LocationView() {
   const saveLocationName = async (name: string) => {
     try {
       await window.bilpow.locations.update({ id: lId, name });
-      toast.success('Emplacement mis à jour');
+      toast.success("Emplacement mis à jour");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
   };
 
   const handleAddPanel = async () => {
     if (!newPanelName.trim()) {
-      toast.error('Le nom est requis');
+      toast.error("Le nom est requis");
       return;
     }
     try {
-      await window.bilpow.panels.create({ location_id: lId, name: newPanelName.trim() });
-      setNewPanelName('');
+      await window.bilpow.panels.create({
+        location_id: lId,
+        name: newPanelName.trim(),
+      });
+      setNewPanelName("");
       setShowAddPanel(false);
       await loadData();
-      toast.success('Tableau ajouté');
+      toast.success("Tableau ajouté");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
   };
 
   const openPanel = (panelId: number) => {
-    setSelection({ type: 'panel', projectId: pId, locationId: lId, panelId });
+    setSelection({ type: "panel", projectId: pId, locationId: lId, panelId });
     navigate(`/project/${pId}/location/${lId}/panel/${panelId}`);
   };
 
@@ -77,12 +89,12 @@ export function LocationView() {
       if (result.filePath) {
         toast.success(`Export réussi: ${result.filePath}`);
         if (result.warning) {
-          toast(result.warning, { icon: 'ℹ️', duration: 6000 });
+          toast(result.warning, { icon: "ℹ️", duration: 6000 });
         }
         await window.bilpow.shell.openPath(result.filePath);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur d\'export');
+      toast.error(err instanceof Error ? err.message : "Erreur d'export");
     } finally {
       setExporting(false);
     }
@@ -101,18 +113,10 @@ export function LocationView() {
               className="text-2xl font-bold text-primary dark:text-white bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-accent outline-none w-full max-w-md"
             />
             <p className="text-sm text-gray-500 mt-1">
-              {panels.length} tableau{panels.length !== 1 ? 'x' : ''}
+              {panels.length} tableau{panels.length !== 1 ? "x" : ""}
             </p>
           </div>
           <div className="flex gap-2">
-            {/* <button
-              type="button"
-              onClick={() => void handleExport()}
-              disabled={exporting || panels.length === 0}
-              className="btn-secondary text-sm"
-            >
-              {exporting ? 'Export...' : '📊 Exporter Excel'}
-            </button> */}
             <button
               type="button"
               onClick={() => setShowAddPanel(true)}
@@ -139,9 +143,19 @@ export function LocationView() {
                   ⚡ {panel.name}
                 </h3>
                 <div className="space-y-1 text-sm text-gray-500 dark:text-gray-400">
-                  <p>{panel.element_count} élément{panel.element_count !== 1 ? 's' : ''}</p>
+                  <p>
+                    {panel.element_count} élément
+                    {panel.element_count !== 1 ? "s" : ""}
+                  </p>
                   <p>P. installée: {formatPower(panel.installed_power_w)}</p>
-                  <p>Intensité de calcul: {formatNumber(calculationCurrent(panel.installed_power_w), 2)} A</p>
+                  <p>
+                    Intensité de calcul:{" "}
+                    {formatNumber(
+                      calculationCurrent(panel.installed_power_w),
+                      2,
+                    )}{" "}
+                    A
+                  </p>
                 </div>
               </div>
             ))}

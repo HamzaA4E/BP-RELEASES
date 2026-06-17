@@ -1,9 +1,14 @@
-import type { Article, Element, PhaseType } from '@/types';
-import { displayEmplacement, displayTypeLabel } from '@/utils/elementHelpers';
-import { articlesInstalledPower, calculationCurrent } from '@/utils/calculations';
+import type { Article, Element, PhaseType } from "@/types";
+import { displayEmplacement, displayTypeLabel } from "@/utils/elementHelpers";
+import {
+  articlesInstalledPower,
+  calculationCurrent,
+} from "@/utils/calculations";
 
 /** Emplacement / désignation de pose d'un article (champ « Désignation » du modal). */
-export function payloadToArticleDesignation(data: { emplacement: string }): string {
+export function payloadToArticleDesignation(data: {
+  emplacement: string;
+}): string {
   return data.emplacement.trim();
 }
 
@@ -27,52 +32,56 @@ export function elementToArticleTypeLabel(element: Element): string {
 export function displayArticleTypeLabel(
   article: Article,
   element: Element,
-  isFirstArticle = false
+  isFirstArticle = false,
 ): string {
-  const fromArticle = (article.type_label ?? '').trim();
+  const fromArticle = (article.type_label ?? "").trim();
   if (fromArticle) return fromArticle;
-  const fromDesignation = (article.designation ?? '').trim();
+  const fromDesignation = (article.designation ?? "").trim();
   if (fromDesignation) return fromDesignation;
   if (isFirstArticle) {
-    return displayTypeLabel(element).trim() || '—';
+    return displayTypeLabel(element).trim() || "—";
   }
-  return '—';
+  return "—";
 }
 
 export function displayArticleDesignation(article: Article): string {
-  return article.designation?.trim() || '—';
+  return article.designation?.trim() || "—";
 }
 
 export function buildArticlesSummary(articles: Article[], maxLen = 60): string {
-  if (articles.length === 0) return '';
+  if (articles.length === 0) return "";
   const parts = articles.map((a) => {
-    const label = a.type_label?.trim() || a.designation?.trim() || 'Article';
+    const label = a.type_label?.trim() || a.designation?.trim() || "Article";
     const short = label.length > 20 ? `${label.slice(0, 18)}…` : label;
     return `${short} ×${a.quantity}`;
   });
-  let summary = parts.join(' + ');
+  let summary = parts.join(" + ");
   if (summary.length > maxLen) {
     summary = `${summary.slice(0, maxLen - 3)}...`;
   }
   return summary;
 }
 
-export function multiDepartInstalledPower(articles: Article[]): number {
+type ArticlePowerLike = Pick<Article, "power_w" | "quantity">;
+
+export function multiDepartInstalledPower(
+  articles: ArticlePowerLike[],
+): number {
   return articlesInstalledPower(articles);
 }
 
 export function multiDepartWithCoefs(
-  articles: Article[],
+  articles: ArticlePowerLike[],
   coefKs: number,
-  coefKu: number
+  coefKu: number,
 ): number {
   return Math.round(articlesInstalledPower(articles) * coefKs * coefKu);
 }
 
 export function multiDepartIntensity(
-  articles: Article[],
+  articles: ArticlePowerLike[],
   coefKs: number,
-  coefKu: number
+  coefKu: number,
 ): number {
   return calculationCurrent(multiDepartWithCoefs(articles, coefKs, coefKu));
 }

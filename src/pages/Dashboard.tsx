@@ -1,21 +1,27 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { Share2, Download, Loader2 } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { formatPower } from '@/utils/calculations';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { importBilpowProject } from '@/utils/projectShare';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { Share2, Download, Loader2 } from "lucide-react";
+import { useAppStore } from "@/store/useAppStore";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { formatPower } from "@/utils/calculations";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { importBilpowProject } from "@/utils/projectShare";
 
 export function Dashboard() {
   const navigate = useNavigate();
-  const { projects, setProjects, searchQuery, setSearchQuery, setSelection, setCurrentProject } =
-    useAppStore();
+  const {
+    projects,
+    setProjects,
+    searchQuery,
+    setSearchQuery,
+    setSelection,
+    setCurrentProject,
+  } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [showNewProject, setShowNewProject] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newClient, setNewClient] = useState('');
+  const [newName, setNewName] = useState("");
+  const [newClient, setNewClient] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [exportingId, setExportingId] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
@@ -24,7 +30,7 @@ export function Dashboard() {
       const data = await window.bilpow.projects.getAll();
       setProjects(data);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur de chargement');
+      toast.error(err instanceof Error ? err.message : "Erreur de chargement");
     } finally {
       setLoading(false);
     }
@@ -48,7 +54,7 @@ export function Dashboard() {
 
   const handleCreate = async () => {
     if (!newName.trim()) {
-      toast.error('Le nom du projet est requis');
+      toast.error("Le nom du projet est requis");
       return;
     }
     try {
@@ -58,12 +64,12 @@ export function Dashboard() {
       });
       await loadProjects();
       setShowNewProject(false);
-      setNewName('');
-      setNewClient('');
-      toast.success('Projet créé');
+      setNewName("");
+      setNewClient("");
+      toast.success("Projet créé");
       openProject(project.id);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
   };
 
@@ -71,7 +77,12 @@ export function Dashboard() {
     const project = await window.bilpow.projects.getById(id);
     if (project) {
       setCurrentProject(project);
-      setSelection({ type: 'project', projectId: id, locationId: null, panelId: null });
+      setSelection({
+        type: "project",
+        projectId: id,
+        locationId: null,
+        panelId: null,
+      });
       navigate(`/project/${id}`);
     }
   };
@@ -81,9 +92,9 @@ export function Dashboard() {
     try {
       await window.bilpow.projects.delete(deleteId);
       await loadProjects();
-      toast.success('Projet supprimé');
+      toast.success("Projet supprimé");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
     setDeleteId(null);
   };
@@ -93,10 +104,8 @@ export function Dashboard() {
     try {
       const result = await window.bilpow.project.export(projectId);
       if (result.success && result.filePath) {
-        toast.success(
-          'Fichier enregistré !'
-        );
-      } else if (result.error && result.error !== 'Export annulé') {
+        toast.success("Fichier enregistré !");
+      } else if (result.error && result.error !== "Export annulé") {
         toast.error(result.error);
       }
     } catch (err) {
@@ -107,37 +116,28 @@ export function Dashboard() {
   };
 
   const handleImport = async (filePath?: string) => {
-    console.log('[IMPORT][renderer] handleImport appelé', { filePath });
     setImporting(true);
     try {
-      console.log('[IMPORT][renderer] Appel importBilpowProject...');
       const result = await importBilpowProject(filePath);
-      console.log('[IMPORT][renderer] importBilpowProject résultat:', result);
       if (result.success && result.projectId) {
         if (result.isNew === false) {
-          // Le projet existe déjà, naviguer directement vers le projet
           navigate(`/project/${result.projectId}`);
         } else {
-          // Nouveau projet importé, recharger les projets
-          console.log('[IMPORT][renderer] Rechargement des projets...');
           await loadProjects();
-          console.log('[IMPORT][renderer] Projets rechargés');
         }
       }
     } catch (err) {
-      console.error('[IMPORT][renderer] Erreur catch:', err);
       toast.error(err instanceof Error ? err.message : "Erreur d'import");
     } finally {
-      console.log('[IMPORT][renderer] Finally — setImporting(false)');
       setImporting(false);
     }
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
+    return new Date(dateStr).toLocaleDateString("fr-FR", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
   };
 
@@ -165,9 +165,13 @@ export function Dashboard() {
               ) : (
                 <Download className="w-4 h-4" />
               )}
-              {importing ? 'Import...' : 'Importer (.bilpow)'}
+              {importing ? "Import..." : "Importer (.bilpow)"}
             </button>
-            <button type="button" onClick={() => setShowNewProject(true)} className="btn-primary">
+            <button
+              type="button"
+              onClick={() => setShowNewProject(true)}
+              className="btn-primary"
+            >
               + Nouveau projet
             </button>
           </div>
@@ -189,13 +193,18 @@ export function Dashboard() {
           <div className="card p-12 text-center">
             <p className="text-4xl mb-4">⚡</p>
             <p className="text-gray-500 dark:text-gray-400">
-              {searchQuery ? 'Aucun projet trouvé' : 'Aucun projet. Créez votre premier projet !'}
+              {searchQuery
+                ? "Aucun projet trouvé"
+                : "Aucun projet. Créez votre premier projet !"}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((project) => (
-              <div key={project.id} className="card p-5 hover:shadow-md transition-shadow">
+              <div
+                key={project.id}
+                className="card p-5 hover:shadow-md transition-shadow"
+              >
                 <h3 className="font-semibold text-lg text-primary dark:text-white mb-1">
                   {project.name}
                 </h3>
@@ -257,7 +266,9 @@ export function Dashboard() {
             <h2 className="text-lg font-semibold mb-4">Nouveau projet</h2>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Nom *</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Nom *
+                </label>
                 <input
                   type="text"
                   value={newName}
@@ -268,7 +279,9 @@ export function Dashboard() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Client</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Client
+                </label>
                 <input
                   type="text"
                   value={newClient}
@@ -286,7 +299,11 @@ export function Dashboard() {
               >
                 Annuler
               </button>
-              <button type="button" onClick={() => void handleCreate()} className="btn-primary">
+              <button
+                type="button"
+                onClick={() => void handleCreate()}
+                className="btn-primary"
+              >
                 Créer
               </button>
             </div>
@@ -301,7 +318,6 @@ export function Dashboard() {
         onConfirm={() => void handleDelete()}
         onCancel={() => setDeleteId(null)}
       />
-
     </div>
   );
 }

@@ -1,12 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
-import { Share2, Loader2 } from 'lucide-react';
-import { useAppStore } from '@/store/useAppStore';
-import { formatPower } from '@/utils/calculations';
-import { exportProjectToPdf } from '@/utils/export';
-import { exportProjectToExcel } from '@/utils/exportExcel';
-import type { PanelWithStats, Element } from '@/types';
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
+import { Share2, Loader2 } from "lucide-react";
+import { useAppStore } from "@/store/useAppStore";
+import { formatPower } from "@/utils/calculations";
+import { exportProjectToExcel } from "@/utils/exportExcel";
+import type { PanelWithStats, Element } from "@/types";
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -22,35 +21,39 @@ export function ProjectView() {
     company,
   } = useAppStore();
 
-  const [exportingPdf, setExportingPdf] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [exportingShare, setExportingShare] = useState(false);
   const [editFields, setEditFields] = useState({
-    name: '',
-    client: '',
-    description: '',
+    name: "",
+    client: "",
+    description: "",
   });
-  const [newLocationName, setNewLocationName] = useState('');
+  const [newLocationName, setNewLocationName] = useState("");
   const [showAddLocation, setShowAddLocation] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
       const project = await window.bilpow.projects.getById(id);
       if (!project) {
-        navigate('/');
+        navigate("/");
         return;
       }
       setCurrentProject(project);
       setEditFields({
         name: project.name,
-        client: project.client ?? '',
-        description: project.description ?? '',
+        client: project.client ?? "",
+        description: project.description ?? "",
       });
       const locs = await window.bilpow.locations.getByProject(id);
       setLocations(locs);
-      setSelection({ type: 'project', projectId: id, locationId: null, panelId: null });
+      setSelection({
+        type: "project",
+        projectId: id,
+        locationId: null,
+        panelId: null,
+      });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
   }, [id, navigate, setCurrentProject, setLocations, setSelection]);
 
@@ -65,25 +68,28 @@ export function ProjectView() {
         [field]: value || null,
       });
       setCurrentProject(updated);
-      toast.success('Projet mis à jour');
+      toast.success("Projet mis à jour");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
   };
 
   const handleAddLocation = async () => {
     if (!newLocationName.trim()) {
-      toast.error('Le nom est requis');
+      toast.error("Le nom est requis");
       return;
     }
     try {
-      await window.bilpow.locations.create({ project_id: id, name: newLocationName.trim() });
-      setNewLocationName('');
+      await window.bilpow.locations.create({
+        project_id: id,
+        name: newLocationName.trim(),
+      });
+      setNewLocationName("");
       setShowAddLocation(false);
       await loadData();
-      toast.success('Emplacement ajouté');
+      toast.success("Emplacement ajouté");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur');
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
   };
 
@@ -92,10 +98,8 @@ export function ProjectView() {
     try {
       const result = await window.bilpow.project.export(id);
       if (result.success && result.filePath) {
-        toast.success(
-          'Fichier enregistré !'
-        );
-      } else if (result.error && result.error !== 'Export annulé') {
+        toast.success("Fichier enregistré !");
+      } else if (result.error && result.error !== "Export annulé") {
         toast.error(result.error);
       }
     } catch (err) {
@@ -116,7 +120,9 @@ export function ProjectView() {
         const panels = await window.bilpow.panels.getByLocation(loc.id);
         panelsByLocation[loc.id] = panels;
         for (const panel of panels) {
-          elementsByPanel[panel.id] = await window.bilpow.elements.getByPanel(panel.id);
+          elementsByPanel[panel.id] = await window.bilpow.elements.getByPanel(
+            panel.id,
+          );
         }
       }
 
@@ -127,13 +133,13 @@ export function ProjectView() {
           panelsByLocation,
           elementsByPanel,
         },
-        company ?? undefined
+        company ?? undefined,
       );
 
       if (result.filePath) {
         toast.success(`Export réussi: ${result.filePath}`);
         if (result.warning) {
-          toast(result.warning, { icon: 'ℹ️', duration: 6000 });
+          toast(result.warning, { icon: "ℹ️", duration: 6000 });
         }
         await window.bilpow.shell.openPath(result.filePath);
       }
@@ -144,25 +150,15 @@ export function ProjectView() {
     }
   };
 
-  const handleExportPdf = async () => {
-    setExportingPdf(true);
-    try {
-      const filePath = await exportProjectToPdf(id, company ?? undefined);
-      if (filePath) {
-        toast.success(`PDF exporté: ${filePath}`);
-        await window.bilpow.shell.openPath(filePath);
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Erreur d\'export PDF');
-    } finally {
-      setExportingPdf(false);
-    }
-  };
-
   const openLocation = async (locationId: number) => {
     const panels = await window.bilpow.panels.getByLocation(locationId);
     setPanels(panels);
-    setSelection({ type: 'location', projectId: id, locationId, panelId: null });
+    setSelection({
+      type: "location",
+      projectId: id,
+      locationId,
+      panelId: null,
+    });
     navigate(`/project/${id}/location/${locationId}`);
   };
 
@@ -179,37 +175,33 @@ export function ProjectView() {
           </h1>
           <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Nom</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Nom
+              </label>
               <input
                 type="text"
                 value={editFields.name}
-                onChange={(e) => setEditFields((f) => ({ ...f, name: e.target.value }))}
-                onBlur={(e) => void saveField('name', e.target.value)}
+                onChange={(e) =>
+                  setEditFields((f) => ({ ...f, name: e.target.value }))
+                }
+                onBlur={(e) => void saveField("name", e.target.value)}
                 className="input-field"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Client</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Client
+              </label>
               <input
                 type="text"
                 value={editFields.client}
-                onChange={(e) => setEditFields((f) => ({ ...f, client: e.target.value }))}
-                onBlur={(e) => void saveField('client', e.target.value)}
+                onChange={(e) =>
+                  setEditFields((f) => ({ ...f, client: e.target.value }))
+                }
+                onBlur={(e) => void saveField("client", e.target.value)}
                 className="input-field"
               />
             </div>
-            {/* <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Description</label>
-              <textarea
-                value={editFields.description}
-                onChange={(e) =>
-                  setEditFields((f) => ({ ...f, description: e.target.value }))
-                }
-                onBlur={(e) => void saveField('description', e.target.value)}
-                className="input-field resize-none"
-                rows={2}
-              />
-            </div> */}
           </div>
         </div>
 
@@ -242,16 +234,9 @@ export function ProjectView() {
               disabled={exportingExcel || locations.length === 0}
               className="btn-secondary text-sm"
             >
-              {exportingExcel ? 'Export...' : '📊 Exporter le projet complet'}
+              {exportingExcel ? "Export..." : "📊 Exporter le projet complet"}
             </button>
-            {/* <button
-              type="button"
-              onClick={() => void handleExportPdf()}
-              disabled={exportingPdf || locations.length === 0}
-              className="btn-secondary text-sm"
-            >
-              {exportingPdf ? 'Export...' : '📄 Exporter PDF'}
-            </button> */}
+
             <button
               type="button"
               onClick={() => setShowAddLocation(true)}
@@ -275,10 +260,12 @@ export function ProjectView() {
                 onClick={() => void openLocation(loc.id)}
               >
                 <div>
-                  <h3 className="font-medium text-primary dark:text-white">{loc.name}</h3>
+                  <h3 className="font-medium text-primary dark:text-white">
+                    {loc.name}
+                  </h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    {loc.panel_count} tableau{loc.panel_count !== 1 ? 'x' : ''} ·{' '}
-                    {formatPower(loc.total_power_w)}
+                    {loc.panel_count} tableau{loc.panel_count !== 1 ? "x" : ""}{" "}
+                    · {formatPower(loc.total_power_w)}
                   </p>
                 </div>
                 <span className="text-accent">→</span>
@@ -318,7 +305,6 @@ export function ProjectView() {
             </div>
           </div>
         )}
-
       </div>
     </div>
   );
