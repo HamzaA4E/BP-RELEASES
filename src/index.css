@@ -69,7 +69,7 @@
   }
 
   .row-hover {
-    @apply hover:bg-slate-50 dark:hover:bg-slate-800;
+    @apply hover:bg-slate-100 dark:hover:bg-slate-800;
   }
 
   .card-hover-readable {

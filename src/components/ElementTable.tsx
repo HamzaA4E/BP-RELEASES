@@ -781,6 +781,8 @@ function SortableMultiDepartRow({
   setEditingField,
   articleEditing,
   setArticleEditing,
+  hoveredElementId,
+  setHoveredElementId,
 }: {
   element: Element;
   articles: Article[];
@@ -795,6 +797,8 @@ function SortableMultiDepartRow({
   ) => void;
   articleEditing: ArticleEditingState;
   setArticleEditing: (v: ArticleEditingState) => void;
+  hoveredElementId: number | null;
+  setHoveredElementId: (id: number | null) => void;
 }) {
   const {
     attributes,
@@ -831,6 +835,13 @@ function SortableMultiDepartRow({
         ];
 
   const groupBorder = "border-l-2 border-l-blue-200 dark:border-l-blue-800";
+  const isGroupHovered = hoveredElementId === element.id;
+  const groupHoverClass = isGroupHovered
+    ? "bg-slate-100 dark:bg-slate-800"
+    : "row-hover";
+  const rowSpanHoverClass = isGroupHovered
+    ? "bg-slate-100 dark:bg-slate-800"
+    : "";
 
   return (
     <>
@@ -839,7 +850,9 @@ function SortableMultiDepartRow({
           key={article.id}
           ref={idx === 0 ? setNodeRef : undefined}
           style={idx === 0 ? style : undefined}
-          className={`row-hover ${
+          onMouseEnter={() => setHoveredElementId(element.id)}
+          onMouseLeave={() => setHoveredElementId(null)}
+          className={`${groupHoverClass} ${
             idx < rowCount - 1
               ? "border-b border-dashed border-gray-200 dark:border-gray-600"
               : "border-b border-gray-100 dark:border-gray-700"
@@ -849,7 +862,7 @@ function SortableMultiDepartRow({
             <>
               <td
                 rowSpan={rowCount}
-                className={`px-2 py-2 text-center text-gray-400 cursor-grab align-middle ${groupBorder}`}
+                className={`px-2 py-2 text-center text-gray-400 cursor-grab align-middle ${groupBorder} ${rowSpanHoverClass}`}
                 {...attributes}
                 {...listeners}
               >
@@ -857,18 +870,24 @@ function SortableMultiDepartRow({
               </td>
               <td
                 rowSpan={rowCount}
-                className="px-1 py-2 text-center align-middle"
+                className={`px-1 py-2 text-center align-middle ${rowSpanHoverClass}`}
               >
                 <AddTypeButton onClick={() => onAddTypeToDepart(element)} />
               </td>
-              <td rowSpan={rowCount} className="px-3 py-2 align-middle">
+              <td
+                rowSpan={rowCount}
+                className={`px-3 py-2 align-middle ${rowSpanHoverClass}`}
+              >
                 <span
                   className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${badge.className}`}
                 >
                   {badge.label}
                 </span>
               </td>
-              <td rowSpan={rowCount} className="px-3 py-2 align-middle">
+              <td
+                rowSpan={rowCount}
+                className={`px-3 py-2 align-middle ${rowSpanHoverClass}`}
+              >
                 <InlineRepereCell
                   element={element}
                   editingField={editingField}
@@ -943,7 +962,10 @@ function SortableMultiDepartRow({
             {formatNumber(wattsToKw(calcArticlePower(article)), 3)}
           </td>
           {idx === 0 && (
-            <td rowSpan={rowCount} className="px-3 py-2 align-middle">
+            <td
+              rowSpan={rowCount}
+              className={`px-3 py-2 align-middle ${rowSpanHoverClass}`}
+            >
               <button
                 type="button"
                 onClick={() => onDelete(element.id)}
@@ -968,6 +990,8 @@ function SortableDataRow({
   onFieldUpdate,
   editingField,
   setEditingField,
+  hoveredElementId,
+  setHoveredElementId,
 }: {
   element: Element;
   onEdit: (el: Element) => void;
@@ -978,6 +1002,8 @@ function SortableDataRow({
   setEditingField: (
     v: { id: number; field: EditableField | CoefField } | null,
   ) => void;
+  hoveredElementId: number | null;
+  setHoveredElementId: (id: number | null) => void;
 }) {
   const {
     attributes,
@@ -995,6 +1021,10 @@ function SortableDataRow({
   };
 
   const isDivers = element.type === "divers";
+  const isHovered = hoveredElementId === element.id;
+  const rowHoverClass = isHovered
+    ? "bg-slate-100 dark:bg-slate-800"
+    : "row-hover";
   const totalPower = calcPuissanceTotale(element);
   const badge = typeBadge(element);
   const typeLabel = displayTypeLabel(element);
@@ -1012,7 +1042,9 @@ function SortableDataRow({
       <tr
         ref={setNodeRef}
         style={style}
-        className={`border-b border-gray-100 dark:border-gray-700 row-hover ${
+        onMouseEnter={() => setHoveredElementId(element.id)}
+        onMouseLeave={() => setHoveredElementId(null)}
+        className={`border-b border-gray-100 dark:border-gray-700 ${rowHoverClass} ${
           isDivers ? "opacity-60" : ""
         }`}
       >
@@ -1165,6 +1197,7 @@ export function ElementTable({
   } | null>(null);
   const [articleEditing, setArticleEditing] =
     useState<ArticleEditingState>(null);
+  const [hoveredElementId, setHoveredElementId] = useState<number | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -1266,6 +1299,8 @@ export function ElementTable({
                       setEditingField={setEditingField}
                       articleEditing={articleEditing}
                       setArticleEditing={setArticleEditing}
+                      hoveredElementId={hoveredElementId}
+                      setHoveredElementId={setHoveredElementId}
                     />
                   );
                 }
@@ -1279,6 +1314,8 @@ export function ElementTable({
                     onFieldUpdate={onFieldUpdate}
                     editingField={editingField}
                     setEditingField={setEditingField}
+                    hoveredElementId={hoveredElementId}
+                    setHoveredElementId={setHoveredElementId}
                   />
                 );
               })}

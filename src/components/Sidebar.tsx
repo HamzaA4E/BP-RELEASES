@@ -400,12 +400,12 @@ export function Sidebar() {
             onClick={() => setContextMenu(null)}
           />
           <div
-            className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 py-1 w-max min-w-[136px]"
+            className="fixed z-50 inline-block bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 py-1 w-auto min-w-0"
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <button
               type="button"
-              className="menu-item-hover w-full whitespace-nowrap px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-100"
+              className="menu-item-hover block whitespace-nowrap px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-100"
               onClick={() => {
                 setRenaming({
                   type: contextMenu.type,
@@ -421,7 +421,7 @@ export function Sidebar() {
               <button
                 type="button"
                 disabled={exportingProjectId === contextMenu.id}
-                className="menu-item-hover w-full whitespace-nowrap px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-100 disabled:opacity-50"
+                className="menu-item-hover block whitespace-nowrap px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-100 disabled:opacity-50"
                 onClick={() => void handleProjectExcelExport(contextMenu.id)}
               >
                 {exportingProjectId === contextMenu.id
@@ -433,7 +433,7 @@ export function Sidebar() {
               contextMenu.type === "panel") && (
               <button
                 type="button"
-                className="menu-item-hover w-full whitespace-nowrap px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-100"
+                className="menu-item-hover block whitespace-nowrap px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-100"
                 onClick={() =>
                   void handleDuplicate(contextMenu.type, contextMenu.id)
                 }
@@ -443,7 +443,7 @@ export function Sidebar() {
             )}
             <button
               type="button"
-              className="w-full whitespace-nowrap px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="block whitespace-nowrap px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
               onClick={() => {
                 setConfirmDelete(contextMenu);
                 setContextMenu(null);
