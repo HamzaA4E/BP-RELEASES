@@ -99,10 +99,11 @@ PRAGMA foreign_keys = ON;
 `;
 
 const DEFAULT_FAVORITES = [
-  { type: 'prise', designation: 'Prise de courant 2P+T', power_w: 200, color: '#3B82F6' },
-  { type: 'prise', designation: 'Prise informatique RJ45', power_w: 150, color: '#3B82F6' },
-  { type: 'eclairage', designation: 'Panneau LED', power_w: 35, color: '#3B82F6' },
-  { type: 'eclairage', designation: 'Réglette fluorescente', power_w: 58, color: '#3B82F6' },
+  { type: 'prise', designation: 'Prise normale', power_w: 200, color: '#3B82F6' },
+  { type: 'prise', designation: 'Prise cuisine', power_w: 500, color: '#3B82F6' },
+  { type: 'eclairage', designation: 'Pannel 60x60', power_w: 35, color: '#3B82F6' },
+  { type: 'eclairage', designation: 'Réglette 2x36', power_w: 72, color: '#3B82F6' },
+  { type: 'eclairage', designation: 'Suspension', power_w: 40, color: '#3B82F6' },
 ] as const;
 
 const RECREATE_ELEMENTS_SQL = `

@@ -10,6 +10,7 @@ import { Favorites } from '@/pages/Favorites';
 import { SettingsPage } from '@/pages/SettingsPage';
 import { useAppStore } from '@/store/useAppStore';
 import { importBilpowProject } from '@/utils/projectShare';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 
 function AutoImportListener() {
   const navigate = useNavigate();
@@ -41,6 +42,7 @@ function AutoImportListener() {
 
 export default function App() {
   const { darkMode, setProjects, loadCompanySettings } = useAppStore();
+  useUnsavedChangesGuard();
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);

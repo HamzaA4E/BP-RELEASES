@@ -39,6 +39,7 @@ const isDev = process.env.NODE_ENV === 'development';
 
 let mainWindow: BrowserWindow | null = null;
 let pendingBilpowImportPath: string | null = null;
+let hasUnsavedChanges = false;
 
 function sanitizeFileName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '_').trim() || 'projet';
@@ -99,6 +100,31 @@ function createWindow(): void {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  mainWindow.on('close', (e) => {
+    if (hasUnsavedChanges) {
+      e.preventDefault();
+      const choice = dialog.showMessageBoxSync(mainWindow!, {
+        type: 'warning',
+        title: 'Modifications non sauvegardées',
+        message: 'Vous avez des modifications non sauvegardées. Voulez-vous les enregistrer avant de fermer ?',
+        buttons: ['Enregistrer et fermer', 'Fermer sans enregistrer', 'Annuler'],
+        defaultId: 0,
+        cancelId: 2,
+      });
+
+      if (choice === 0) {
+        // Enregistrer et fermer
+        mainWindow?.webContents.send('app:before-close-save');
+        // La fermeture sera effectuée après la sauvegarde
+      } else if (choice === 1) {
+        // Fermer sans enregistrer
+        hasUnsavedChanges = false;
+        mainWindow?.close();
+      }
+      // Si choice === 2 (Annuler), ne rien faire
+    }
   });
 }
 
@@ -474,6 +500,15 @@ function registerIpcHandlers(): void {
       console.error('[project:export]', message);
       return { success: false, error: message };
     }
+  });
+
+  ipcMain.handle('app:hasUnsavedChanges', () => {
+    return { success: true, data: hasUnsavedChanges };
+  });
+
+  ipcMain.handle('app:setUnsavedChanges', (_e, value: boolean) => {
+    hasUnsavedChanges = value;
+    return { success: true, data: hasUnsavedChanges };
   });
 
   ipcMain.handle('project:import', async (_e, filePathArg?: string) => {

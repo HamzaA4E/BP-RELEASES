@@ -138,6 +138,9 @@ const api = {
     getNativeTheme: (): Promise<boolean> => invoke('app:getNativeTheme'),
     setNativeTheme: (theme: 'dark' | 'light' | 'system'): Promise<boolean> =>
       invoke('app:setNativeTheme', theme),
+    hasUnsavedChanges: (): Promise<boolean> => invoke('app:hasUnsavedChanges'),
+    setUnsavedChanges: (value: boolean): Promise<boolean> =>
+      invoke('app:setUnsavedChanges', value),
   },
   shell: {
     openPath: (filePath: string): Promise<string> =>
