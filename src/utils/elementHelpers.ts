@@ -244,7 +244,7 @@ export function normalizeElement(raw: Element): Element {
 export type ElementTableRow =
   | { kind: 'jdb'; element: Element }
   | { kind: 'element'; element: Element }
-  | { kind: 'subtotal'; label: string; totalPower: number };
+  | { kind: 'subtotal'; label: string; totalPower: number; jdb: Element };
 
 /** Construit les lignes du tableau avec sous-totaux par jeu de barres. */
 export function buildElementTableRows(
@@ -270,6 +270,7 @@ export function buildElementTableRows(
       kind: 'subtotal',
       label: `Sous-total ${jeuDeBarresTitle(currentJdb)}`,
       totalPower,
+      jdb: currentJdb,
     });
     groupElements = [];
   };

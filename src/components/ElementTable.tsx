@@ -454,9 +454,13 @@ function JeuDeBarresRow({
 function SubtotalRow({
   label,
   totalPower,
+  jdb,
+  onAddElement,
 }: {
   label: string;
   totalPower: number;
+  jdb: Element;
+  onAddElement: (jdb: Element) => void;
 }) {
   return (
     <tr className="bg-blue-50/80 dark:bg-blue-900/15">
@@ -468,7 +472,18 @@ function SubtotalRow({
       >
         {label}
       </td>
-      <td colSpan={6} />
+      <td colSpan={5} />
+      <td className="px-3 py-2 text-right">
+        <button
+          type="button"
+          onClick={() => onAddElement(jdb)}
+          className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#1E3A5F]/10 hover:bg-[#1E3A5F]/20 text-[#1E3A5F] dark:text-blue-300 text-xs font-medium rounded-lg transition-colors"
+          title="Ajouter un élément dans cette section"
+        >
+          <span className="text-sm leading-none">+</span>
+          Ajouter un élément
+        </button>
+      </td>
       <td className="px-3 py-2 text-sm text-right font-bold italic text-primary dark:text-white">
         {formatNumber(wattsToKw(totalPower), 3)} kW
       </td>
@@ -1281,6 +1296,8 @@ export function ElementTable({
                       key={`subtotal-${idx}`}
                       label={row.label}
                       totalPower={row.totalPower}
+                      jdb={row.jdb}
+                      onAddElement={onAddElementUnderJdb}
                     />
                   );
                 }
