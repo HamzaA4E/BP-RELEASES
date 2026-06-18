@@ -71,11 +71,11 @@ function emptyArticle(): ArticleFormItem {
   };
 }
 
-function buildDefaultDepart(type: DepartType, existingElements: Element[]): DepartForm {
+function buildDefaultDepart(type: DepartType, existingElements: Element[], contextJdb?: Element | null): DepartForm {
   const coefs = defaultCoefsForType(type, 'mono');
   return {
     type,
-    repere: getNextRepere(existingElements, type),
+    repere: getNextRepere(existingElements, type, contextJdb),
     phase_type: 'mono',
     coef_ks: coefs.coef_ks,
     coef_ku: coefs.coef_ku,
@@ -273,6 +273,7 @@ export interface MultiDepartModalProps {
   existingElements: Element[];
   favorites: Favorite[];
   editElement?: Element | null;
+  contextJdb?: Element | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -283,12 +284,13 @@ export function MultiDepartModal({
   existingElements,
   favorites,
   editElement = null,
+  contextJdb = null,
   onClose,
   onSuccess,
 }: MultiDepartModalProps) {
   const isEdit = Boolean(editElement);
   const [depart, setDepart] = useState<DepartForm>(() =>
-    buildDefaultDepart('eclairage', existingElements)
+    buildDefaultDepart('eclairage', existingElements, contextJdb)
   );
   const [articles, setArticles] = useState<ArticleFormItem[]>([emptyArticle()]);
   const [repereError, setRepereError] = useState('');
@@ -330,20 +332,20 @@ export function MultiDepartModal({
         }
       });
     } else {
-      setDepart(buildDefaultDepart('eclairage', existingElements));
+      setDepart(buildDefaultDepart('eclairage', existingElements, contextJdb));
       setArticles([emptyArticle()]);
     }
     setRepereError('');
-  }, [isOpen, editElement, existingElements]);
+  }, [isOpen, editElement, existingElements, contextJdb]);
 
   useEffect(() => {
     if (!isEdit && isOpen) {
       setDepart((p) => ({
         ...p,
-        repere: getNextRepere(existingElements, p.type),
+        repere: getNextRepere(existingElements, p.type, contextJdb),
       }));
     }
-  }, [depart.type, isOpen, isEdit, existingElements]);
+  }, [depart.type, isOpen, isEdit, existingElements, contextJdb]);
 
   const installedPower = useMemo(
     () => multiDepartInstalledPower(articles),

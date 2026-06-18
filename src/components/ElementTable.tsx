@@ -440,9 +440,9 @@ function JeuDeBarresRow({
               type="button"
               onClick={() => onDelete(element.id)}
               className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-red-300 p-1 rounded"
-              title="Supprimer ce jeu de barres"
+              title="Supprimer ce jeu de barres et tous ses éléments"
             >
-              ×
+              🗑️
             </button>
           </div>
         </div>

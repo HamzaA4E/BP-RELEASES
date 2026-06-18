@@ -18,6 +18,7 @@ import {
   isJeuDeBarres,
   getInsertIndexAfterJdbSection,
   getJeuDeBarresForElement,
+  getElementsInJdbSection,
   departCategoryOf,
   findElementByRepereAndCategory,
   getInsertIndexAfterRepereGroup,
@@ -32,6 +33,7 @@ import {
   buildLocalElement,
   createElementPending,
   reorderElementsList,
+  type LocalMutation,
 } from "@/utils/panelEditing";
 import { LoadGauge } from "@/components/LoadGauge";
 import type { Article, Element, JdbCategory, Panel, PhaseType } from "@/types";
@@ -334,6 +336,8 @@ export function PanelView() {
           elements,
           departForNewType.repere,
           formCategory,
+          undefined,
+          getJeuDeBarresForElement(elements, departForNewType.id),
         );
         if (existingSameCategory) {
           toast.error(
@@ -521,6 +525,7 @@ export function PanelView() {
         data.repere,
         formCategory,
         editElement.id,
+        getJeuDeBarresForElement(elements, editElement.id),
       );
       if (existing) {
         toast.error("Ce repère est déjà utilisé pour cette catégorie");
@@ -574,6 +579,8 @@ export function PanelView() {
         elements,
         data.repere,
         formCategory,
+        undefined,
+        contextJdb,
       );
       if (existing) {
         toast.error(
@@ -622,6 +629,8 @@ export function PanelView() {
         elements,
         item.repere,
         category,
+        undefined,
+        contextJdb,
       );
       if (existing) {
         toast.error(
@@ -702,43 +711,74 @@ export function PanelView() {
       return;
     }
 
-    const articles = articlesByElement[id] ?? [];
-    const index = elements.findIndex((e) => e.id === id);
+    const isJdb = isJeuDeBarres(element);
+    const childIds = isJdb
+      ? getElementsInJdbSection(elements, element.id).map((e) => e.id)
+      : [];
+    const idsToDelete = [id, ...childIds];
+
     const prevElements = elements;
     const prevArticles = { ...articlesByElement };
+    const index = elements.findIndex((e) => e.id === id);
 
     if (id < 0) {
       removePendingForTempElement(id);
+      for (const childId of childIds) {
+        if (childId < 0) {
+          removePendingForTempElement(childId);
+        }
+      }
       recordOperation({
         inverse: [
           { op: "setElements", elements: prevElements },
           { op: "setArticles", articlesByElement: prevArticles },
         ],
-        redo: [{ op: "removeElement", id }],
+        redo: idsToDelete.map((idToRemove) => ({
+          op: "removeElement" as const,
+          id: idToRemove,
+        })),
         pending: [],
       });
-      applyMutations([{ op: "removeElement", id }]);
+      applyMutations(
+        idsToDelete.map((idToRemove) => ({ op: "removeElement" as const, id: idToRemove })),
+      );
     } else {
+      const inverseInsertions: LocalMutation[] = [];
+      for (let i = 0; i < prevElements.length; i++) {
+        const el = prevElements[i]!;
+        if (idsToDelete.includes(el.id)) {
+          inverseInsertions.push({ op: "insertElement", element: el, index: i });
+          const arts = prevArticles[el.id] ?? [];
+          if (arts.length > 0) {
+            inverseInsertions.push({
+              op: "setArticlesForElement",
+              elementId: el.id,
+              articles: arts,
+            });
+          }
+        }
+      }
+
       recordOperation({
-        inverse: [
-          { op: "insertElement", element, index },
-          ...(articles.length
-            ? [
-                {
-                  op: "setArticlesForElement" as const,
-                  elementId: id,
-                  articles,
-                },
-              ]
-            : []),
-        ],
-        redo: [{ op: "removeElement", id }],
-        pending: [{ type: "deleteElement", id }],
+        inverse: inverseInsertions,
+        redo: idsToDelete.map((idToRemove) => ({
+          op: "removeElement" as const,
+          id: idToRemove,
+        })),
+        pending: idsToDelete
+          .filter((idToRemove) => idToRemove > 0)
+          .map((idToRemove) => ({ type: "deleteElement" as const, id: idToRemove })),
       });
-      applyMutations([{ op: "removeElement", id }]);
+      applyMutations(
+        idsToDelete.map((idToRemove) => ({ op: "removeElement" as const, id: idToRemove })),
+      );
     }
 
-    toast.success("Ligne supprimée");
+    toast.success(
+      isJdb && childIds.length > 0
+        ? `Jeu de barres et ${childIds.length} élément(s) supprimé(s)`
+        : "Ligne supprimée",
+    );
     setDeleteElementId(null);
   };
 
@@ -1063,7 +1103,16 @@ export function PanelView() {
       <ConfirmDialog
         isOpen={deleteElementId !== null}
         title="Supprimer la ligne"
-        message="Êtes-vous sûr de vouloir supprimer cette ligne ?"
+        message={(() => {
+          const el = elements.find((e) => e.id === deleteElementId);
+          if (el && isJeuDeBarres(el)) {
+            const count = getElementsInJdbSection(elements, el.id).length;
+            return count > 0
+              ? `Ce jeu de barres contient ${count} élément(s). La suppression supprimera également tous les éléments qu'il contient. Continuer ?`
+              : "Êtes-vous sûr de vouloir supprimer ce jeu de barres ?";
+          }
+          return "Êtes-vous sûr de vouloir supprimer cette ligne ?";
+        })()}
         onConfirm={() => void handleDeleteElement()}
         onCancel={() => setDeleteElementId(null)}
       />

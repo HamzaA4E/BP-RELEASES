@@ -12,6 +12,7 @@ import {
   articlesTotalPower,
   calcArticlePower,
 } from "../../shared/powerCalculations";
+import { getElementsInJdbSection } from "@/utils/elementHelpers";
 
 export {
   calcPuissanceTotale,
@@ -75,12 +76,20 @@ const PREFIX_MAP: Record<ElementType, string> = {
   jeu_de_barres: "JDB",
 };
 
+/** Returns the next repere number for a given element type.
+ *  When a contextJdb is provided, only elements within that JDB section are counted
+ *  so each jeu de barres has its own departure numbering starting from 1.
+ */
 export function getNextRepere(
   existingElements: Element[],
   type: ElementType,
+  contextJdb?: Element | null,
 ): string {
   const prefix = PREFIX_MAP[type];
-  const existing = existingElements
+  const scopedElements = contextJdb
+    ? getElementsInJdbSection(existingElements, contextJdb.id)
+    : existingElements;
+  const existing = scopedElements
     .filter((e) => e.type === type)
     .map((e) => {
       const m = e.repere.match(/^[A-Za-z_\-]+(\d+)$/);

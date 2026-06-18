@@ -101,11 +101,15 @@ export function findElementByRepereAndCategory(
   elements: Element[],
   repere: string,
   category: DepartCategory,
-  excludeId?: number
+  excludeId?: number,
+  contextJdb?: Element | null
 ): Element | undefined {
   const key = repere.trim().toUpperCase();
   if (!key) return undefined;
-  return elements.find(
+  const scoped = contextJdb
+    ? getElementsInJdbSection(elements, contextJdb.id)
+    : elements;
+  return scoped.find(
     (e) =>
       !isJeuDeBarres(e) &&
       e.id !== excludeId &&
@@ -156,6 +160,25 @@ export function getJeuDeBarresForElement(
   const index = elements.findIndex((e) => e.id === elementId);
   if (index < 0) return null;
   return getActiveJeuDeBarres(elements, index + 1);
+}
+
+/** Returns all non-JDB elements that belong to a specific JDB section.
+ *  A JDB section starts at the given jdbId and ends just before the next JDB element.
+ */
+export function getElementsInJdbSection(
+  elements: Element[],
+  jdbId: number
+): Element[] {
+  const jdbIndex = elements.findIndex((e) => e.id === jdbId);
+  if (jdbIndex < 0) return [];
+
+  const result: Element[] = [];
+  for (let i = jdbIndex + 1; i < elements.length; i++) {
+    const el = elements[i]!;
+    if (isJeuDeBarres(el)) break;
+    result.push(el);
+  }
+  return result;
 }
 
 /** Index where a new element should be inserted at the end of a jeu de barres section. */
