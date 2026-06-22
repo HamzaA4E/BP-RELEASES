@@ -910,7 +910,8 @@ function buildWorkbookFromPanels(
 
 export async function exportLocationToExcel(
   locationId: number,
-  companyFromRenderer?: CompanySettings
+  companyFromRenderer?: CompanySettings,
+  panelIds?: number[]
 ): Promise<ExcelExportResult> {
   const company = companyFromRenderer ?? getCompanySettings();
   const project = getProjectForLocation(locationId);
@@ -932,7 +933,9 @@ export async function exportLocationToExcel(
   workbook.creator = 'BilPow';
   workbook.created = new Date();
 
-  const panels = getPanelsByLocation(locationId);
+  const panels = getPanelsByLocation(locationId).filter(
+    (panel) => !panelIds || panelIds.length === 0 || panelIds.includes(panel.id)
+  );
   const panelInputs = panels.map((panel) => ({
     locationName: location.name,
     panelName: panel.name,

@@ -6,6 +6,7 @@ import { calculationCurrent, formatPower } from "@/utils/calculations";
 import { exportLocationToExcel } from "@/utils/export";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { formatNumber } from "@/utils/calculations";
+import type { PanelWithStats } from "@/types";
 
 export function LocationView() {
   const { projectId, locationId } = useParams<{
@@ -21,6 +22,8 @@ export function LocationView() {
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [newPanelName, setNewPanelName] = useState("");
   const [, setExporting] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [selectedPanelIds, setSelectedPanelIds] = useState<number[]>([]);
 
   const loadData = useCallback(async () => {
     try {
@@ -82,10 +85,14 @@ export function LocationView() {
     navigate(`/project/${pId}/location/${lId}/panel/${panelId}`);
   };
 
-  const handleExport = async () => {
+  const handleExport = async (panelIds?: number[]) => {
     setExporting(true);
     try {
-      const result = await exportLocationToExcel(lId, company ?? undefined);
+      const result = await exportLocationToExcel(
+        lId,
+        company ?? undefined,
+        panelIds,
+      );
       if (result.filePath) {
         toast.success(`Export réussi: ${result.filePath}`);
         if (result.warning) {
@@ -98,6 +105,30 @@ export function LocationView() {
     } finally {
       setExporting(false);
     }
+  };
+
+  const handleExportSelected = async () => {
+    if (selectedPanelIds.length === 0) {
+      toast.error("Veuillez sélectionner au moins un tableau");
+      return;
+    }
+    setShowExportDialog(false);
+    await handleExport(selectedPanelIds);
+    setSelectedPanelIds([]);
+  };
+
+  const togglePanelSelection = (panelId: number) => {
+    setSelectedPanelIds((prev) =>
+      prev.includes(panelId)
+        ? prev.filter((id) => id !== panelId)
+        : [...prev, panelId],
+    );
+  };
+
+  const toggleAllPanels = (panelsList: PanelWithStats[]) => {
+    setSelectedPanelIds((prev) =>
+      prev.length === panelsList.length ? [] : panelsList.map((p) => p.id),
+    );
   };
 
   return (
@@ -119,10 +150,29 @@ export function LocationView() {
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={() => {
+                setSelectedPanelIds(panels.map((p) => p.id));
+                setShowExportDialog(true);
+              }}
+              className="btn-secondary text-sm"
+            >
+              📊 Exporter tableaux
+            </button>
+            <button
+              type="button"
               onClick={() => setShowAddPanel(true)}
               className="btn-primary text-sm"
             >
               + Ajouter un tableau
+            </button>
+          </div>
+           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAddPanel(true)}
+              className="btn-primary text-sm"
+            >
+              
             </button>
           </div>
         </div>
@@ -188,6 +238,80 @@ export function LocationView() {
                   className="btn-primary"
                 >
                   Ajouter
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showExportDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="card p-6 w-full max-w-md mx-4">
+              <h3 className="font-semibold text-lg mb-1">
+                Exporter les tableaux
+              </h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                Sélectionnez les tableaux à inclure dans l'export Excel.
+              </p>
+
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden mb-4 max-h-72 overflow-y-auto">
+                <label className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={
+                      panels.length > 0 &&
+                      selectedPanelIds.length === panels.length
+                    }
+                    onChange={() => toggleAllPanels(panels)}
+                    className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
+                  />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                    Tout sélectionner
+                  </span>
+                </label>
+                {panels.map((panel) => (
+                  <label
+                    key={panel.id}
+                    className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedPanelIds.includes(panel.id)}
+                      onChange={() => togglePanelSelection(panel.id)}
+                      className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
+                        ⚡ {panel.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {panel.element_count} élément
+                        {panel.element_count !== 1 ? "s" : ""} ·{" "}
+                        {formatPower(panel.installed_power_w)}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowExportDialog(false);
+                    setSelectedPanelIds([]);
+                  }}
+                  className="btn-secondary"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleExportSelected()}
+                  disabled={selectedPanelIds.length === 0}
+                  className="btn-primary disabled:opacity-50"
+                >
+                  Exporter {selectedPanelIds.length > 0 && selectedPanelIds.length}
                 </button>
               </div>
             </div>

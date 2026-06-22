@@ -76,7 +76,8 @@ export interface BilPowAPI {
   export: {
     exportLocationToExcel: (
       locationId: number,
-      company?: CompanySettings
+      company?: CompanySettings,
+      panelIds?: number[]
     ) => Promise<ExcelExportResult>;
     exportProjectToPdf: (
       projectId: number,

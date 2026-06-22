@@ -109,9 +109,10 @@ const api = {
   export: {
     exportLocationToExcel: (
       locationId: number,
-      company?: CompanySettings
+      company?: CompanySettings,
+      panelIds?: number[]
     ): Promise<ExcelExportResult> =>
-      invoke('export:exportLocationToExcel', locationId, company),
+      invoke('export:exportLocationToExcel', locationId, company, panelIds),
     exportProjectToPdf: (
       projectId: number,
       company?: CompanySettings

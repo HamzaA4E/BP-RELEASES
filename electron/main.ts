@@ -428,8 +428,8 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(
     'export:exportLocationToExcel',
-    (_e, locationId: number, company?: CompanySettings) =>
-      wrapAsyncHandler(() => exportLocationToExcel(locationId, company))
+    (_e, locationId: number, company?: CompanySettings, panelIds?: number[]) =>
+      wrapAsyncHandler(() => exportLocationToExcel(locationId, company, panelIds))
   );
 
   // ipcMain.handle('export:exportProjectToPdf', (_e, projectId: number, company?: CompanySettings) =>

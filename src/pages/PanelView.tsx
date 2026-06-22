@@ -719,7 +719,6 @@ export function PanelView() {
 
     const prevElements = elements;
     const prevArticles = { ...articlesByElement };
-    const index = elements.findIndex((e) => e.id === id);
 
     if (id < 0) {
       removePendingForTempElement(id);
