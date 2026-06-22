@@ -164,6 +164,23 @@ const api = {
       };
     },
   },
+  menu: {
+    onNewProject: (callback: () => void): (() => void) => {
+      const listener = (): void => { callback(); };
+      ipcRenderer.on('menu:new-project', listener);
+      return () => { ipcRenderer.removeListener('menu:new-project', listener); };
+    },
+    onOpenProject: (callback: () => void): (() => void) => {
+      const listener = (): void => { callback(); };
+      ipcRenderer.on('menu:open-project', listener);
+      return () => { ipcRenderer.removeListener('menu:open-project', listener); };
+    },
+    onSave: (callback: () => void): (() => void) => {
+      const listener = (): void => { callback(); };
+      ipcRenderer.on('menu:save', listener);
+      return () => { ipcRenderer.removeListener('menu:save', listener); };
+    },
+  },
 };
 
 export type BilPowAPI = typeof api;

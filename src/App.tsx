@@ -40,6 +40,42 @@ function AutoImportListener() {
   return null;
 }
 
+function MenuListener() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const unsubNewProject = window.bilpow.menu.onNewProject(() => {
+      navigate('/');
+    });
+
+    const unsubOpenProject = window.bilpow.menu.onOpenProject(() => {
+      void (async () => {
+        try {
+          const result = await window.bilpow.project.import();
+          if (result.success && result.projectId) {
+            navigate(`/project/${result.projectId}`);
+            toast.success(`Projet "${result.projectName}" importé avec succès`);
+          }
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Erreur d'import");
+        }
+      })();
+    });
+
+    const unsubSave = window.bilpow.menu.onSave(() => {
+      window.dispatchEvent(new CustomEvent('panel-request-save'));
+    });
+
+    return () => {
+      unsubNewProject();
+      unsubOpenProject();
+      unsubSave();
+    };
+  }, [navigate]);
+
+  return null;
+}
+
 export default function App() {
   const { darkMode, setProjects, loadCompanySettings } = useAppStore();
   useUnsavedChangesGuard();
@@ -67,6 +103,7 @@ export default function App() {
   return (
     <HashRouter>
       <AutoImportListener />
+      <MenuListener />
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Dashboard />} />

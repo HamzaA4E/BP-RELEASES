@@ -110,6 +110,11 @@ export interface BilPowAPI {
     import: (filePath?: string) => Promise<ProjectImportResult>;
     onAutoImport: (callback: (filePath: string) => void) => () => void;
   };
+  menu: {
+    onNewProject: (callback: () => void) => () => void;
+    onOpenProject: (callback: () => void) => () => void;
+    onSave: (callback: () => void) => () => void;
+  };
 }
 
 declare global {

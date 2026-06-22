@@ -5,6 +5,7 @@ import {
   shell,
   nativeTheme,
   dialog,
+  Menu,
 } from 'electron';
 import path from 'path';
 import fs from 'fs';
@@ -89,6 +90,8 @@ function createWindow(): void {
     },
   });
 
+  createApplicationMenu();
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
     if (process.env.BILPOW_DEVTOOLS === '1') {
@@ -126,6 +129,88 @@ function createWindow(): void {
       // Si choice === 2 (Annuler), ne rien faire
     }
   });
+}
+
+function createApplicationMenu(): void {
+  const isMac = process.platform === 'darwin';
+
+  const template: Electron.MenuItemConstructorOptions[] = [
+    {
+      label: 'Fichier',
+      submenu: [
+        {
+          label: 'Ajouter un projet',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => {
+            mainWindow?.webContents.send('menu:new-project');
+          },
+        },
+        {
+          label: 'Ouvrir un projet',
+          accelerator: 'CmdOrCtrl+O',
+          click: () => {
+            mainWindow?.webContents.send('menu:open-project');
+          },
+        },
+        { type: 'separator' },
+        {
+          label: 'Sauvegarder',
+          accelerator: 'CmdOrCtrl+S',
+          click: () => {
+            mainWindow?.webContents.send('menu:save');
+          },
+        },
+        { type: 'separator' },
+        isMac ? { role: 'close', label: 'Fermer' } : { role: 'quit', label: 'Quitter' },
+      ],
+    },
+    {
+      label: 'Édition',
+      submenu: [
+        { role: 'undo', label: 'Annuler' },
+        { role: 'redo', label: 'Rétablir' },
+        { type: 'separator' },
+        { role: 'cut', label: 'Couper' },
+        { role: 'copy', label: 'Copier' },
+        { role: 'paste', label: 'Coller' },
+        { role: 'selectAll', label: 'Tout sélectionner' },
+      ],
+    },
+    {
+      label: 'Affichage',
+      submenu: [
+        { role: 'reload', label: 'Recharger' },
+        { role: 'forceReload', label: 'Forcer le rechargement' },
+        { role: 'toggleDevTools', label: 'Outils de développement' },
+        { type: 'separator' },
+        { role: 'resetZoom', label: 'Réinitialiser le zoom' },
+        { role: 'zoomIn', label: 'Zoom avant' },
+        { role: 'zoomOut', label: 'Zoom arrière' },
+        { type: 'separator' },
+        { role: 'togglefullscreen', label: 'Plein écran' },
+      ],
+    },
+  ];
+
+  if (isMac) {
+    template.unshift({
+      label: app.name,
+      submenu: [
+        { role: 'about', label: 'À propos' },
+        { type: 'separator' },
+        { role: 'services' },
+        { type: 'separator' },
+        { role: 'hide', label: 'Masquer' },
+        { role: 'hideOthers', label: 'Masquer les autres' },
+        { role: 'unhide', label: 'Afficher tout' },
+        { type: 'separator' },
+        { role: 'quit', label: 'Quitter' },
+      ],
+    });
+  }
+
+  const menu = Menu.buildFromTemplate(template);
+  Menu.setApplicationMenu(menu);
 }
 
 function wrapHandler<T>(
