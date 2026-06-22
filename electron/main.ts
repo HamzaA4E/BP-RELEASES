@@ -560,7 +560,7 @@ function registerIpcHandlers(): void {
     return nativeTheme.shouldUseDarkColors;
   });
   ipcMain.handle('shell:openPath', (_e, filePath: string) =>
-    shell.openPath(filePath)
+    wrapAsyncHandler(() => shell.openPath(filePath))
   );
 
   ipcMain.handle('project:export', async (_e, projectId: number) => {
