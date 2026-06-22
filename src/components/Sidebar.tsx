@@ -503,6 +503,10 @@ export function Sidebar() {
         confirmLabel="Abandonner"
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
+        tertiaryLabel="Enregistrer"
+        onTertiary={() => {
+          window.dispatchEvent(new CustomEvent('panel-request-save'));
+        }}
       />
     </aside>
   );

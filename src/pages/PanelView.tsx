@@ -172,7 +172,6 @@ export function PanelView() {
   );
   const [contextJdb, setContextJdb] = useState<Element | null>(null);
   const [deleteElementId, setDeleteElementId] = useState<number | null>(null);
-  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   const [pendingReperePrefix, setPendingReperePrefix] = useState<string | null>(null);
 
   const loadArticlesForElements = useCallback(async (els: Element[]) => {
@@ -217,7 +216,6 @@ export function PanelView() {
     undo,
     redo,
     save,
-    discard,
     canUndo,
     canRedo,
     initPanel,
@@ -292,8 +290,16 @@ export function PanelView() {
       }
     };
 
+    const handleRequestSave = () => {
+      void save();
+    };
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("panel-request-save", handleRequestSave);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("panel-request-save", handleRequestSave);
+    };
   }, [undo, redo, save, canUndo, canRedo]);
 
   const totalPower = useMemo(
@@ -1064,14 +1070,6 @@ export function PanelView() {
             </button>
             <button
               type="button"
-              onClick={() => setShowDiscardConfirm(true)}
-              disabled={!unsaved}
-              className="btn-secondary text-sm disabled:opacity-40"
-            >
-              Abandonner
-            </button>
-            <button
-              type="button"
               onClick={() => canUndo() && undo()}
               disabled={!canUndo()}
               className="btn-secondary text-sm disabled:opacity-40"
@@ -1191,21 +1189,6 @@ export function PanelView() {
         })()}
         onConfirm={() => void handleDeleteElement()}
         onCancel={() => setDeleteElementId(null)}
-      />
-
-      <ConfirmDialog
-        isOpen={showDiscardConfirm}
-        title="Modifications non enregistrées"
-        message="Vous avez des modifications non enregistrées. Voulez-vous les abandonner ?"
-        confirmLabel="Abandonner"
-        onConfirm={() => {
-          void discard().then(() => {
-            setShowDiscardConfirm(false);
-          });
-        }}
-        onCancel={() => {
-          setShowDiscardConfirm(false);
-        }}
       />
 
       <ConfirmDialog
