@@ -290,8 +290,9 @@ export function PanelView() {
       }
     };
 
-    const handleRequestSave = () => {
-      void save();
+    const handleRequestSave = async () => {
+      await save();
+      window.dispatchEvent(new CustomEvent('panel-save-complete'));
     };
 
     window.addEventListener("keydown", handleKeyDown);

@@ -57,6 +57,14 @@ export function Sidebar() {
   const { guardedNavigate, showConfirm, confirmDiscard, cancelDiscard } =
     useUnsavedNavigationGuard();
 
+  useEffect(() => {
+    const handleSaveComplete = () => {
+      cancelDiscard();
+    };
+    window.addEventListener('panel-save-complete', handleSaveComplete);
+    return () => window.removeEventListener('panel-save-complete', handleSaveComplete);
+  }, [cancelDiscard]);
+
   const loadTreeForProject = useCallback(async (projectId: number) => {
     try {
       const locations = await window.bilpow.locations.getByProject(projectId);
