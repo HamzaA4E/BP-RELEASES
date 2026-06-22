@@ -181,7 +181,7 @@ function createApplicationMenu(): void {
       submenu: [
         { role: 'reload', label: 'Recharger' },
         { role: 'forceReload', label: 'Forcer le rechargement' },
-        { role: 'toggleDevTools', label: 'Outils de développement' },
+       
         { type: 'separator' },
         { role: 'resetZoom', label: 'Réinitialiser le zoom' },
         { role: 'zoomIn', label: 'Zoom avant' },

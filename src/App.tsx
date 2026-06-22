@@ -46,6 +46,7 @@ function MenuListener() {
   useEffect(() => {
     const unsubNewProject = window.bilpow.menu.onNewProject(() => {
       navigate('/');
+      window.dispatchEvent(new CustomEvent('menu-request-new-project'));
     });
 
     const unsubOpenProject = window.bilpow.menu.onOpenProject(() => {

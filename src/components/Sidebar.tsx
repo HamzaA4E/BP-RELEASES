@@ -259,7 +259,7 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-2">
+      <nav className="flex-1 overflow-y-auto py-2 ">
         <button
           type="button"
           onClick={() => {

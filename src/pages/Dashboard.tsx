@@ -40,6 +40,12 @@ export function Dashboard() {
     void loadProjects();
   }, []);
 
+  useEffect(() => {
+    const handleNewProject = () => setShowNewProject(true);
+    window.addEventListener('menu-request-new-project', handleNewProject);
+    return () => window.removeEventListener('menu-request-new-project', handleNewProject);
+  }, []);
+
   useKeyboardShortcuts({
     onNewProject: () => setShowNewProject(true),
   });
