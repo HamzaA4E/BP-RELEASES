@@ -27,6 +27,8 @@ import {
   panelTotalPower,
   calculationCurrent,
   formatPower,
+  PREFIX_MAP,
+  parseRepereNumber,
 } from "@/utils/calculations";
 import {
   buildLocalArticle,
@@ -171,6 +173,7 @@ export function PanelView() {
   const [contextJdb, setContextJdb] = useState<Element | null>(null);
   const [deleteElementId, setDeleteElementId] = useState<number | null>(null);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [pendingReperePrefix, setPendingReperePrefix] = useState<string | null>(null);
 
   const loadArticlesForElements = useCallback(async (els: Element[]) => {
     const multiElements = els.filter((e) => e.is_multi && e.id > 0);
@@ -325,13 +328,55 @@ export function PanelView() {
 
   const toggleReperePrefix = async () => {
     const newValue = panel.repere_prefix ? null : `${panel.name}/`;
+
+    if (newValue && elements.some((e) => !isJeuDeBarres(e) && e.repere.trim())) {
+      setPendingReperePrefix(newValue);
+      return;
+    }
+
+    await applyReperePrefixChange(newValue);
+  };
+
+  const applyReperePrefixChange = async (newValue: string | null) => {
     setPanel((p) => ({ ...p, repere_prefix: newValue }));
     try {
+      if (newValue) {
+        await renameExistingReperes(newValue);
+      }
       await window.bilpow.panels.update({ id: panId, repere_prefix: newValue });
       await refreshPanels();
+      await refreshElements();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
       await loadData();
+    } finally {
+      setPendingReperePrefix(null);
+    }
+  };
+
+  const renameExistingReperes = async (prefix: string) => {
+    const usedKeys = new Set<string>();
+    const updates: { id: number; repere: string }[] = [];
+
+    for (const e of elements) {
+      if (isJeuDeBarres(e)) continue;
+      const parsed = parseRepereNumber(e.repere);
+      if (!parsed) continue;
+
+      const typePrefix = PREFIX_MAP[e.type];
+      const newRepere = `${prefix}${typePrefix}${parsed.number}`;
+      const key = `${e.type}|${newRepere.toUpperCase()}`;
+
+      if (usedKeys.has(key)) {
+        toast.error(`Conflit de repère détecté pour ${newRepere}. Renommage annulé.`);
+        throw new Error('Repere conflict');
+      }
+      usedKeys.add(key);
+      updates.push({ id: e.id, repere: newRepere });
+    }
+
+    for (const { id, repere } of updates) {
+      await window.bilpow.elements.update({ id, repere });
     }
   };
 
@@ -1155,6 +1200,21 @@ export function PanelView() {
         }}
         onCancel={() => {
           setShowDiscardConfirm(false);
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={pendingReperePrefix !== null}
+        title="Appliquer le préfixe aux repères existants"
+        message={`Voulez-vous renommer tous les repères existants pour qu'ils commencent par « ${pendingReperePrefix ?? ''} » ? Les jeux de barres ne seront pas modifiés.`}
+        confirmLabel="Renommer"
+        onConfirm={() => {
+          if (pendingReperePrefix) {
+            void applyReperePrefixChange(pendingReperePrefix);
+          }
+        }}
+        onCancel={() => {
+          setPendingReperePrefix(null);
         }}
       />
     </div>

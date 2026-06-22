@@ -69,7 +69,7 @@ export function formatPowerKwFromWatts(powerW: number, decimals = 3): string {
   return `${formatNumber(wattsToKw(powerW), decimals)} kW`;
 }
 
-const PREFIX_MAP: Record<ElementType, string> = {
+export const PREFIX_MAP: Record<ElementType, string> = {
   eclairage: "E",
   prise: "P",
   divers: "D",
@@ -78,7 +78,7 @@ const PREFIX_MAP: Record<ElementType, string> = {
 
 const REPERE_NUMBER_REGEX = /^(.*?)(\d+)$/;
 
-function parseRepereNumber(repere: string): { prefix: string; number: number } | null {
+export function parseRepereNumber(repere: string): { prefix: string; number: number } | null {
   const match = repere.match(REPERE_NUMBER_REGEX);
   if (!match) return null;
   const prefix = match[1] ?? '';
