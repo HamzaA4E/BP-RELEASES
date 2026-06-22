@@ -337,15 +337,20 @@ export function PanelView() {
     await applyReperePrefixChange(newValue);
   };
 
-  const applyReperePrefixChange = async (newValue: string | null) => {
+  const applyReperePrefixChange = async (
+    newValue: string | null,
+    renameExisting: boolean = true,
+  ) => {
     setPanel((p) => ({ ...p, repere_prefix: newValue }));
     try {
-      if (newValue) {
+      if (newValue && renameExisting) {
         await renameExistingReperes(newValue);
       }
       await window.bilpow.panels.update({ id: panId, repere_prefix: newValue });
       await refreshPanels();
-      await refreshElements();
+      if (renameExisting) {
+        await refreshElements();
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
       await loadData();
@@ -1215,6 +1220,12 @@ export function PanelView() {
         }}
         onCancel={() => {
           setPendingReperePrefix(null);
+        }}
+        tertiaryLabel="Garder"
+        onTertiary={() => {
+          if (pendingReperePrefix) {
+            void applyReperePrefixChange(pendingReperePrefix, false);
+          }
         }}
       />
     </div>

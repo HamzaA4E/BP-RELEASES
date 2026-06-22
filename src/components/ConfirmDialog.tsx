@@ -5,6 +5,8 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  tertiaryLabel?: string;
+  onTertiary?: () => void;
 }
 
 export function ConfirmDialog({
@@ -14,6 +16,8 @@ export function ConfirmDialog({
   confirmLabel = 'Supprimer',
   onConfirm,
   onCancel,
+  tertiaryLabel,
+  onTertiary,
 }: ConfirmDialogProps) {
   if (!isOpen) return null;
 
@@ -24,10 +28,15 @@ export function ConfirmDialog({
           {title}
         </h3>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{message}</p>
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-wrap justify-end gap-3">
           <button type="button" onClick={onCancel} className="btn-secondary">
             Annuler
           </button>
+          {tertiaryLabel && onTertiary && (
+            <button type="button" onClick={onTertiary} className="btn-secondary">
+              {tertiaryLabel}
+            </button>
+          )}
           <button type="button" onClick={onConfirm} className="btn-danger">
             {confirmLabel}
           </button>
