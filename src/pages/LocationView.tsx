@@ -166,15 +166,7 @@ export function LocationView() {
               + Ajouter un tableau
             </button>
           </div>
-           <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setShowAddPanel(true)}
-              className="btn-primary text-sm"
-            >
-              
-            </button>
-          </div>
+           
         </div>
 
         {panels.length === 0 ? (

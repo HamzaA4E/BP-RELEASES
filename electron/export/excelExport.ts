@@ -920,7 +920,19 @@ export async function exportLocationToExcel(
     throw new Error('Location or project not found');
   }
 
-  const defaultName = `${sanitizeFileName(project.name)}_${sanitizeFileName(location.name)}.xlsx`;
+  const allPanels = getPanelsByLocation(locationId);
+  const panels = allPanels.filter(
+    (panel) => !panelIds || panelIds.length === 0 || panelIds.includes(panel.id)
+  );
+
+  const selectedPanelNames =
+    panelIds && panelIds.length > 0 && panelIds.length < allPanels.length
+      ? panels.map((p) => sanitizeFileName(p.name)).join('_')
+      : null;
+  const defaultName = selectedPanelNames
+    ? `${sanitizeFileName(project.name)}_${sanitizeFileName(location.name)}_${selectedPanelNames}.xlsx`
+    : `${sanitizeFileName(project.name)}_${sanitizeFileName(location.name)}.xlsx`;
+
   const { canceled, filePath } = await dialog.showSaveDialog({
     title: 'Exporter le bilan de puissance',
     defaultPath: defaultName,
@@ -932,10 +944,6 @@ export async function exportLocationToExcel(
   const workbook = new ExcelJS.Workbook();
   workbook.creator = 'BilPow';
   workbook.created = new Date();
-
-  const panels = getPanelsByLocation(locationId).filter(
-    (panel) => !panelIds || panelIds.length === 0 || panelIds.includes(panel.id)
-  );
   const panelInputs = panels.map((panel) => ({
     locationName: location.name,
     panelName: panel.name,
