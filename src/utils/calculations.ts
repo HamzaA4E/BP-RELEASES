@@ -76,26 +76,44 @@ const PREFIX_MAP: Record<ElementType, string> = {
   jeu_de_barres: "JDB",
 };
 
+const REPERE_NUMBER_REGEX = /^(.*?)(\d+)$/;
+
+function parseRepereNumber(repere: string): { prefix: string; number: number } | null {
+  const match = repere.match(REPERE_NUMBER_REGEX);
+  if (!match) return null;
+  const prefix = match[1] ?? '';
+  const number = parseInt(match[2] ?? '0', 10);
+  return { prefix, number };
+}
+
 /** Returns the next repere number for a given element type.
  *  When a contextJdb is provided, only elements within that JDB section are counted
  *  so each jeu de barres has its own departure numbering starting from 1.
+ *  Preserves any custom prefix (e.g. "/E", "../E") found on existing reperes.
  */
 export function getNextRepere(
   existingElements: Element[],
   type: ElementType,
   contextJdb?: Element | null,
 ): string {
-  const prefix = PREFIX_MAP[type];
+  const defaultPrefix = PREFIX_MAP[type];
   const scopedElements = contextJdb
     ? getElementsInJdbSection(existingElements, contextJdb.id)
     : existingElements;
-  const existing = scopedElements
-    .filter((e) => e.type === type)
-    .map((e) => {
-      const m = e.repere.match(/^[A-Za-z_\-]+(\d+)$/);
-      return m?.[1] ? parseInt(m[1], 10) : 0;
-    });
-  const maxNum = existing.length > 0 ? Math.max(...existing) : 0;
+
+  let maxNum = 0;
+  let prefix = defaultPrefix;
+
+  for (const e of scopedElements) {
+    if (e.type !== type) continue;
+    const parsed = parseRepereNumber(e.repere);
+    if (!parsed) continue;
+    if (parsed.number > maxNum) {
+      maxNum = parsed.number;
+      prefix = parsed.prefix || defaultPrefix;
+    }
+  }
+
   return `${prefix}${maxNum + 1}`;
 }
 
@@ -105,12 +123,14 @@ export function generateReperePreview(
 ): string[] {
   if (count <= 1) return [baseRepere];
 
-  const match = baseRepere.match(/^([A-Za-z_\-]+)(\d+)$/);
+  const parsed = parseRepereNumber(baseRepere);
 
-  if (match) {
-    const prefix = match[1] ?? baseRepere;
-    const startNum = parseInt(match[2] ?? "0", 10);
-    return Array.from({ length: count }, (_, i) => `${prefix}${startNum + i}`);
+  if (parsed) {
+    const { prefix, number: startNum } = parsed;
+    return Array.from(
+      { length: count },
+      (_, i) => `${prefix}${startNum + i}`
+    );
   }
 
   return Array.from({ length: count }, (_, i) => `${baseRepere}_${i + 1}`);
