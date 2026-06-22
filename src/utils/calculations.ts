@@ -90,31 +90,36 @@ function parseRepereNumber(repere: string): { prefix: string; number: number } |
  *  When a contextJdb is provided, only elements within that JDB section are counted
  *  so each jeu de barres has its own departure numbering starting from 1.
  *  Preserves any custom prefix (e.g. "/E", "../E") found on existing reperes.
+ *  When reperePrefix is provided, it is prepended before the type prefix
+ *  (e.g. reperePrefix "TD N3/" + type "eclairage" produces "TD N3/E1").
  */
 export function getNextRepere(
   existingElements: Element[],
   type: ElementType,
   contextJdb?: Element | null,
+  reperePrefix?: string | null,
 ): string {
-  const defaultPrefix = PREFIX_MAP[type];
+  const typePrefix = PREFIX_MAP[type];
+  const fullPrefix = reperePrefix ? `${reperePrefix}${typePrefix}` : typePrefix;
   const scopedElements = contextJdb
     ? getElementsInJdbSection(existingElements, contextJdb.id)
     : existingElements;
 
   let maxNum = 0;
-  let prefix = defaultPrefix;
 
   for (const e of scopedElements) {
     if (e.type !== type) continue;
     const parsed = parseRepereNumber(e.repere);
     if (!parsed) continue;
+    // With a panel prefix, only count reperes that use the same full prefix
+    // (e.g. "TD2/E5" matches, "E5" does not).
+    if (reperePrefix && parsed.prefix !== fullPrefix) continue;
     if (parsed.number > maxNum) {
       maxNum = parsed.number;
-      prefix = parsed.prefix || defaultPrefix;
     }
   }
 
-  return `${prefix}${maxNum + 1}`;
+  return `${fullPrefix}${maxNum + 1}`;
 }
 
 export function generateReperePreview(

@@ -184,6 +184,7 @@ export function getDatabase(): Database.Database {
   recoverInterruptedElementsMigration(db);
   ensureElementsColumns(db);
   migratePanelCoefficients(db);
+  migratePanelReperePrefix(db);
   migrateProjectsOriginalId(db);
   migrateElementsTable(db);
   migrateElementsTypeToDivers(db);
@@ -314,6 +315,17 @@ function migratePanelCoefficients(database: Database.Database): void {
     database.exec(`ALTER TABLE panels ADD COLUMN coef_ks REAL DEFAULT 0.8`);
     database.exec(`ALTER TABLE panels ADD COLUMN coef_ku REAL DEFAULT 1.0`);
     database.exec(`ALTER TABLE panels ADD COLUMN coef_fp REAL DEFAULT 1.0`);
+  }
+}
+
+function migratePanelReperePrefix(database: Database.Database): void {
+  if (!tableExists(database, 'panels')) return;
+
+  const cols = database.pragma('table_info(panels)') as Array<{ name: string }>;
+  const names = new Set(cols.map((c) => c.name));
+
+  if (!names.has('repere_prefix')) {
+    database.exec(`ALTER TABLE panels ADD COLUMN repere_prefix TEXT DEFAULT NULL`);
   }
 }
 

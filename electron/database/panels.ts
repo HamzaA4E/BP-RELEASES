@@ -16,6 +16,7 @@ export interface PanelRow {
   general_breaker_ampere: number;
   order_index: number;
   coef_ks?: number;
+  repere_prefix?: string | null;
 }
 
 export interface PanelWithStatsRow extends PanelRow {
@@ -65,6 +66,7 @@ export function createPanel(data: {
   name: string;
   description?: string;
   general_breaker_ampere?: number;
+  repere_prefix?: string | null;
 }): PanelRow {
   const db = getDatabase();
   const maxOrder = db
@@ -72,6 +74,29 @@ export function createPanel(data: {
       'SELECT COALESCE(MAX(order_index), -1) as max_order FROM panels WHERE location_id = ?'
     )
     .get(data.location_id) as { max_order: number };
+
+  const cols = db.pragma('table_info(panels)') as Array<{ name: string }>;
+  const hasReperePrefix = cols.some((c) => c.name === 'repere_prefix');
+
+  if (hasReperePrefix) {
+    const result = db
+      .prepare(
+        `INSERT INTO panels (location_id, name, description, general_breaker_ampere, order_index, repere_prefix)
+         VALUES (@location_id, @name, @description, @general_breaker_ampere, @order_index, @repere_prefix)`
+      )
+      .run({
+        location_id: data.location_id,
+        name: data.name,
+        description: data.description ?? null,
+        general_breaker_ampere: data.general_breaker_ampere ?? 0,
+        order_index: maxOrder.max_order + 1,
+        repere_prefix: data.repere_prefix ?? null,
+      });
+
+    const panel = getPanelById(Number(result.lastInsertRowid));
+    if (!panel) throw new Error('Failed to create panel');
+    return panel;
+  }
 
   const result = db
     .prepare(
@@ -97,6 +122,7 @@ export function updatePanel(data: {
   description?: string;
   general_breaker_ampere?: number;
   coef_ks?: number;
+  repere_prefix?: string | null;
 }): PanelRow {
   const db = getDatabase();
   const existing = getPanelById(data.id);
@@ -104,8 +130,33 @@ export function updatePanel(data: {
 
   const cols = db.pragma('table_info(panels)') as Array<{ name: string }>;
   const hasCoefKs = cols.some((c) => c.name === 'coef_ks');
+  const hasReperePrefix = cols.some((c) => c.name === 'repere_prefix');
 
-  if (hasCoefKs) {
+  if (hasCoefKs && hasReperePrefix) {
+    db.prepare(
+      `UPDATE panels SET
+        name = @name,
+        description = @description,
+        general_breaker_ampere = @general_breaker_ampere,
+        coef_ks = @coef_ks,
+        repere_prefix = @repere_prefix
+      WHERE id = @id`
+    ).run({
+      id: data.id,
+      name: data.name ?? existing.name,
+      description:
+        data.description !== undefined ? data.description : existing.description,
+      general_breaker_ampere:
+        data.general_breaker_ampere !== undefined
+          ? data.general_breaker_ampere
+          : existing.general_breaker_ampere,
+      coef_ks: data.coef_ks !== undefined ? data.coef_ks : (existing.coef_ks ?? 1),
+      repere_prefix:
+        data.repere_prefix !== undefined
+          ? data.repere_prefix
+          : existing.repere_prefix,
+    });
+  } else if (hasCoefKs) {
     db.prepare(
       `UPDATE panels SET
         name = @name,
@@ -123,6 +174,28 @@ export function updatePanel(data: {
           ? data.general_breaker_ampere
           : existing.general_breaker_ampere,
       coef_ks: data.coef_ks !== undefined ? data.coef_ks : (existing.coef_ks ?? 1),
+    });
+  } else if (hasReperePrefix) {
+    db.prepare(
+      `UPDATE panels SET
+        name = @name,
+        description = @description,
+        general_breaker_ampere = @general_breaker_ampere,
+        repere_prefix = @repere_prefix
+      WHERE id = @id`
+    ).run({
+      id: data.id,
+      name: data.name ?? existing.name,
+      description:
+        data.description !== undefined ? data.description : existing.description,
+      general_breaker_ampere:
+        data.general_breaker_ampere !== undefined
+          ? data.general_breaker_ampere
+          : existing.general_breaker_ampere,
+      repere_prefix:
+        data.repere_prefix !== undefined
+          ? data.repere_prefix
+          : existing.repere_prefix,
     });
   } else {
     db.prepare(

@@ -45,6 +45,8 @@ interface AddElementModalProps {
   contextJdb?: Element | null;
   /** When set, adds a new type/article to this existing depart (same category). */
   addTypeToDepart?: Element | null;
+  /** Optional prefix prepended to auto-generated repere numbers (e.g. "TD N3/"). */
+  reperePrefix?: string | null;
   onClose: () => void;
   onSave: (data: {
     type: ElementFormType;
@@ -90,12 +92,13 @@ function buildDefaultForm(
   type: ElementFormType,
   existingElements: Element[],
   contextJdb?: Element | null,
+  reperePrefix?: string | null,
 ): FormData {
   const phase_type: PhaseType = type === "prise" ? "mono" : "mono";
   const coefs = defaultCoefsForType(type, phase_type);
   return {
     type,
-    repere: getNextRepere(existingElements, type, contextJdb),
+    repere: getNextRepere(existingElements, type, contextJdb, reperePrefix),
     type_label: "",
     emplacement: "",
     power_w: type === "divers" ? 1000 : 0,
@@ -113,6 +116,7 @@ export function AddElementModal({
   editElement,
   contextJdb = null,
   addTypeToDepart = null,
+  reperePrefix = null,
   onClose,
   onSave,
   onSaveMultiple,
@@ -206,11 +210,11 @@ export function AddElementModal({
       setQuantityInput("1");
     } else if (contextJdb) {
       const defaultType = defaultElementTypeForJdb(contextJdb);
-      setFormData(buildDefaultForm(defaultType, existingElements, contextJdb));
+      setFormData(buildDefaultForm(defaultType, existingElements, contextJdb, reperePrefix));
       setPowerInput("1");
       setQuantityInput("1");
     } else {
-      setFormData(buildDefaultForm("eclairage", existingElements));
+      setFormData(buildDefaultForm("eclairage", existingElements, null, reperePrefix));
       setPowerInput("1");
       setQuantityInput("1");
     }
@@ -224,10 +228,10 @@ export function AddElementModal({
     if (!editElement && !addTypeToDepart && isOpen) {
       setFormData((p) => ({
         ...p,
-        repere: getNextRepere(existingElements, p.type, activeJdb),
+        repere: getNextRepere(existingElements, p.type, activeJdb, reperePrefix),
       }));
     }
-  }, [formData.type, isOpen, editElement, addTypeToDepart, existingElements, activeJdb]);
+  }, [formData.type, isOpen, editElement, addTypeToDepart, existingElements, activeJdb, reperePrefix]);
 
   const handleTypeChange = (type: ElementFormType) => {
     if (isAddTypeMode && activeJdb && !isTypeAllowedUnderJdb(type, activeJdb))

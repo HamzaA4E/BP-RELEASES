@@ -323,6 +323,18 @@ export function PanelView() {
     }
   };
 
+  const toggleReperePrefix = async () => {
+    const newValue = panel.repere_prefix ? null : `${panel.name}/`;
+    setPanel((p) => ({ ...p, repere_prefix: newValue }));
+    try {
+      await window.bilpow.panels.update({ id: panId, repere_prefix: newValue });
+      await refreshPanels();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+      await loadData();
+    }
+  };
+
   const handleSaveElement = async (data: ElementSavePayload) => {
     if (departForNewType) {
       const parentCategory = departCategoryOf(departForNewType);
@@ -970,6 +982,20 @@ export function PanelView() {
               onBlur={(e) => void savePanelName(e.target.value)}
               className="input-field text-xl font-bold max-w-md"
             />
+            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer mt-2 sm:mt-0">
+              <input
+                type="checkbox"
+                checked={Boolean(panel.repere_prefix)}
+                onChange={() => void toggleReperePrefix()}
+                className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
+              />
+              Utiliser le nom du tableau comme préfixe des repères
+              {panel.repere_prefix && (
+                <span className="font-mono text-xs text-gray-400 ml-1">
+                  ({panel.repere_prefix}E1, {panel.repere_prefix}E2…)
+                </span>
+              )}
+            </label>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {unsaved && (
@@ -1077,6 +1103,7 @@ export function PanelView() {
         editElement={editElement}
         contextJdb={contextJdb}
         addTypeToDepart={departForNewType}
+        reperePrefix={panel.repere_prefix}
         onClose={() => {
           setShowAddElement(false);
           setEditElement(null);
