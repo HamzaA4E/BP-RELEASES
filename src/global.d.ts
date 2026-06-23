@@ -115,6 +115,9 @@ export interface BilPowAPI {
     onOpenProject: (callback: () => void) => () => void;
     onSave: (callback: () => void) => () => void;
   };
+  devtools: {
+    open: () => Promise<void>;
+  };
 }
 
 declare global {

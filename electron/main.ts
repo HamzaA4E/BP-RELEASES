@@ -388,6 +388,14 @@ function registerIpcHandlers(): void {
     wrapHandler(() => locationsDb.duplicateLocation(id))
   );
 
+// DevTools handler
+ipcMain.handle('devtools:open', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.openDevTools();
+  }
+  return Promise.resolve();
+});
+
   ipcMain.handle('panels:getByLocation', (_e, locationId: number) =>
     wrapHandler(() => panelsDb.getPanelsByLocation(locationId))
   );

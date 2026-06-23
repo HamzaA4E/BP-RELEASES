@@ -181,6 +181,9 @@ const api = {
       return () => { ipcRenderer.removeListener('menu:save', listener); };
     },
   },
+  devtools: {
+    open: (): Promise<void> => invoke('devtools:open'),
+  },
 };
 
 export type BilPowAPI = typeof api;

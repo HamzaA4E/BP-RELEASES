@@ -349,6 +349,9 @@ export function PanelView() {
     newValue: string | null,
     renameExisting: boolean = true,
   ) => {
+    console.log('[applyReperePrefixChange] Called with newValue:', newValue, 'renameExisting:', renameExisting);
+    console.log('[applyReperePrefixChange] Current elements:', elements.length, elements.map(e => ({ id: e.id, repere: e.repere })));
+    
     setPanel((p) => ({ ...p, repere_prefix: newValue }));
     try {
       let renamedUpdates: { id: number; oldRepere: string; newRepere: string }[] = [];
@@ -361,10 +364,14 @@ export function PanelView() {
           }
         }
         
+        console.log('[applyReperePrefixChange] Calling renameExistingReperes...');
         renamedUpdates = await renameExistingReperes(newValue);
+        console.log('[applyReperePrefixChange] renameExistingReperes returned:', renamedUpdates.length, 'updates');
         
         // Apply the renames to local state and record in undo/redo history
         if (renamedUpdates.length > 0) {
+          console.log('[applyReperePrefixChange] Processing', renamedUpdates.length, 'renames');
+          
           // Build inverse mutations (restore old repères)
           const inverseMutations = renamedUpdates.map(({ id, oldRepere }) => ({
             op: 'patchElement' as const,
@@ -390,27 +397,37 @@ export function PanelView() {
             })),
           });
           
+          console.log('[applyReperePrefixChange] Applying mutations to local state');
           // Apply mutations to update local state
           applyMutations(redoMutations);
           
+          console.log('[applyReperePrefixChange] Updating database...');
           // Now update the database
           for (const { id, newRepere } of renamedUpdates) {
             await window.bilpow.elements.update({ id, repere: newRepere });
           }
+          console.log('[applyReperePrefixChange] Database updated');
           
           // Show success notification
           toast.success(`${renamedUpdates.length} repère(s) renommé(s)`);
+        } else {
+          console.log('[applyReperePrefixChange] No elements to rename - showing info message');
+          toast('Aucun repère à renommer');
         }
       }
       // When disabling prefix (!newValue), we only update the panel setting
       // We do NOT strip the prefix from existing repères - they keep their names
+      console.log('[applyReperePrefixChange] Updating panel prefix in database');
       await window.bilpow.panels.update({ id: panId, repere_prefix: newValue });
       await refreshPanels();
       // Refresh elements to reflect database changes in UI
       if (renamedUpdates.length > 0) {
+        console.log('[applyReperePrefixChange] Refreshing elements...');
         await refreshElements();
+        console.log('[applyReperePrefixChange] Elements refreshed');
       }
     } catch (err) {
+      console.error('[applyReperePrefixChange] Error:', err);
       toast.error(err instanceof Error ? err.message : "Erreur");
       // Revert the panel prefix change but preserve pending element changes
       await refreshPanels();
