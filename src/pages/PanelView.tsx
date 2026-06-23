@@ -356,10 +356,10 @@ export function PanelView() {
     try {
       let renamedUpdates: { id: number; oldRepere: string; newRepere: string }[] = [];
       if (newValue && renameExisting) {
-        // Capture old repères BEFORE renaming
+        // Capture old repères BEFORE renaming (for both saved and temp elements)
         const oldReperes = new Map<number, string>();
         for (const e of elements) {
-          if (!isJeuDeBarres(e) && e.id > 0 && e.repere.trim()) {
+          if (!isJeuDeBarres(e) && e.id !== 0 && e.repere.trim()) {
             oldReperes.set(e.id, e.repere);
           }
         }
@@ -371,6 +371,13 @@ export function PanelView() {
         // Apply the renames to local state and record in undo/redo history
         if (renamedUpdates.length > 0) {
           console.log('[applyReperePrefixChange] Processing', renamedUpdates.length, 'renames');
+          
+          // Separate saved vs temp elements
+          const savedUpdates = renamedUpdates.filter(u => u.id > 0);
+          const tempUpdates = renamedUpdates.filter(u => u.id < 0);
+          
+          console.log('[applyReperePrefixChange] Saved elements to update in DB:', savedUpdates.length);
+          console.log('[applyReperePrefixChange] Temp elements to update in UI only:', tempUpdates.length);
           
           // Build inverse mutations (restore old repères)
           const inverseMutations = renamedUpdates.map(({ id, oldRepere }) => ({
@@ -390,7 +397,7 @@ export function PanelView() {
           recordOperation({
             inverse: inverseMutations,
             redo: redoMutations,
-            pending: renamedUpdates.map(({ id, newRepere }) => ({
+            pending: savedUpdates.map(({ id, newRepere }) => ({
               type: 'updateElement' as const,
               id,
               data: { repere: newRepere },
@@ -398,20 +405,22 @@ export function PanelView() {
           });
           
           console.log('[applyReperePrefixChange] Applying mutations to local state');
-          // Apply mutations to update local state
+          // Apply mutations to update local state (affects both saved and temp elements)
           applyMutations(redoMutations);
           
-          console.log('[applyReperePrefixChange] Updating database...');
-          // Now update the database
-          for (const { id, newRepere } of renamedUpdates) {
-            await window.bilpow.elements.update({ id, repere: newRepere });
+          // Only update database for SAVED elements (id > 0)
+          if (savedUpdates.length > 0) {
+            console.log('[applyReperePrefixChange] Updating database for', savedUpdates.length, 'saved elements...');
+            for (const { id, newRepere } of savedUpdates) {
+              await window.bilpow.elements.update({ id, repere: newRepere });
+            }
+            console.log('[applyReperePrefixChange] Database updated for saved elements');
           }
-          console.log('[applyReperePrefixChange] Database updated');
           
           // Show success notification
           toast.success(`${renamedUpdates.length} repère(s) renommé(s)`);
         } else {
-          console.log('[applyReperePrefixChange] No elements to rename - showing info message');
+          console.log('[applyReperePrefixChange] No elements to rename');
           toast('Aucun repère à renommer');
         }
       }
@@ -420,11 +429,16 @@ export function PanelView() {
       console.log('[applyReperePrefixChange] Updating panel prefix in database');
       await window.bilpow.panels.update({ id: panId, repere_prefix: newValue });
       await refreshPanels();
-      // Refresh elements to reflect database changes in UI
-      if (renamedUpdates.length > 0) {
-        console.log('[applyReperePrefixChange] Refreshing elements...');
+      
+      // ONLY refresh elements if we updated saved elements in DB
+      // If we only renamed temp elements, DON'T refresh or we'll lose them!
+      const hasSavedUpdates = renamedUpdates.some(u => u.id > 0);
+      if (hasSavedUpdates) {
+        console.log('[applyReperePrefixChange] Refreshing elements (saved elements were updated)...');
         await refreshElements();
         console.log('[applyReperePrefixChange] Elements refreshed');
+      } else if (renamedUpdates.length > 0) {
+        console.log('[applyReperePrefixChange] Skipping refreshElements to preserve', renamedUpdates.length, 'temp element(s)');
       }
     } catch (err) {
       console.error('[applyReperePrefixChange] Error:', err);
@@ -469,12 +483,6 @@ export function PanelView() {
       const usedKeys = new Set<string>();
 
       for (const e of sectionElements) {
-        // Skip elements with temp IDs (unsaved elements)
-        if (e.id < 0) {
-          console.log('[renameExistingReperes] Skipping temp ID:', e.repere);
-          continue;
-        }
-        
         const parsed = parseRepereNumber(e.repere);
         if (!parsed) {
           console.log('[renameExistingReperes] Skipping (no parse):', e.repere);
@@ -499,7 +507,7 @@ export function PanelView() {
           throw new Error('Repere conflict');
         }
         
-        console.log('[renameExistingReperes] Will rename:', e.repere, '->', newRepere);
+        console.log('[renameExistingReperes] Will rename:', e.repere, '->', newRepere, e.id < 0 ? '(temp ID)' : '(saved)');
         usedKeys.add(key);
         updates.push({ id: e.id, oldRepere: e.repere, newRepere });
       }
