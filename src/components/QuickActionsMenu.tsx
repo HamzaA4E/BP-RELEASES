@@ -7,6 +7,7 @@ interface QuickActionsMenuProps {
   onConfigurePrefix?: () => void;
   onSave?: () => void;
   canSave?: boolean;
+  hidden?: boolean;
 }
 
 export function QuickActionsMenu({
@@ -14,6 +15,7 @@ export function QuickActionsMenu({
   onConfigurePrefix,
   onSave,
   canSave = true,
+  hidden = false,
 }: QuickActionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
@@ -51,34 +53,34 @@ export function QuickActionsMenu({
       label: "Ajouter Jeu de Barres",
       onClick: onAddJdb,
       visible: isPanelView && !!onAddJdb,
-      color: "bg-amber-500 hover:bg-amber-600",
+      color: "bg-amber-500 hover:bg-amber-800",
     },
     {
       icon: Tag,
       label: "Configurer Préfixe",
       onClick: onConfigurePrefix,
       visible: isPanelView && !!onConfigurePrefix,
-      color: "bg-purple-500 hover:bg-purple-600",
+      color: "bg-purple-500 hover:bg-purple-800",
     },
     {
       icon: Save,
       label: "Enregistrer",
       onClick: onSave,
       visible: isPanelView && !!onSave && canSave,
-      color: "bg-green-500 hover:bg-green-600",
+      color: "bg-green-500 hover:bg-green-800",
     },
     {
       icon: Settings,
       label: "Paramètres rapides",
       onClick: () => navigate("/settings"),
       visible: !isSettingsView,
-      color: "bg-gray-500 hover:bg-gray-600",
+      color: "bg-gray-500 hover:bg-gray-800",
     },
   ].filter((action) => action.visible);
 
   const visibleActions = actions.slice(0, 4);
 
-  if (visibleActions.length === 0) {
+  if (visibleActions.length === 0 || hidden) {
     return null;
   }
 
@@ -112,7 +114,7 @@ export function QuickActionsMenu({
                     transition-all duration-300 hover:scale-110 active:scale-95
                     ${isOpen ? "opacity-100 scale-100" : "opacity-0 scale-0"}`}
                   style={{
-                    transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+                    transform: `translate(calc(-50% + ${x}px), calc(+80% + ${y}px))`,
                   }}
                   title={action.label}
                 >
@@ -130,12 +132,12 @@ export function QuickActionsMenu({
         id="quick-actions-fab"
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center 
+        className={`w-10 h-10 rounded-full shadow-lg flex items-center justify-center 
           transition-all duration-300 hover:scale-110 active:scale-95
           ${isOpen ? "bg-red-500 hover:bg-red-600 rotate-45" : "bg-blue-600 hover:bg-blue-700"}`}
         title="Actions rapides"
       >
-        <Plus size={28} className="text-white transition-transform duration-300" />
+        <Plus size={20} className="text-white transition-transform duration-300" />
       </button>
     </div>
   );

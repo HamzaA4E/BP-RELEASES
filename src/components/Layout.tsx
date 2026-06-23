@@ -20,14 +20,22 @@ export function Layout() {
     canSave?: boolean;
   }>({});
 
+  const [hideQuickActions, setHideQuickActions] = useState(false);
+
   useEffect(() => {
     const handleSetQuickActions = (e: CustomEvent) => {
       setQuickActions(e.detail);
     };
 
+    const handleModalStateChange = (e: CustomEvent) => {
+      setHideQuickActions(e.detail.open);
+    };
+
     window.addEventListener("quick-actions-update", handleSetQuickActions as EventListener);
+    window.addEventListener("modal-state-change", handleModalStateChange as EventListener);
     return () => {
       window.removeEventListener("quick-actions-update", handleSetQuickActions as EventListener);
+      window.removeEventListener("modal-state-change", handleModalStateChange as EventListener);
     };
   }, []);
 
@@ -71,6 +79,7 @@ export function Layout() {
         onConfigurePrefix={quickActions.onConfigurePrefix}
         onSave={quickActions.onSave}
         canSave={quickActions.canSave}
+        hidden={hideQuickActions}
       />
     </div>
   );

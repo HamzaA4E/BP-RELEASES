@@ -272,6 +272,15 @@ export function PanelView() {
     );
   }, [unsaved, save]);
 
+  // Notify Layout about modal state to hide FAB
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("modal-state-change", {
+        detail: { open: showAddElement || showAddJdb || !!editElement },
+      }),
+    );
+  }, [showAddElement, showAddJdb, editElement]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target;
