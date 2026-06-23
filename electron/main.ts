@@ -596,6 +596,18 @@ ipcMain.handle('devtools:open', () => {
     }
   });
 
+  ipcMain.handle('project:exportWithPath', async (_e, projectId: number, filePath: string) => {
+    try {
+      const data = exportProjectForBilpow(projectId);
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      return { success: true, filePath };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      console.error('[project:exportWithPath]', message);
+      return { success: false, error: message };
+    }
+  });
+
   ipcMain.handle('app:hasUnsavedChanges', () => {
     return { success: true, data: hasUnsavedChanges };
   });
