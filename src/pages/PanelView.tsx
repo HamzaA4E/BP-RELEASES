@@ -351,47 +351,65 @@ export function PanelView() {
   ) => {
     setPanel((p) => ({ ...p, repere_prefix: newValue }));
     try {
-      let renamedUpdates: { id: number; repere: string }[] = [];
+      let renamedUpdates: { id: number; oldRepere: string; newRepere: string }[] = [];
       if (newValue && renameExisting) {
+        // Capture old repères BEFORE renaming
+        const oldReperes = new Map<number, string>();
+        for (const e of elements) {
+          if (!isJeuDeBarres(e) && e.id > 0 && e.repere.trim()) {
+            oldReperes.set(e.id, e.repere);
+          }
+        }
+        
         renamedUpdates = await renameExistingReperes(newValue);
+        
         // Apply the renames to local state and record in undo/redo history
         if (renamedUpdates.length > 0) {
           // Build inverse mutations (restore old repères)
-          const inverseMutations = renamedUpdates.map(({ id }) => {
-            const oldElement = elements.find((e) => e.id === id);
-            return {
-              op: 'patchElement' as const,
-              id,
-              patch: { repere: oldElement?.repere || '' },
-            };
-          });
-          
-          // Build redo mutations (apply new repères)
-          const redoMutations = renamedUpdates.map(({ id, repere }) => ({
+          const inverseMutations = renamedUpdates.map(({ id, oldRepere }) => ({
             op: 'patchElement' as const,
             id,
-            patch: { repere },
+            patch: { repere: oldRepere },
+          }));
+          
+          // Build redo mutations (apply new repères)
+          const redoMutations = renamedUpdates.map(({ id, newRepere }) => ({
+            op: 'patchElement' as const,
+            id,
+            patch: { repere: newRepere },
           }));
           
           // Record the operation in undo/redo history
           recordOperation({
             inverse: inverseMutations,
             redo: redoMutations,
-            pending: renamedUpdates.map(({ id, repere }) => ({
+            pending: renamedUpdates.map(({ id, newRepere }) => ({
               type: 'updateElement' as const,
               id,
-              data: { repere },
+              data: { repere: newRepere },
             })),
           });
           
           // Apply mutations to update local state
           applyMutations(redoMutations);
+          
+          // Now update the database
+          for (const { id, newRepere } of renamedUpdates) {
+            await window.bilpow.elements.update({ id, repere: newRepere });
+          }
+          
+          // Show success notification
+          toast.success(`${renamedUpdates.length} repère(s) renommé(s)`);
         }
       }
       // When disabling prefix (!newValue), we only update the panel setting
       // We do NOT strip the prefix from existing repères - they keep their names
       await window.bilpow.panels.update({ id: panId, repere_prefix: newValue });
       await refreshPanels();
+      // Refresh elements to reflect database changes in UI
+      if (renamedUpdates.length > 0) {
+        await refreshElements();
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
       // Revert the panel prefix change but preserve pending element changes
@@ -401,8 +419,8 @@ export function PanelView() {
     }
   };
 
-  const renameExistingReperes = async (prefix: string): Promise<{ id: number; repere: string }[]> => {
-    const updates: { id: number; repere: string }[] = [];
+  const renameExistingReperes = async (prefix: string): Promise<{ id: number; oldRepere: string; newRepere: string }[]> => {
+    const updates: { id: number; oldRepere: string; newRepere: string }[] = [];
 
     console.log('[renameExistingReperes] Starting with prefix:', prefix);
     console.log('[renameExistingReperes] Total elements:', elements.length);
@@ -466,16 +484,13 @@ export function PanelView() {
         
         console.log('[renameExistingReperes] Will rename:', e.repere, '->', newRepere);
         usedKeys.add(key);
-        updates.push({ id: e.id, repere: newRepere });
+        updates.push({ id: e.id, oldRepere: e.repere, newRepere });
       }
     }
 
     console.log('[renameExistingReperes] Total updates:', updates.length);
-
-    for (const { id, repere } of updates) {
-      await window.bilpow.elements.update({ id, repere });
-    }
     
+    // Do NOT update database here - let the caller do it after recording undo/redo
     return updates;
   };
 
