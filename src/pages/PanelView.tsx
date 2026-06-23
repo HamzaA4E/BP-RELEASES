@@ -38,7 +38,7 @@ import {
   type LocalMutation,
 } from "@/utils/panelEditing";
 import { LoadGauge } from "@/components/LoadGauge";
-import type { Article, Element, JdbCategory, Panel, PhaseType } from "@/types";
+import type { Article, Element, JdbCategory, Panel, PhaseType, PanelChange } from "@/types";
 
 type ElementFormType = Exclude<Element["type"], "jeu_de_barres">;
 
@@ -155,6 +155,7 @@ export function PanelView() {
   } = useAppStore();
 
   const nextTempId = usePanelEditingStore((s) => s.nextTempId);
+  const getPendingChanges = usePanelEditingStore((s) => s.getPendingChanges);
   const removePendingForTempElement = usePanelEditingStore(
     (s) => s.removePendingForTempElement,
   );
@@ -389,33 +390,59 @@ export function PanelView() {
           // Separate saved vs temp elements
           const savedUpdates = renamedUpdates.filter(u => u.id > 0);
           const tempUpdates = renamedUpdates.filter(u => u.id < 0);
-          
+
           console.log('[applyReperePrefixChange] Saved elements to update in DB:', savedUpdates.length);
           console.log('[applyReperePrefixChange] Temp elements to update in UI only:', tempUpdates.length);
-          
+
           // Build inverse mutations (restore old repères)
           const inverseMutations = renamedUpdates.map(({ id, oldRepere }) => ({
             op: 'patchElement' as const,
             id,
             patch: { repere: oldRepere },
           }));
-          
+
           // Build redo mutations (apply new repères)
           const redoMutations = renamedUpdates.map(({ id, newRepere }) => ({
             op: 'patchElement' as const,
             id,
             patch: { repere: newRepere },
           }));
-          
+
+          // Build pending changes
+          const pendingChanges: PanelChange[] = savedUpdates.map(({ id, newRepere }) => ({
+            type: 'updateElement' as const,
+            id,
+            data: { repere: newRepere },
+          }));
+
+          // For temp elements, we need to update their repère in the pending createElement changes
+          // so they get created with the correct prefixed repère when saved
+          if (tempUpdates.length > 0) {
+            const currentPending = getPendingChanges();
+            const updatedPending = currentPending.map((change: PanelChange) => {
+              if (change.type === 'createElement') {
+                const tempUpdate = tempUpdates.find(u => u.id === change.tempId);
+                if (tempUpdate) {
+                  return {
+                    ...change,
+                    data: {
+                      ...change.data,
+                      repere: tempUpdate.newRepere,
+                    },
+                  };
+                }
+              }
+              return change;
+            });
+            // Update the pending changes in the store
+            usePanelEditingStore.setState({ pendingChanges: updatedPending });
+          }
+
           // Record the operation in undo/redo history
           recordOperation({
             inverse: inverseMutations,
             redo: redoMutations,
-            pending: savedUpdates.map(({ id, newRepere }) => ({
-              type: 'updateElement' as const,
-              id,
-              data: { repere: newRepere },
-            })),
+            pending: pendingChanges,
           });
           
           console.log('[applyReperePrefixChange] Applying mutations to local state');
