@@ -477,7 +477,7 @@ function SubtotalRow({
         <button
           type="button"
           onClick={() => onAddElement(jdb)}
-          className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#1E3A5F]/10 hover:bg-[#1E3A5F]/20 text-[#1E3A5F] dark:text-blue-300 text-xs font-medium rounded-lg transition-colors"
+          className="inline-flex items-center gap-1 px-3 py-1 bg-[#1E3A5F]/10 hover:bg-[#1E3A5F]/20 text-[#1E3A5F] dark:text-blue-300 text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
           title="Ajouter un élément dans cette section"
         >
           <span className="text-sm leading-none">+</span>
