@@ -527,6 +527,7 @@ function createPanelSheet(
       ];
 
   const headerRowObj = sheet.getRow(headerRow);
+
   headers.forEach((h, i) => {
     const cell = headerRowObj.getCell(i + 1);
     cell.value = toCellString(h);
@@ -820,7 +821,8 @@ function createSyntheseSheet(
   sheetName: string,
   panelMetas: PanelSheetMeta[]
 ): void {
-  const sheet = workbook.addWorksheet(sheetName, { state: 'visible' });
+  const sheet = workbook.addWorksheet(sheetName, { state: "visible" });
+
   const { headerRow } = addCompanyHeader(
     sheet,
     workbook,
@@ -829,42 +831,91 @@ function createSyntheseSheet(
     projectInfo
   );
 
+  // Fusion des cellules d'en-tête
+  sheet.mergeCells(headerRow, 1, headerRow, 2); // A:B
+  sheet.mergeCells(headerRow, 3, headerRow, 4); // C:D
+  sheet.mergeCells(headerRow, 5, headerRow, 6); // E:F
+
   const headers = [
-    'Emplacement',
-    'Tableau',
-    'P. installée (kW)',
-    'Intensité (A)',
+    { col: 1, label: "Emplacement" },
+    { col: 3, label: "Tableau" },
+    { col: 5, label: "P. Totale (kW)" },
+    { col: 7, label: "Intensité (A)" },
   ];
+
   const headerRowObj = sheet.getRow(headerRow);
-  headers.forEach((h, i) => {
-    const cell = headerRowObj.getCell(i + 1);
-    cell.value = toCellString(h);
+  headerRowObj.height = 66; // ← add this
+  headers.forEach(({ col, label }) => {
+    const cell = headerRowObj.getCell(col);
+
+    cell.value = toCellString(label);
     cell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
+      type: "pattern",
+      pattern: "solid",
       fgColor: { argb: PRIMARY_COLOR },
     };
-    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+
+    cell.font = {
+      bold: true,
+      color: { argb: "FFFFFFFF" },
+      size: 10,
+    };
+
+    cell.alignment = {
+      horizontal: "center",
+      vertical: "middle",
+    };
+
     applyBorder(cell);
+
+    // Bordure sur la cellule fusionnée voisine
+    if (col !== 7) {
+      applyBorder(headerRowObj.getCell(col + 1));
+    }
   });
 
   let rowNum = headerRow;
+
   for (const meta of panelMetas) {
     rowNum++;
+    
+
+    // Fusion des cellules de données
+    sheet.mergeCells(rowNum, 1, rowNum, 2); // A:B
+    sheet.mergeCells(rowNum, 3, rowNum, 4); // C:D
+    sheet.mergeCells(rowNum, 5, rowNum, 6); // E:F
+
     const row = sheet.getRow(rowNum);
+    row.height = 55; 
+
     row.getCell(1).value = toCellString(meta.locationName);
-    row.getCell(2).value = toCellString(meta.panelName);
-    row.getCell(3).value = { formula: meta.totalPowerCell };
-    row.getCell(4).value = { formula: meta.currentCell };
-    for (let c = 1; c <= 4; c++) applyBorder(row.getCell(c));
+    row.getCell(3).value = toCellString(meta.panelName);
+    row.getCell(5).value = { formula: meta.totalPowerCell };
+    row.getCell(7).value = { formula: meta.currentCell };
+
+    // Alignement
+    [1, 3, 5, 7].forEach((col) => {
+      row.getCell(col).alignment = {
+        horizontal: "center",
+        vertical: "middle",
+      };
+    });
+
+    // Bordures sur toutes les colonnes utilisées (A à G)
+    for (let c = 1; c <= 7; c++) {
+      applyBorder(row.getCell(c));
+    }
   }
 
+  // Largeurs des colonnes
   sheet.columns = [
-    { width: 22 },
-    { width: 22 },
-    { width: 18 },
-    { width: 14 },
+    { width: 10 }, // A
+    { width: 25 }, // B
+    { width: 25 }, // C
+    { width: 13 }, // D
+    { width: 8 }, // E
+    { width: 8 }, // F
+    { width: 13}, // G
   ];
 }
 
@@ -1032,24 +1083,6 @@ export async function exportProjectToExcel(
     allPanelMetas.push(result.meta);
   }
 
-  // if (allPanelMetas.length > 0) {
-  //   createSyntheseSheet(
-  //     workbook,
-  //     company,
-  //     { name: payload.project.name, client: payload.project.client },
-  //     'SYNTHESE GENERALE',
-  //     'SYNTHESE GENERALE',
-  //     allPanelMetas
-  //   );
-  //   const generalSheet = workbook.getWorksheet('SYNTHESE GENERALE');
-  //   if (generalSheet) {
-  //     const idx = workbook.worksheets.indexOf(generalSheet);
-  //     if (idx > 0) {
-  //       workbook.worksheets.splice(idx, 1);
-  //       workbook.worksheets.unshift(generalSheet);
-  //     }
-  //   }
-  // }
 
   await workbook.xlsx.writeFile(filePath);
 

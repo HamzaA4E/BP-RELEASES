@@ -543,21 +543,22 @@ export function PanelView() {
         // Skip if repère already has this prefix (case-insensitive)
         if (e.repere.toUpperCase().startsWith(prefix.toUpperCase())) {
           console.log('[renameExistingReperes] Already has prefix:', e.repere);
-          const key = `${e.type}|${e.repere.toUpperCase()}`;
+          const key = `${parsed.number}`;
           usedKeys.add(key);
           continue;
         }
 
         const typePrefix = PREFIX_MAP[e.type];
         const newRepere = `${prefix}${typePrefix}${parsed.number}`;
-        const key = `${e.type}|${newRepere.toUpperCase()}`;
+        // Use only the number for conflict detection - multi-phase departures (mono+tri) share the same number
+        const key = `${parsed.number}`;
 
         if (usedKeys.has(key)) {
           console.log('[renameExistingReperes] Conflict detected in section:', newRepere);
           toast.error(`Conflit de repère détecté pour ${newRepere}. Renommage annulé.`);
           throw new Error('Repere conflict');
         }
-        
+
         console.log('[renameExistingReperes] Will rename:', e.repere, '->', newRepere, e.id < 0 ? '(temp ID)' : '(saved)');
         usedKeys.add(key);
         updates.push({ id: e.id, oldRepere: e.repere, newRepere });
