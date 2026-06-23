@@ -351,54 +351,132 @@ export function PanelView() {
   ) => {
     setPanel((p) => ({ ...p, repere_prefix: newValue }));
     try {
+      let renamedUpdates: { id: number; repere: string }[] = [];
       if (newValue && renameExisting) {
-        await renameExistingReperes(newValue);
+        renamedUpdates = await renameExistingReperes(newValue);
+        // Apply the renames to local state and record in undo/redo history
+        if (renamedUpdates.length > 0) {
+          // Build inverse mutations (restore old repères)
+          const inverseMutations = renamedUpdates.map(({ id }) => {
+            const oldElement = elements.find((e) => e.id === id);
+            return {
+              op: 'patchElement' as const,
+              id,
+              patch: { repere: oldElement?.repere || '' },
+            };
+          });
+          
+          // Build redo mutations (apply new repères)
+          const redoMutations = renamedUpdates.map(({ id, repere }) => ({
+            op: 'patchElement' as const,
+            id,
+            patch: { repere },
+          }));
+          
+          // Record the operation in undo/redo history
+          recordOperation({
+            inverse: inverseMutations,
+            redo: redoMutations,
+            pending: renamedUpdates.map(({ id, repere }) => ({
+              type: 'updateElement' as const,
+              id,
+              data: { repere },
+            })),
+          });
+          
+          // Apply mutations to update local state
+          applyMutations(redoMutations);
+        }
       }
+      // When disabling prefix (!newValue), we only update the panel setting
+      // We do NOT strip the prefix from existing repères - they keep their names
       await window.bilpow.panels.update({ id: panId, repere_prefix: newValue });
       await refreshPanels();
-      // Only refresh elements if we renamed them
-      if (newValue && renameExisting) {
-        await refreshElements();
-      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
-      await loadData();
+      // Revert the panel prefix change but preserve pending element changes
+      await refreshPanels();
     } finally {
       setPendingReperePrefix(null);
     }
   };
 
-  const renameExistingReperes = async (prefix: string) => {
-    const usedKeys = new Set<string>();
+  const renameExistingReperes = async (prefix: string): Promise<{ id: number; repere: string }[]> => {
     const updates: { id: number; repere: string }[] = [];
 
-    for (const e of elements) {
-      if (isJeuDeBarres(e)) continue;
-      const parsed = parseRepereNumber(e.repere);
-      if (!parsed) continue;
+    console.log('[renameExistingReperes] Starting with prefix:', prefix);
+    console.log('[renameExistingReperes] Total elements:', elements.length);
 
-      // Skip if repère already has this prefix
-      if (e.repere.startsWith(prefix)) {
-        const key = `${e.type}|${e.repere.toUpperCase()}`;
-        usedKeys.add(key);
+    // Group elements by their JDB section (or null for elements not in any JDB)
+    const sections = new Map<number | null, Element[]>();
+    let currentJdbId: number | null = null;
+
+    for (const e of elements) {
+      if (isJeuDeBarres(e)) {
+        currentJdbId = e.id;
+        if (!sections.has(currentJdbId)) {
+          sections.set(currentJdbId, []);
+        }
+        console.log('[renameExistingReperes] Found JDB:', e.repere, 'id:', e.id);
         continue;
       }
-
-      const typePrefix = PREFIX_MAP[e.type];
-      const newRepere = `${prefix}${typePrefix}${parsed.number}`;
-      const key = `${e.type}|${newRepere.toUpperCase()}`;
-
-      if (usedKeys.has(key)) {
-        toast.error(`Conflit de repère détecté pour ${newRepere}. Renommage annulé.`);
-        throw new Error('Repere conflict');
+      
+      const sectionKey = currentJdbId;
+      if (!sections.has(sectionKey)) {
+        sections.set(sectionKey, []);
       }
-      usedKeys.add(key);
-      updates.push({ id: e.id, repere: newRepere });
+      sections.get(sectionKey)!.push(e);
     }
+
+    // Process each section independently
+    for (const [jdbId, sectionElements] of sections.entries()) {
+      console.log('[renameExistingReperes] Processing section JDB:', jdbId, 'with', sectionElements.length, 'elements');
+      const usedKeys = new Set<string>();
+
+      for (const e of sectionElements) {
+        // Skip elements with temp IDs (unsaved elements)
+        if (e.id < 0) {
+          console.log('[renameExistingReperes] Skipping temp ID:', e.repere);
+          continue;
+        }
+        
+        const parsed = parseRepereNumber(e.repere);
+        if (!parsed) {
+          console.log('[renameExistingReperes] Skipping (no parse):', e.repere);
+          continue;
+        }
+
+        // Skip if repère already has this prefix (case-insensitive)
+        if (e.repere.toUpperCase().startsWith(prefix.toUpperCase())) {
+          console.log('[renameExistingReperes] Already has prefix:', e.repere);
+          const key = `${e.type}|${e.repere.toUpperCase()}`;
+          usedKeys.add(key);
+          continue;
+        }
+
+        const typePrefix = PREFIX_MAP[e.type];
+        const newRepere = `${prefix}${typePrefix}${parsed.number}`;
+        const key = `${e.type}|${newRepere.toUpperCase()}`;
+
+        if (usedKeys.has(key)) {
+          console.log('[renameExistingReperes] Conflict detected in section:', newRepere);
+          toast.error(`Conflit de repère détecté pour ${newRepere}. Renommage annulé.`);
+          throw new Error('Repere conflict');
+        }
+        
+        console.log('[renameExistingReperes] Will rename:', e.repere, '->', newRepere);
+        usedKeys.add(key);
+        updates.push({ id: e.id, repere: newRepere });
+      }
+    }
+
+    console.log('[renameExistingReperes] Total updates:', updates.length);
 
     for (const { id, repere } of updates) {
       await window.bilpow.elements.update({ id, repere });
     }
+    
+    return updates;
   };
 
   const handleSaveElement = async (data: ElementSavePayload) => {
