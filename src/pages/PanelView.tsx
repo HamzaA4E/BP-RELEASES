@@ -336,6 +336,7 @@ export function PanelView() {
   const toggleReperePrefix = async () => {
     const newValue = panel.repere_prefix ? null : `${panel.name}/`;
 
+    // Only show confirmation dialog when enabling prefix and there are existing repères
     if (newValue && elements.some((e) => !isJeuDeBarres(e) && e.repere.trim())) {
       setPendingReperePrefix(newValue);
       return;
@@ -1199,7 +1200,7 @@ export function PanelView() {
         confirmLabel="Renommer"
         onConfirm={() => {
           if (pendingReperePrefix) {
-            void applyReperePrefixChange(pendingReperePrefix);
+            void applyReperePrefixChange(pendingReperePrefix, true);
           }
         }}
         onCancel={() => {
