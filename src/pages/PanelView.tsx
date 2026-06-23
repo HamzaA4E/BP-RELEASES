@@ -267,10 +267,11 @@ export function PanelView() {
           onConfigurePrefix: () => void toggleReperePrefix(),
           onSave: () => void save(),
           canSave: unsaved,
+          prefixEnabled: !!panel.repere_prefix,
         },
       }),
     );
-  }, [unsaved, save]);
+  }, [unsaved, save, panel.repere_prefix]);
 
   // Notify Layout about modal state to hide FAB
   useEffect(() => {

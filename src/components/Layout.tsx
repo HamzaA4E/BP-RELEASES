@@ -18,6 +18,7 @@ export function Layout() {
     onConfigurePrefix?: () => void;
     onSave?: () => void;
     canSave?: boolean;
+    prefixEnabled?: boolean;
   }>({});
 
   const [hideQuickActions, setHideQuickActions] = useState(false);
@@ -80,6 +81,7 @@ export function Layout() {
         onSave={quickActions.onSave}
         canSave={quickActions.canSave}
         hidden={hideQuickActions}
+        prefixEnabled={quickActions.prefixEnabled}
       />
     </div>
   );

@@ -36,8 +36,6 @@ export function usePanelEditing({
     canRedo,
     initPanel,
     reset,
-    savedFilePath,
-    setSavedFilePath,
   } = usePanelEditingStore();
 
   const { currentProject } = useAppStore();
@@ -84,32 +82,36 @@ export function usePanelEditing({
       await refreshElements();
       await refreshPanels();
 
-      // Si aucun chemin n'est défini, ouvrir la boîte de dialogue pour exporter
-      if (!savedFilePath) {
-        if (currentProject) {
+      // Exporter le projet
+      if (currentProject) {
+        // Check localStorage for saved export path for this project
+        const localStorageKey = `bilpow_export_path_${currentProject.id}`;
+        const storedPath = localStorage.getItem(localStorageKey);
+
+        if (storedPath) {
+          // Exporter directement avec le chemin sauvegardé
+          const exportResult = await window.bilpow.project.exportWithPath(
+            currentProject.id,
+            storedPath,
+          );
+          if (exportResult.success) {
+            toast.success("Modifications enregistrées");
+          } else if (exportResult.error) {
+            toast.error(exportResult.error);
+          }
+        } else {
+          // Si aucun chemin n'est défini, ouvrir la boîte de dialogue pour exporter
           const exportResult = await window.bilpow.project.export(
             currentProject.id,
           );
           if (exportResult.success && exportResult.filePath) {
-            setSavedFilePath(exportResult.filePath);
-            toast.success("Modifications enregistrées et fichier exporté");
+            // Save the path to localStorage for future saves
+            localStorage.setItem(localStorageKey, exportResult.filePath);
+            toast.success("Modifications enregistrées");
           } else if (
             exportResult.error &&
             exportResult.error !== "Export annulé"
           ) {
-            toast.error(exportResult.error);
-          }
-        }
-      } else {
-        // Exporter directement avec le chemin sauvegardé
-        if (currentProject) {
-          const exportResult = await window.bilpow.project.exportWithPath(
-            currentProject.id,
-            savedFilePath,
-          );
-          if (exportResult.success) {
-            toast.success("Modifications enregistrées et fichier exporté");
-          } else if (exportResult.error) {
             toast.error(exportResult.error);
           }
         }
@@ -122,8 +124,6 @@ export function usePanelEditing({
   }, [
     getPendingChanges,
     panelId,
-    savedFilePath,
-    setSavedFilePath,
     markSaved,
     refreshElements,
     refreshPanels,

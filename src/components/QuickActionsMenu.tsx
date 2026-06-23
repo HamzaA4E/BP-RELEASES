@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Plus, Save, Settings, Zap, Tag } from "lucide-react";
+import { Plus, Save, Settings, Zap, Tag, Check } from "lucide-react";
 
 interface QuickActionsMenuProps {
   onAddJdb?: () => void;
@@ -8,6 +8,7 @@ interface QuickActionsMenuProps {
   onSave?: () => void;
   canSave?: boolean;
   hidden?: boolean;
+  prefixEnabled?: boolean;
 }
 
 export function QuickActionsMenu({
@@ -16,6 +17,7 @@ export function QuickActionsMenu({
   onSave,
   canSave = true,
   hidden = false,
+  prefixEnabled = false,
 }: QuickActionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
@@ -57,10 +59,11 @@ export function QuickActionsMenu({
     },
     {
       icon: Tag,
-      label: "Configurer Préfixe",
+      label: "Préfixe",
       onClick: onConfigurePrefix,
       visible: isPanelView && !!onConfigurePrefix,
       color: "bg-purple-500 hover:bg-purple-800",
+      indicator: prefixEnabled ? "enabled" : null,
     },
     {
       icon: Save,
@@ -119,6 +122,11 @@ export function QuickActionsMenu({
                   title={action.label}
                 >
                   <Icon size={20} />
+                  {action.indicator === "enabled" && (
+                    <div className="absolute -top-1 -right-1 bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center border-2 border-white">
+                      <Check size={12} />
+                    </div>
+                  )}
                   <span className="sr-only">{action.label}</span>
                 </button>
               );
