@@ -93,9 +93,26 @@ function buildDefaultForm(
   existingElements: Element[],
   contextJdb?: Element | null,
   reperePrefix?: string | null,
+  addTypeToDepart?: Element | null,
 ): FormData {
   const phase_type: PhaseType = type === "prise" ? "mono" : "mono";
   const coefs = defaultCoefsForType(type, phase_type);
+
+  // For divers, if adding to an existing depart, use the parent's repere
+  if (type === "divers" && addTypeToDepart) {
+    return {
+      type,
+      repere: addTypeToDepart.repere,
+      type_label: "",
+      emplacement: "",
+      power_w: 1000,
+      quantity: 1,
+      phase_type,
+      ...coefs,
+      notes: "",
+    };
+  }
+
   return {
     type,
     repere: getNextRepere(existingElements, type, contextJdb, reperePrefix),
@@ -123,7 +140,7 @@ export function AddElementModal({
   onDeleteFavorite,
 }: AddElementModalProps) {
   const [formData, setFormData] = useState<FormData>(() =>
-    buildDefaultForm("eclairage", existingElements),
+    buildDefaultForm("eclairage", existingElements, null, null, addTypeToDepart),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -210,11 +227,11 @@ export function AddElementModal({
       setQuantityInput("1");
     } else if (contextJdb) {
       const defaultType = defaultElementTypeForJdb(contextJdb);
-      setFormData(buildDefaultForm(defaultType, existingElements, contextJdb, reperePrefix));
+      setFormData(buildDefaultForm(defaultType, existingElements, contextJdb, reperePrefix, addTypeToDepart));
       setPowerInput("1");
       setQuantityInput("1");
     } else {
-      setFormData(buildDefaultForm("eclairage", existingElements, null, reperePrefix));
+      setFormData(buildDefaultForm("eclairage", existingElements, null, reperePrefix, addTypeToDepart));
       setPowerInput("1");
       setQuantityInput("1");
     }
@@ -231,6 +248,13 @@ export function AddElementModal({
         repere: getNextRepere(existingElements, p.type, activeJdb, reperePrefix),
       }));
     }
+    // When adding divers to a depart, ensure it keeps the parent's repere
+    if (!editElement && addTypeToDepart && isOpen && formData.type === "divers") {
+      setFormData((p) => ({
+        ...p,
+        repere: addTypeToDepart.repere,
+      }));
+    }
   }, [formData.type, isOpen, editElement, addTypeToDepart, existingElements, activeJdb, reperePrefix]);
 
   const handleTypeChange = (type: ElementFormType) => {
@@ -240,10 +264,17 @@ export function AddElementModal({
     const phase_type: PhaseType =
       type === "prise" ? formData.phase_type : "mono";
     const coefs = defaultCoefsForType(type, phase_type);
+
+    // When adding divers to a depart, keep the parent's repere
+    const newRepere = (type === "divers" && addTypeToDepart)
+      ? addTypeToDepart.repere
+      : (isAddTypeMode ? formData.repere : getNextRepere(existingElements, type, activeJdb, reperePrefix));
+
     setFormData((p) => ({
       ...p,
       type,
       phase_type,
+      repere: newRepere,
       type_label: type === "prise" ? "" : p.type_label,
       power_w:
         type === "divers" ? (p.power_w > 0 ? p.power_w : 1000) : p.power_w,

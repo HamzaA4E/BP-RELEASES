@@ -543,15 +543,16 @@ export function PanelView() {
         // Skip if repère already has this prefix (case-insensitive)
         if (e.repere.toUpperCase().startsWith(prefix.toUpperCase())) {
           console.log('[renameExistingReperes] Already has prefix:', e.repere);
-          const key = `${parsed.number}`;
+          const key = `${e.type}|${parsed.number}`;
           usedKeys.add(key);
           continue;
         }
 
         const typePrefix = PREFIX_MAP[e.type];
         const newRepere = `${prefix}${typePrefix}${parsed.number}`;
-        // Use only the number for conflict detection - multi-phase departures (mono+tri) share the same number
-        const key = `${parsed.number}`;
+        // Use type+number for conflict detection to avoid conflicts between different types (e.g., E1 vs D1)
+        // But allow multi-phase departures (mono+tri) to share the same number
+        const key = `${e.type}|${parsed.number}`;
 
         if (usedKeys.has(key)) {
           console.log('[renameExistingReperes] Conflict detected in section:', newRepere);
