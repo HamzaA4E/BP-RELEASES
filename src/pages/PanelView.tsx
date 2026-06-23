@@ -257,6 +257,20 @@ export function PanelView() {
     return () => reset();
   }, [panId, loadData, setFavorites, initPanel, reset]);
 
+  // Notify Layout about available quick actions
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("quick-actions-update", {
+        detail: {
+          onAddJdb: () => setShowAddJdb(true),
+          onConfigurePrefix: () => void toggleReperePrefix(),
+          onSave: () => void save(),
+          canSave: unsaved,
+        },
+      }),
+    );
+  }, [unsaved, save]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target;

@@ -1,7 +1,9 @@
+import { useState, useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { ArrowLeft } from "lucide-react";
 import { Sidebar } from "./Sidebar";
+import { QuickActionsMenu } from "./QuickActionsMenu";
 import { useAppStore } from "@/store/useAppStore";
 
 export function Layout() {
@@ -9,6 +11,25 @@ export function Layout() {
   const location = useLocation();
   const { darkMode, setDarkMode } = useAppStore();
   const canGoBack = location.pathname !== "/";
+
+  // Get action handlers from PanelView via custom event
+  const [quickActions, setQuickActions] = useState<{
+    onAddJdb?: () => void;
+    onConfigurePrefix?: () => void;
+    onSave?: () => void;
+    canSave?: boolean;
+  }>({});
+
+  useEffect(() => {
+    const handleSetQuickActions = (e: CustomEvent) => {
+      setQuickActions(e.detail);
+    };
+
+    window.addEventListener("quick-actions-update", handleSetQuickActions as EventListener);
+    return () => {
+      window.removeEventListener("quick-actions-update", handleSetQuickActions as EventListener);
+    };
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -44,6 +65,12 @@ export function Layout() {
           className: "dark:bg-gray-800 dark:text-white text-sm",
           duration: 3000,
         }}
+      />
+      <QuickActionsMenu
+        onAddJdb={quickActions.onAddJdb}
+        onConfigurePrefix={quickActions.onConfigurePrefix}
+        onSave={quickActions.onSave}
+        canSave={quickActions.canSave}
       />
     </div>
   );
