@@ -377,6 +377,13 @@ export function PanelView() {
       const parsed = parseRepereNumber(e.repere);
       if (!parsed) continue;
 
+      // Skip if repère already has this prefix
+      if (e.repere.startsWith(prefix)) {
+        const key = `${e.type}|${e.repere.toUpperCase()}`;
+        usedKeys.add(key);
+        continue;
+      }
+
       const typePrefix = PREFIX_MAP[e.type];
       const newRepere = `${prefix}${typePrefix}${parsed.number}`;
       const key = `${e.type}|${newRepere.toUpperCase()}`;
