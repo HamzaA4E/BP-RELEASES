@@ -352,13 +352,17 @@ export function PanelView() {
     setPanel((p) => ({ ...p, repere_prefix: newValue }));
     try {
       if (newValue && renameExisting) {
+        // Save pending changes before renaming to prevent data loss
+        const hasUnsavedChanges = usePanelEditingStore.getState().pendingChanges.length > 0;
+        if (hasUnsavedChanges) {
+          await save();
+        }
         await renameExistingReperes(newValue);
+        // Refresh after renaming to get updated repères
+        await refreshElements();
       }
       await window.bilpow.panels.update({ id: panId, repere_prefix: newValue });
       await refreshPanels();
-      if (renameExisting) {
-        await refreshElements();
-      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
       await loadData();
