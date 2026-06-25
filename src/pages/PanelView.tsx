@@ -27,7 +27,6 @@ import {
   panelTotalPower,
   calculationCurrent,
   formatPower,
-  PREFIX_MAP,
   parseRepereNumber,
 } from "@/utils/calculations";
 import {
@@ -636,19 +635,8 @@ export function PanelView() {
           continue;
         }
 
-        // For divers, check if it shares a repère with a parent departure (eclairage or prise)
-        // If so, it should use the parent's type prefix instead of D
-        let typePrefix = PREFIX_MAP[e.type];
-        if (e.type === 'divers') {
-          const parentElement = sectionElements.find(
-            (other) => other.id !== e.id && other.repere === e.repere && (other.type === 'eclairage' || other.type === 'prise')
-          );
-          if (parentElement) {
-            typePrefix = PREFIX_MAP[parentElement.type];
-            console.log('[renameExistingReperes] Divers shares repère with parent, using parent prefix:', typePrefix);
-          }
-        }
-        const newRepere = `${prefix}${typePrefix}${parsed.number}`;
+        // Simply prepend the prefix to the existing repère - don't change category or number
+        const newRepere = `${prefix}${e.repere}`;
         // Use type+number for conflict detection to avoid conflicts between different types (e.g., E1 vs D1)
         // But allow multi-phase departures (mono+tri) to share the same number
         const key = `${e.type}|${parsed.number}`;
