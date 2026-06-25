@@ -886,7 +886,7 @@ function createSyntheseSheet(
     sheet.mergeCells(rowNum, 5, rowNum, 6); // E:F
 
     const row = sheet.getRow(rowNum);
-    row.height = 55; 
+    row.height = 28; // Match panel sheet data row height 
 
     row.getCell(1).value = toCellString(meta.locationName);
     row.getCell(3).value = toCellString(meta.panelName);
@@ -907,15 +907,17 @@ function createSyntheseSheet(
     }
   }
 
-  // Largeurs des colonnes
+  // Largeurs des colonnes - match panel sheet structure
+  // Panel sheets: Repère(10), Type(25), Désignation(25), P.Unitaire(14), Qté(8), Ks(8), Ku(8), Total(14)
+  // Synthese: Emplacement(A:B=10+25), Tableau(C:D=25+14), P.Totale(E:F=14+8), Intensité(G=14)
   sheet.columns = [
-    { width: 10 }, // A
-    { width: 25 }, // B
-    { width: 25 }, // C
-    { width: 13 }, // D
-    { width: 8 }, // E
-    { width: 8 }, // F
-    { width: 13}, // G
+    { width: 10 }, // A - Emplacement (part 1)
+    { width: 25 }, // B - Emplacement (part 2)
+    { width: 25 }, // C - Tableau (part 1)
+    { width: 14 }, // D - Tableau (part 2)
+    { width: 14 }, // E - P. Totale (part 1)
+    { width: 8 },  // F - P. Totale (part 2)
+    { width: 14 }, // G - Intensité
   ];
 }
 
