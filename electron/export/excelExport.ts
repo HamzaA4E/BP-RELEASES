@@ -223,7 +223,7 @@ function addCompanyHeader(
   projectInfo: { name: string; client: string | null },
   colCount: number = 7
 ): { headerRow: number; svgSkipped: boolean } {
-  worksheet.getRow(1).height = 69;  // ~91px
+  worksheet.getRow(1).height = 57;  // ~95px
   worksheet.getRow(2).height = 27;  // ~36px
   worksheet.getRow(3).height = 30;  // ~40px
 
@@ -830,9 +830,6 @@ function createSyntheseSheet(
     sheetTitle,
     projectInfo
   );
-  sheet.getRow(1).height = 69;  // ~91px
-  sheet.getRow(2).height = 27;  // ~36px
-  sheet.getRow(3).height = 30;  // ~40px
 
   // Fusion des cellules d'en-tête
   sheet.mergeCells(headerRow, 1, headerRow, 2); // A:B
@@ -870,18 +867,30 @@ function createSyntheseSheet(
     };
 
     applyBorder(cell);
-
-    // Bordure sur la cellule fusionnée voisine
-    if (col !== 7) {
-      applyBorder(headerRowObj.getCell(col + 1));
-    }
   });
 
+  // Apply fill and font to second cells of merged header pairs
+  const fillHeaderSecondCell = (secondCol: number) => {
+    const cell = headerRowObj.getCell(secondCol);
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: PRIMARY_COLOR },
+    };
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    applyBorder(cell);
+  };
+  fillHeaderSecondCell(2); // B (second cell of A:B merge)
+  fillHeaderSecondCell(4); // D (second cell of C:D merge)
+  fillHeaderSecondCell(6); // F (second cell of E:F merge)
+
   let rowNum = headerRow;
+  let dataRowIndex = 0;
 
   for (const meta of panelMetas) {
     rowNum++;
-    
+    dataRowIndex++;
 
     // Fusion des cellules de données
     sheet.mergeCells(rowNum, 1, rowNum, 2); // A:B
@@ -908,20 +917,51 @@ function createSyntheseSheet(
     for (let c = 1; c <= 7; c++) {
       applyBorder(row.getCell(c));
     }
+
+    // Apply fill to second cells of merged data pairs
+    const rowFill = dataRowIndex % 2 === 0 ? ALT_ROW_COLOR : 'FFFFFFFF';
+    [2, 4, 6].forEach(col => {
+      const cell = row.getCell(col);
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: rowFill },
+      };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      applyBorder(cell);
+    });
   }
 
   // Largeurs des colonnes - match panel sheet structure
   // Panel sheets: Repère(10), Type(25), Désignation(25), P.Unitaire(14), Qté(8), Ks(8), Ku(8), Total(14)
-  // Synthese: Emplacement(A:B=10+25), Tableau(C:D=25+14), P.Totale(E:F=14+8), Intensité(G=14)
+  // Synthese: Emplacement(A:B=10+25), Tableau(C:D=25+14), P.Totale(E:F=8+8), Intensité(G=14)
   sheet.columns = [
     { width: 10 }, // A - Emplacement (part 1)
     { width: 25 }, // B - Emplacement (part 2)
     { width: 25 }, // C - Tableau (part 1)
     { width: 14 }, // D - Tableau (part 2)
-    { width: 14 }, // E - P. Totale (part 1)
-    { width: 8 },  // F - P. Totale (part 2)
+    { width: 8 },  // E - P. Totale (part 1) - match panel sheet column E (Qté)
+    { width: 8 },  // F - P. Totale (part 2) - match panel sheet column F (Ks)
     { width: 14 }, // G - Intensité
   ];
+
+  sheet.views = [{ state: 'frozen', ySplit: headerRow }];
+  sheet.pageSetup = {
+    printTitlesRow: '1:5',
+    paperSize: 9,
+    orientation: 'portrait',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    margins: {
+      left: 0.5,
+      right: 0.5,
+      top: 0.75,
+      bottom: 0.75,
+      header: 0.3,
+      footer: 0.3,
+    },
+  };
 }
 
 function buildWorkbookFromPanels(
