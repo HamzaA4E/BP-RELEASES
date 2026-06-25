@@ -172,7 +172,7 @@ export function PanelView() {
   );
   const [contextJdb, setContextJdb] = useState<Element | null>(null);
   const [deleteElementId, setDeleteElementId] = useState<number | null>(null);
-  const [pendingReperePrefix, setPendingReperePrefix] = useState<string | null>(null);
+  const [pendingReperePrefix, setPendingReperePrefix] = useState<{ action: 'add' | 'remove', value: string | null } | null>(null);
 
   const loadArticlesForElements = useCallback(async (els: Element[]) => {
     const multiElements = els.filter((e) => e.is_multi && e.id > 0);
@@ -263,7 +263,7 @@ export function PanelView() {
       new CustomEvent("quick-actions-update", {
         detail: {
           onAddJdb: () => setShowAddJdb(true),
-          onConfigurePrefix: () => void toggleReperePrefix(),
+          onConfigurePrefix: () => void (panel.repere_prefix ? removeReperePrefix() : addReperePrefix()),
           onSave: () => void save(),
           canSave: unsaved,
           prefixEnabled: !!panel.repere_prefix,
@@ -357,16 +357,26 @@ export function PanelView() {
     }
   };
 
-  const toggleReperePrefix = async () => {
-    const newValue = panel.repere_prefix ? null : `${panel.name}/`;
+  const addReperePrefix = async () => {
+    const newValue = `${panel.name}/`;
 
-    // Only show confirmation dialog when enabling prefix and there are existing repères
-    if (newValue && elements.some((e) => !isJeuDeBarres(e) && e.repere.trim())) {
-      setPendingReperePrefix(newValue);
+    // Show confirmation dialog when enabling prefix and there are existing repères
+    if (elements.some((e) => !isJeuDeBarres(e) && e.repere.trim())) {
+      setPendingReperePrefix({ action: 'add', value: newValue });
       return;
     }
 
-    await applyReperePrefixChange(newValue);
+    await applyReperePrefixChange(newValue, true);
+  };
+
+  const removeReperePrefix = async () => {
+    // Show confirmation dialog when removing prefix and there are existing repères
+    if (elements.some((e) => !isJeuDeBarres(e) && e.repere.trim())) {
+      setPendingReperePrefix({ action: 'remove', value: null });
+      return;
+    }
+
+    await applyReperePrefixChange(null, false, true);
   };
 
   const applyReperePrefixChange = async (
@@ -1308,20 +1318,27 @@ export function PanelView() {
               onBlur={(e) => void savePanelName(e.target.value)}
               className="input-field text-xl font-bold max-w-md"
             />
-            <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer mt-2 sm:mt-0">
-              <input
-                type="checkbox"
-                checked={Boolean(panel.repere_prefix)}
-                onChange={() => void toggleReperePrefix()}
-                className="h-4 w-4 rounded border-gray-300 text-accent focus:ring-accent"
-              />
-              Utiliser le nom du tableau comme préfixe des repères
+            <div className="flex items-center gap-2 mt-2 sm:mt-0">
+              <button
+                type="button"
+                onClick={() => void addReperePrefix()}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
+              >
+                Renommer
+              </button>
+              <button
+                type="button"
+                onClick={() => void removeReperePrefix()}
+                className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
+              >
+                Ignorer
+              </button>
               {panel.repere_prefix && (
                 <span className="font-mono text-xs text-gray-400 ml-1">
                   ({panel.repere_prefix}E1, {panel.repere_prefix}E2…)
                 </span>
               )}
-            </label>
+            </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {unsaved && (
@@ -1463,22 +1480,22 @@ export function PanelView() {
 
       <ConfirmDialog
         isOpen={pendingReperePrefix !== null}
-        title="Appliquer le préfixe aux repères existants"
-        message={`Voulez-vous renommer tous les repères existants pour qu'ils commencent par « ${pendingReperePrefix ?? ''} » ? Les jeux de barres ne seront pas modifiés.`}
-        confirmLabel="Renommer"
+        title={pendingReperePrefix?.action === 'add' ? "Appliquer le préfixe aux repères existants" : "Supprimer le préfixe aux repères existants"}
+        message={pendingReperePrefix?.action === 'add' 
+          ? `Voulez-vous renommer tous les repères existants pour qu'ils commencent par « ${pendingReperePrefix.value ?? ''} » ? Les jeux de barres ne seront pas modifiés.`
+          : `Voulez-vous supprimer le préfixe de tous les repères existants ? Les jeux de barres ne seront pas modifiés.`}
+        confirmLabel={pendingReperePrefix?.action === 'add' ? "Renommer" : "Supprimer"}
         onConfirm={() => {
           if (pendingReperePrefix) {
-            void applyReperePrefixChange(pendingReperePrefix, true);
+            if (pendingReperePrefix.action === 'add') {
+              void applyReperePrefixChange(pendingReperePrefix.value, true);
+            } else {
+              void applyReperePrefixChange(null, false, true);
+            }
           }
         }}
         onCancel={() => {
           setPendingReperePrefix(null);
-        }}
-        tertiaryLabel="Ignorer"
-        onTertiary={() => {
-          if (pendingReperePrefix) {
-            void applyReperePrefixChange(null, false, true);
-          }
         }}
       />
     </div>
