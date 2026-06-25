@@ -382,7 +382,7 @@ export function PanelView() {
       let renamedUpdates: { id: number; oldRepere: string; newRepere: string }[] = [];
       
       // When stripExisting is true, remove existing prefix from repères
-      if (stripExisting && panel.repere_prefix) {
+      if (stripExisting) {
         const oldReperes = new Map<number, string>();
         for (const e of elements) {
           if (!isJeuDeBarres(e) && e.id !== 0 && e.repere.trim()) {
@@ -392,8 +392,10 @@ export function PanelView() {
 
         const strippedUpdates: { id: number; oldRepere: string; newRepere: string }[] = [];
         for (const [id, oldRepere] of oldReperes) {
-          if (oldRepere.startsWith(panel.repere_prefix)) {
-            const newRepere = oldRepere.slice(panel.repere_prefix.length);
+          // Remove any prefix that looks like a panel name (ends with /)
+          const slashIndex = oldRepere.indexOf('/');
+          if (slashIndex > 0) {
+            const newRepere = oldRepere.slice(slashIndex + 1);
             strippedUpdates.push({ id, oldRepere, newRepere });
           }
         }
@@ -1475,7 +1477,7 @@ export function PanelView() {
         tertiaryLabel="Ignorer"
         onTertiary={() => {
           if (pendingReperePrefix) {
-            void applyReperePrefixChange(null, true, true);
+            void applyReperePrefixChange(null, false, true);
           }
         }}
       />
