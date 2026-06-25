@@ -382,8 +382,8 @@ export function PanelView() {
     try {
       let renamedUpdates: { id: number; oldRepere: string; newRepere: string }[] = [];
       
-      // When stripExisting is true and we're adding a prefix, remove existing prefix from repères
-      if (newValue && stripExisting) {
+      // When stripExisting is true, remove existing prefix from repères
+      if (stripExisting && panel.repere_prefix) {
         const oldReperes = new Map<number, string>();
         for (const e of elements) {
           if (!isJeuDeBarres(e) && e.id !== 0 && e.repere.trim()) {
@@ -393,8 +393,8 @@ export function PanelView() {
 
         const strippedUpdates: { id: number; oldRepere: string; newRepere: string }[] = [];
         for (const [id, oldRepere] of oldReperes) {
-          if (oldRepere.startsWith(newValue)) {
-            const newRepere = oldRepere.slice(newValue.length);
+          if (oldRepere.startsWith(panel.repere_prefix)) {
+            const newRepere = oldRepere.slice(panel.repere_prefix.length);
             strippedUpdates.push({ id, oldRepere, newRepere });
           }
         }
@@ -1487,7 +1487,7 @@ export function PanelView() {
         tertiaryLabel="Ignorer"
         onTertiary={() => {
           if (pendingReperePrefix) {
-            void applyReperePrefixChange(pendingReperePrefix, true, true);
+            void applyReperePrefixChange(null, true, true);
           }
         }}
       />
