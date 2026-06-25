@@ -1318,7 +1318,7 @@ export function PanelView() {
               onBlur={(e) => void savePanelName(e.target.value)}
               className="input-field text-xl font-bold max-w-md"
             />
-            <div className="flex items-center gap-2 mt-2 sm:mt-0">
+            <div className="flex items-center gap-2 mt-2 sm:mt-3">
               <button
                 type="button"
                 onClick={() => void addReperePrefix()}
