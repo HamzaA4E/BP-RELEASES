@@ -223,9 +223,9 @@ function addCompanyHeader(
   projectInfo: { name: string; client: string | null },
   colCount: number = 7
 ): { headerRow: number; svgSkipped: boolean } {
-  worksheet.getRow(1).height = 55;
-  worksheet.getRow(2).height = 22;
-  worksheet.getRow(3).height = 24;
+  worksheet.getRow(1).height = 69;  // ~91px
+  worksheet.getRow(2).height = 27;  // ~36px
+  worksheet.getRow(3).height = 30;  // ~40px
 
   const projetEndCol = 4;
   const clientStartCol = 5;
@@ -830,6 +830,9 @@ function createSyntheseSheet(
     sheetTitle,
     projectInfo
   );
+  sheet.getRow(1).height = 69;  // ~91px
+  sheet.getRow(2).height = 27;  // ~36px
+  sheet.getRow(3).height = 30;  // ~40px
 
   // Fusion des cellules d'en-tête
   sheet.mergeCells(headerRow, 1, headerRow, 2); // A:B
@@ -844,7 +847,7 @@ function createSyntheseSheet(
   ];
 
   const headerRowObj = sheet.getRow(headerRow);
-  headerRowObj.height = 66; // ← add this
+  headerRowObj.height = 28; // Match panel sheet header row height
   headers.forEach(({ col, label }) => {
     const cell = headerRowObj.getCell(col);
 
