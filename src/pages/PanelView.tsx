@@ -755,8 +755,10 @@ export function PanelView() {
         // Simply prepend the prefix to the existing repère - don't change category or number
         const newRepere = `${prefix}${e.repere}`;
         // Use type+number for conflict detection to avoid conflicts between different types (e.g., E1 vs D1)
-        // But allow multi-phase departures (mono+tri) to share the same number
-        const key = `${e.type}|${parsed.number}`;
+        // For multi-depart elements, include phase_type in the key to allow mono+tri with same repere
+        const key = e.is_multi 
+          ? `${e.type}|${parsed.number}|${e.phase_type}`
+          : `${e.type}|${parsed.number}`;
 
         if (usedKeys.has(key)) {
           console.log('[renameExistingReperes] Conflict detected in section:', newRepere);

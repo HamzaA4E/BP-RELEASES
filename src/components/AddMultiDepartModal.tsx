@@ -480,6 +480,9 @@ export function MultiDepartModal({
 
         toast.success('Départ mis à jour avec succès');
       } else {
+        // Calculate total quantity from all articles
+        const totalQuantity = articles.reduce((sum, a) => sum + a.quantity, 0);
+        
         const created = await window.bilpow.elements.create({
           panel_id: panelId,
           type: depart.type,
@@ -487,7 +490,7 @@ export function MultiDepartModal({
           type_label: typeLabel,
           phase_type: depart.phase_type,
           power_w: 0,
-          quantity: 1,
+          quantity: totalQuantity,
           coef_ks: depart.coef_ks,
           coef_ku: depart.coef_ku,
           circuit: depart.circuit.trim() || undefined,
