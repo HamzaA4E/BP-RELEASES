@@ -690,8 +690,18 @@ export function PanelView() {
       const hasSavedUpdates = renamedUpdates.some(u => u.id > 0);
       if (hasSavedUpdates) {
         console.log('[applyReperePrefixChange] Refreshing elements (saved elements were updated)...');
+        // Capture temp elements BEFORE refresh (with their updated repere from mutations)
+        const tempElements = elements.filter((e: Element) => e.id < 0);
         await refreshElements();
-        console.log('[applyReperePrefixChange] Elements refreshed');
+        // Restore temp elements after refresh - they have the new prefix from mutations
+        if (tempElements.length > 0) {
+          // Get the current elements after refresh and merge with temp elements
+          const currentElements = await window.bilpow.elements.getByPanel(panId);
+          const normalizedCurrent = currentElements.map((e) => normalizeElement(e));
+          const mergedElements = [...normalizedCurrent, ...tempElements];
+          setElements(mergedElements);
+        }
+        console.log('[applyReperePrefixChange] Elements refreshed with temp elements preserved');
       } else if (renamedUpdates.length > 0) {
         console.log('[applyReperePrefixChange] Skipping refreshElements to preserve', renamedUpdates.length, 'temp element(s)');
       }
@@ -739,29 +749,31 @@ export function PanelView() {
 
       for (const e of sectionElements) {
         const parsed = parseRepereNumber(e.repere);
-        if (!parsed) {
-          console.log('[renameExistingReperes] Skipping (no parse):', e.repere);
-          continue;
-        }
-
+        
         // Skip if repère already has this prefix (case-insensitive)
         if (e.repere.toUpperCase().startsWith(prefix.toUpperCase())) {
           console.log('[renameExistingReperes] Already has prefix:', e.repere);
           // For prise elements (including multi-depart), include phase_type in the key when tracking already-prefixed elements
-          const key = e.type === 'prise' || e.is_multi
-            ? `${e.type}|${parsed.number}|${e.phase_type}`
-            : `${e.type}|${parsed.number}`;
-          usedKeys.add(key);
+          if (parsed) {
+            const key = e.type === 'prise' || e.is_multi
+              ? `${e.type}|${parsed.number}|${e.phase_type}`
+              : `${e.type}|${parsed.number}`;
+            usedKeys.add(key);
+          }
           continue;
         }
 
         // Simply prepend the prefix to the existing repère - don't change category or number
         const newRepere = `${prefix}${e.repere}`;
+        
         // Use type+number for conflict detection to avoid conflicts between different types (e.g., E1 vs D1)
         // For prise elements (including multi-depart), include phase_type in the key to allow mono+tri with same repere
-        const key = e.type === 'prise' || e.is_multi
-          ? `${e.type}|${parsed.number}|${e.phase_type}`
-          : `${e.type}|${parsed.number}`;
+        // For elements without parseable repere (like divers in multi-depart), use the full repere as key
+        const key = parsed 
+          ? (e.type === 'prise' || e.is_multi
+              ? `${e.type}|${parsed.number}|${e.phase_type}`
+              : `${e.type}|${parsed.number}`)
+          : `${e.type}|${e.repere}`;
 
         if (usedKeys.has(key)) {
           console.log('[renameExistingReperes] Conflict detected in section:', newRepere);

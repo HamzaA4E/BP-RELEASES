@@ -220,7 +220,9 @@ export function normalizeElement(raw: Element): Element {
       ? barSetLabel(raw.jdb_category ?? raw.type, raw.bar_set_index)
       : raw.designation || '');
 
-  const elementType = isJdb && raw.type !== 'jeu_de_barres' ? 'jeu_de_barres' : raw.type;
+  // Only convert to jeu_de_barres if the original type is jeu_de_barres
+  // Don't convert divers/eclairage/prise to jeu_de_barres just because row_kind is bar_set
+  const elementType = raw.type === 'jeu_de_barres' ? 'jeu_de_barres' : raw.type;
   const phase_type = raw.phase_type ?? 'mono';
   const coefDefaults = defaultCoefsForType(elementType, phase_type);
 
