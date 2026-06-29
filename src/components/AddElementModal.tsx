@@ -505,26 +505,55 @@ export function AddElementModal({
                 <label className="block text-xs font-medium text-gray-500 mb-1">
                   Repère {isAddTypeMode ? "" : "*"}
                 </label>
-                <input
-                  type="text"
-                  value={formData.repere}
-                  readOnly={isAddTypeMode}
-                  onChange={(e) =>
-                    setFormData((p) => ({ ...p, repere: e.target.value }))
-                  }
-                  className={`input-field font-mono ${errors.repere ? "border-red-500" : ""} ${
-                    isAddTypeMode
-                      ? "bg-gray-50 dark:bg-gray-700/50 cursor-default"
-                      : ""
-                  }`}
-                  placeholder={
-                    formData.type === "eclairage"
-                      ? "E1"
-                      : formData.type === "divers"
-                        ? "D1"
-                        : "P1"
-                  }
-                />
+                {reperePrefix && !isEdit && formData.repere.startsWith(reperePrefix) ? (
+                  <div className="flex items-center">
+                    <span className="bg-gray-100 dark:bg-gray-700 px-3 py-2 border border-r-0 border-slate-200 dark:border-slate-600 rounded-l text-sm font-mono text-slate-600 dark:text-slate-300">
+                      {reperePrefix}
+                    </span>
+                    <input
+                      type="text"
+                      value={formData.repere.slice(reperePrefix.length)}
+                      readOnly={isAddTypeMode}
+                      onChange={(e) => {
+                        const departurePart = e.target.value;
+                        setFormData((p) => ({ ...p, repere: `${reperePrefix}${departurePart}` }));
+                      }}
+                      className={`input-field font-mono rounded-l-none ${errors.repere ? "border-red-500" : ""} ${
+                        isAddTypeMode
+                          ? "bg-gray-50 dark:bg-gray-700/50 cursor-default"
+                          : ""
+                      }`}
+                      placeholder={
+                        formData.type === "eclairage"
+                          ? "E1"
+                          : formData.type === "divers"
+                            ? "D1"
+                            : "P1"
+                      }
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={formData.repere}
+                    readOnly={isAddTypeMode}
+                    onChange={(e) =>
+                      setFormData((p) => ({ ...p, repere: e.target.value }))
+                    }
+                    className={`input-field font-mono ${errors.repere ? "border-red-500" : ""} ${
+                      isAddTypeMode
+                        ? "bg-gray-50 dark:bg-gray-700/50 cursor-default"
+                        : ""
+                    }`}
+                    placeholder={
+                      formData.type === "eclairage"
+                        ? "E1"
+                        : formData.type === "divers"
+                          ? "D1"
+                          : "P1"
+                    }
+                  />
+                )}
                 {errors.repere && (
                   <p className="text-red-500 text-xs mt-1">{errors.repere}</p>
                 )}
