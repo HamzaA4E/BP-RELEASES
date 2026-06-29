@@ -77,11 +77,37 @@ export function usePanelEditing({
 
     try {
       // Clean up any orphaned temp element changes before saving
+      // Also remove any duplicate changes that might have been created by undo/redo
+      const seenChanges = new Set<string>();
       const cleanedChanges = changes.filter(change => {
         if (change.type === 'createElement') {
           // Keep only if the temp ID is still valid (negative)
           // This prevents "Unresolved temporary element id" errors
-          return change.tempId < 0;
+          if (change.tempId >= 0) return false;
+          
+          // Remove duplicates by tracking seen tempIds
+          const key = `createElement-${change.tempId}`;
+          if (seenChanges.has(key)) return false;
+          seenChanges.add(key);
+          return true;
+        }
+        if (change.type === 'createArticle') {
+          const key = `createArticle-${change.tempId}`;
+          if (seenChanges.has(key)) return false;
+          seenChanges.add(key);
+          return true;
+        }
+        if (change.type === 'updateElement') {
+          const key = `updateElement-${change.id}`;
+          if (seenChanges.has(key)) return false;
+          seenChanges.add(key);
+          return true;
+        }
+        if (change.type === 'updateArticle') {
+          const key = `updateArticle-${change.id}`;
+          if (seenChanges.has(key)) return false;
+          seenChanges.add(key);
+          return true;
         }
         return true;
       });

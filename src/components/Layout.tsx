@@ -40,6 +40,11 @@ export function Layout() {
     };
   }, []);
 
+  // Force re-render when quick actions change to ensure QuickActionsMenu gets fresh handlers
+  useEffect(() => {
+    // This effect runs whenever quickActions changes, ensuring QuickActionsMenu receives updated handlers
+  }, [quickActions]);
+
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />

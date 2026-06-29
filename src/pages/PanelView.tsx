@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAppStore } from "@/store/useAppStore";
@@ -174,6 +174,12 @@ export function PanelView() {
   const [contextJdb, setContextJdb] = useState<Element | null>(null);
   const [deleteElementId, setDeleteElementId] = useState<number | null>(null);
   const [pendingReperePrefix, setPendingReperePrefix] = useState<{ action: 'add' | 'remove', value: string | null } | null>(null);
+  
+  // Use a ref to keep elements up-to-date for callbacks that need current state
+  const elementsRef = useRef(elements);
+  useEffect(() => {
+    elementsRef.current = elements;
+  }, [elements]);
 
   const loadArticlesForElements = useCallback(async (els: Element[]) => {
     const multiElements = els.filter((e) => e.is_multi && e.id > 0);
@@ -258,20 +264,6 @@ export function PanelView() {
     return () => reset();
   }, [panId, loadData, setFavorites, initPanel, reset]);
 
-  // Notify Layout about available quick actions
-  useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent("quick-actions-update", {
-        detail: {
-          onAddJdb: () => setShowAddJdb(true),
-          onConfigurePrefix: () => void (panel.repere_prefix ? removeReperePrefix() : addReperePrefix()),
-          onSave: () => void save(),
-          canSave: unsaved,
-          prefixEnabled: !!panel.repere_prefix,
-        },
-      }),
-    );
-  }, [unsaved, save, panel.repere_prefix]);
 
   // Notify Layout about modal state to hide FAB
   useEffect(() => {
@@ -462,27 +454,45 @@ export function PanelView() {
     }
   };
 
-  const addReperePrefix = async () => {
+  const addReperePrefix = useCallback(async () => {
     const newValue = `${panel.name}/`;
+    const currentElements = elementsRef.current;
 
     // Show confirmation dialog when enabling prefix and there are existing repères
-    if (elements.some((e) => !isJeuDeBarres(e) && e.repere.trim())) {
+    if (currentElements.some((e) => !isJeuDeBarres(e) && e.repere.trim())) {
       setPendingReperePrefix({ action: 'add', value: newValue });
       return;
     }
 
     await applyReperePrefixChange(newValue, true);
-  };
+  }, [panel.name, setPendingReperePrefix]); // Use elementsRef instead of elements to avoid stale closure
 
-  const removeReperePrefix = async () => {
+  const removeReperePrefix = useCallback(async () => {
+    const currentElements = elementsRef.current;
+
     // Show confirmation dialog when removing prefix and there are existing repères
-    if (elements.some((e) => !isJeuDeBarres(e) && e.repere.trim())) {
+    if (currentElements.some((e) => !isJeuDeBarres(e) && e.repere.trim())) {
       setPendingReperePrefix({ action: 'remove', value: null });
       return;
     }
 
     await applyReperePrefixChange(null, false, true);
-  };
+  }, [setPendingReperePrefix]); // Use elementsRef instead of elements to avoid stale closure
+
+  // Notify Layout about available quick actions
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("quick-actions-update", {
+        detail: {
+          onAddJdb: () => setShowAddJdb(true),
+          onConfigurePrefix: () => void (panel.repere_prefix ? removeReperePrefix() : addReperePrefix()),
+          onSave: () => void save(),
+          canSave: unsaved,
+          prefixEnabled: !!panel.repere_prefix,
+        },
+      }),
+    );
+  }, [unsaved, save, panel.repere_prefix, addReperePrefix, removeReperePrefix]);
 
   const applyReperePrefixChange = async (
     newValue: string | null,

@@ -4,6 +4,32 @@ import type { EditOperation } from "@/utils/panelEditing";
 
 const MAX_UNDO = 50;
 
+// Helper function to match PanelChange objects for undo/redo
+function changesMatch(a: PanelChange, b: PanelChange): boolean {
+  if (a.type !== b.type) return false;
+  
+  switch (a.type) {
+    case 'createElement':
+      return b.type === 'createElement' && a.tempId === b.tempId;
+    case 'createArticle':
+      return b.type === 'createArticle' && a.tempId === b.tempId;
+    case 'updateElement':
+      return b.type === 'updateElement' && a.id === b.id;
+    case 'updateArticle':
+      return b.type === 'updateArticle' && a.id === b.id;
+    case 'deleteElement':
+      return b.type === 'deleteElement' && a.id === b.id;
+    case 'deleteArticle':
+      return b.type === 'deleteArticle' && a.id === b.id;
+    case 'reorderElements':
+      return b.type === 'reorderElements' && 
+             a.orderedIds.length === b.orderedIds.length &&
+             a.orderedIds.every((id, i) => id === b.orderedIds[i]);
+    default:
+      return false;
+  }
+}
+
 interface UndoEntry {
   inverse: EditOperation["inverse"];
   redo: EditOperation["redo"];
@@ -99,13 +125,37 @@ export const usePanelEditingStore = create<PanelEditingState>((set, get) => ({
     const state = get();
     if (state.undoStack.length === 0) return undefined;
     const entry = state.undoStack[state.undoStack.length - 1]!;
-    set({
-      undoStack: state.undoStack.slice(0, -1),
-      pendingChanges: entry.committed
-        ? [...state.pendingChanges, ...entry.undoPending]
-        : state.pendingChanges.slice(0, -entry.pending.length),
-      redoStack: [...state.redoStack, entry],
-    });
+    
+    if (entry.committed) {
+      // After save, undo adds undoPending changes to pendingChanges
+      set({
+        undoStack: state.undoStack.slice(0, -1),
+        pendingChanges: [...state.pendingChanges, ...entry.undoPending],
+        redoStack: [...state.redoStack, entry],
+      });
+    } else {
+      // Before save, undo removes the pending changes that were added by this operation
+      // We need to remove the specific changes that match entry.pending
+      // Use a more robust approach: remove changes from the end that match the operation's pending
+      const pendingToRemove = [...entry.pending]; // Copy to avoid mutating original
+      const filteredPending = state.pendingChanges.filter((change) => {
+        // Try to match against pendingToRemove
+        for (let i = 0; i < pendingToRemove.length; i++) {
+          const toRemove = pendingToRemove[i];
+          if (toRemove && changesMatch(change, toRemove)) {
+            pendingToRemove.splice(i, 1);
+            return false; // Remove this change
+          }
+        }
+        return true; // Keep this change
+      });
+      
+      set({
+        undoStack: state.undoStack.slice(0, -1),
+        pendingChanges: filteredPending,
+        redoStack: [...state.redoStack, entry],
+      });
+    }
     return entry;
   },
 
@@ -113,10 +163,12 @@ export const usePanelEditingStore = create<PanelEditingState>((set, get) => ({
     const state = get();
     if (state.redoStack.length === 0) return undefined;
     const entry = state.redoStack[state.redoStack.length - 1]!;
-    set({
-      redoStack: state.redoStack.slice(0, -1),
-      pendingChanges: entry.committed
-        ? [
+    
+    if (entry.committed) {
+      // After save, redo removes undoPending and adds redoPending
+      set({
+        redoStack: state.redoStack.slice(0, -1),
+        pendingChanges: [
             ...state.pendingChanges.slice(
               0,
               Math.max(
@@ -125,10 +177,17 @@ export const usePanelEditingStore = create<PanelEditingState>((set, get) => ({
               ),
             ),
             ...entry.redoPending,
-          ]
-        : [...state.pendingChanges, ...entry.pending],
-      undoStack: [...state.undoStack, entry].slice(-MAX_UNDO),
-    });
+          ],
+        undoStack: [...state.undoStack, entry].slice(-MAX_UNDO),
+      });
+    } else {
+      // Before save, redo adds the pending changes back
+      set({
+        redoStack: state.redoStack.slice(0, -1),
+        pendingChanges: [...state.pendingChanges, ...entry.pending],
+        undoStack: [...state.undoStack, entry].slice(-MAX_UNDO),
+      });
+    }
     return entry;
   },
 
