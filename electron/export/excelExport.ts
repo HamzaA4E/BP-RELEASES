@@ -310,7 +310,14 @@ function departCategoryOf(el: {
   type?: string;
   phase_type?: string | null;
 }): string {
-  if (el.type === 'divers') return 'divers';
+  // Divers elements should be grouped with their parent category (eclairage or prise)
+  if (el.type === 'divers') {
+    // Divers don't have their own category - they inherit from context
+    // For Excel export, we need to determine the parent category
+    // Since divers are always children of eclairage or prise, we need to look at the repere context
+    // For now, return 'divers' but the actual grouping should be based on parent
+    return 'divers';
+  }
   if (el.type === 'eclairage') return 'eclairage';
   if (el.type === 'prise') {
     return el.phase_type === 'tri' ? 'prise-tri' : 'prise-mono';
@@ -319,7 +326,12 @@ function departCategoryOf(el: {
 }
 
 /** Clé de regroupement repère : même repère + catégories différentes = départs indépendants. */
-function repereGroupKey(el: ElementRow): string {
+function repereGroupKey(el: ElementRow & { _parentCategory?: string }): string {
+  // For divers elements, use the parent category if available
+  if (el.type === 'divers') {
+    const category = el._parentCategory || departCategoryOf(el);
+    return `${el.repere.trim().toUpperCase()}|${category}`;
+  }
   return `${el.repere.trim().toUpperCase()}|${departCategoryOf(el)}`;
 }
 
@@ -480,6 +492,24 @@ function createPanelSheet(
   const sheetName = uniqueSheetName(workbook, data.sheetName);
   const sheet = workbook.addWorksheet(sheetName);
 
+  // Pre-process elements: determine parent category for divers elements
+  // Divers should inherit the category of their parent (eclairage or prise)
+  const elementsWithParentCategory = data.elements.map(el => {
+    if (el.type === 'divers') {
+      // Find the parent element with the same repere that is not divers
+      const parent = data.elements.find(
+        parent => parent.repere.trim().toUpperCase() === el.repere.trim().toUpperCase() &&
+                 parent.type !== 'divers' &&
+                 parent.id !== el.id
+      );
+      if (parent) {
+        // Create a modified element with the parent's category for grouping purposes
+        return { ...el, _parentCategory: departCategoryOf(parent) };
+      }
+    }
+    return el;
+  });
+
   // Check if Ku is needed BEFORE calling addCompanyHeader
   const showKu = hasNonUnitaryKu(data.elements);
   const COL_COUNT_DYNAMIC = showKu ? 8 : 7;
@@ -572,7 +602,7 @@ function createPanelSheet(
     groupPowerRows = [];
   };
 
-  for (const el of data.elements) {
+  for (const el of elementsWithParentCategory) {
     if (isJeuDeBarresRow(el)) {
       flushRepereGroup();
       flushSubtotal();        // sous-total sur rowNum courant (ligne précédente)
