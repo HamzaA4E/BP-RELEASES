@@ -82,6 +82,9 @@ export function usePanelEditing({
       await refreshElements();
       await refreshPanels();
 
+      // Show success message after database save
+      toast.success("Enregistrement effectué avec succès");
+
       // Exporter le projet
       if (currentProject) {
         // Check localStorage for saved export path for this project
