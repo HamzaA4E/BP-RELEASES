@@ -260,6 +260,9 @@ export function ProjectView() {
                 type="text"
                 value={newLocationName}
                 onChange={(e) => setNewLocationName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleAddLocation();
+                }}
                 className="input-field mb-4"
                 placeholder="Ex: RDC, Étage 1..."
                 autoFocus

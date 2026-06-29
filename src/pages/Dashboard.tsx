@@ -279,6 +279,9 @@ export function Dashboard() {
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleCreate();
+                  }}
                   className="input-field"
                   placeholder="Nom du projet"
                   autoFocus
@@ -292,6 +295,9 @@ export function Dashboard() {
                   type="text"
                   value={newClient}
                   onChange={(e) => setNewClient(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleCreate();
+                  }}
                   className="input-field"
                   placeholder="Nom du client"
                 />

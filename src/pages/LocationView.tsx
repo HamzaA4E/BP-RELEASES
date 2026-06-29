@@ -212,6 +212,9 @@ export function LocationView() {
                 type="text"
                 value={newPanelName}
                 onChange={(e) => setNewPanelName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleAddPanel();
+                }}
                 className="input-field mb-4"
                 placeholder="Ex: TGBT, TD01..."
                 autoFocus
