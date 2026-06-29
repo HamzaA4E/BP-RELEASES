@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, NavLink } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAppStore } from "@/store/useAppStore";
 import { exportProjectExcelById } from "@/utils/projectExcelExport";
@@ -16,6 +16,7 @@ interface ContextMenuState {
 
 export function Sidebar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const {
     projects,
     selection,
@@ -401,19 +402,18 @@ export function Sidebar() {
           Console Dev
         </button>
         
-        <NavLink
-          to="/settings"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
-              isActive
-                ? "bg-accent text-white font-medium"
-                : "text-blue-200 hover:bg-primary-light hover:text-white"
-            }`
-          }
+        <button
+          type="button"
+          onClick={() => guardedNavigate(() => navigate('/settings'))}
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+            location.pathname === '/settings'
+              ? "bg-accent text-white font-medium"
+              : "text-blue-200 hover:bg-primary-light hover:text-white"
+          }`}
         >
           <span>⚙️</span>
           Paramètres société
-        </NavLink>
+        </button>
       </div>
 
       {contextMenu && (
