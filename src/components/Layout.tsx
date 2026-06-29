@@ -69,7 +69,7 @@ export function Layout() {
         </div>
       </main>
       <Toaster
-        position="bottom-right"
+        position="top-right"
         toastOptions={{
           className: "dark:bg-gray-800 dark:text-white text-sm",
           duration: 3000,
