@@ -659,7 +659,6 @@ export function PanelView() {
             pending: pendingChanges,
           });
           
-          console.log('[applyReperePrefixChange] Applying mutations to local state');
           // Apply mutations to update local state (affects both saved and temp elements)
           applyMutations(redoMutations);
           
@@ -685,26 +684,10 @@ export function PanelView() {
       await window.bilpow.panels.update({ id: panId, repere_prefix: newValue });
       await refreshPanels();
       
-      // ONLY refresh elements if we updated saved elements in DB
-      // If we only renamed temp elements, DON'T refresh or we'll lose them!
-      const hasSavedUpdates = renamedUpdates.some(u => u.id > 0);
-      if (hasSavedUpdates) {
-        console.log('[applyReperePrefixChange] Refreshing elements (saved elements were updated)...');
-        // Capture temp elements BEFORE refresh (with their updated repere from mutations)
-        const tempElements = elements.filter((e: Element) => e.id < 0);
-        await refreshElements();
-        // Restore temp elements after refresh - they have the new prefix from mutations
-        if (tempElements.length > 0) {
-          // Get the current elements after refresh and merge with temp elements
-          const currentElements = await window.bilpow.elements.getByPanel(panId);
-          const normalizedCurrent = currentElements.map((e) => normalizeElement(e));
-          const mergedElements = [...normalizedCurrent, ...tempElements];
-          setElements(mergedElements);
-        }
-        console.log('[applyReperePrefixChange] Elements refreshed with temp elements preserved');
-      } else if (renamedUpdates.length > 0) {
-        console.log('[applyReperePrefixChange] Skipping refreshElements to preserve', renamedUpdates.length, 'temp element(s)');
-      }
+      // Don't refresh elements after prefix operations
+      // The mutations have already updated the local state correctly
+      // Reloading from DB would overwrite with stale data
+      console.log('[applyReperePrefixChange] Skipping element refresh - mutations already applied to local state');
     } catch (err) {
       console.error('[applyReperePrefixChange] Error:', err);
       toast.error(err instanceof Error ? err.message : "Erreur");
