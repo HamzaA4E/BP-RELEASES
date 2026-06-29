@@ -151,6 +151,7 @@ export function PanelView() {
     setFavorites,
     setSelection,
     setPanels,
+    panels,
   } = useAppStore();
 
   const nextTempId = usePanelEditingStore((s) => s.nextTempId);
@@ -338,10 +339,114 @@ export function PanelView() {
 
   const savePanelName = async (name: string) => {
     try {
-      await window.bilpow.panels.update({ id: panId, name });
-      setPanel((p) => ({ ...p, name }));
-      await refreshPanels();
+      // Use the panels array to get the original panel name (not local state)
+      const originalPanel = panels.find((p: Panel) => p.id === panId);
+      const oldName = originalPanel?.name ?? panel.name;
+      const oldPrefix = panel.repere_prefix;
+      
+      console.log('[savePanelName] Starting:', { oldName, newName: name, oldPrefix });
+      
+      // If prefix is enabled and panel name changed, update the prefix and all repères automatically
+      if (oldPrefix && oldName !== name) {
+        const newPrefix = `${name}/`;
+        
+        console.log('[savePanelName] Prefix will change:', { oldPrefix, newPrefix });
+        
+        // Update all repères that have the old prefix BEFORE updating panel
+        const updates: { id: number; oldRepere: string; newRepere: string }[] = [];
+        for (const e of elements) {
+          if (!isJeuDeBarres(e) && e.id !== 0 && e.repere.trim()) {
+            console.log('[savePanelName] Checking repère:', e.repere, 'starts with', oldPrefix, '?', e.repere.startsWith(oldPrefix));
+            if (e.repere.startsWith(oldPrefix)) {
+              const newRepere = newPrefix + e.repere.slice(oldPrefix.length);
+              console.log('[savePanelName] Will update:', e.repere, '->', newRepere);
+              updates.push({ id: e.id, oldRepere: e.repere, newRepere });
+            }
+          }
+        }
+        
+        console.log('[savePanelName] Total updates:', updates.length);
+        
+        if (updates.length > 0) {
+          // Separate saved vs temp elements
+          const savedUpdates = updates.filter(u => u.id > 0);
+          const tempUpdates = updates.filter(u => u.id < 0);
+          
+          // Build inverse mutations (restore old repères with old prefix)
+          const inverseMutations = updates.map(({ id, oldRepere }) => ({
+            op: 'patchElement' as const,
+            id,
+            patch: { repere: oldRepere },
+          }));
+          
+          // Build redo mutations (apply new repères with new prefix)
+          const redoMutations = updates.map(({ id, newRepere }) => ({
+            op: 'patchElement' as const,
+            id,
+            patch: { repere: newRepere },
+          }));
+          
+          // Build pending changes
+          const pendingChanges: PanelChange[] = savedUpdates.map(({ id, newRepere }) => ({
+            type: 'updateElement' as const,
+            id,
+            data: { repere: newRepere },
+          }));
+          
+          // For temp elements, update their repère in pending createElement changes
+          if (tempUpdates.length > 0) {
+            const currentPending = getPendingChanges();
+            const updatedPending = currentPending.map((change: PanelChange) => {
+              if (change.type === 'createElement') {
+                const tempUpdate = tempUpdates.find(u => u.id === change.tempId);
+                if (tempUpdate) {
+                  return {
+                    ...change,
+                    data: {
+                      ...change.data,
+                      repere: tempUpdate.newRepere,
+                    },
+                  };
+                }
+              }
+              return change;
+            });
+            usePanelEditingStore.setState({ pendingChanges: updatedPending });
+          }
+          
+          // Record the operation in undo/redo history
+          recordOperation({
+            inverse: inverseMutations,
+            redo: redoMutations,
+            pending: pendingChanges,
+          });
+          
+          // Apply mutations to update local state
+          applyMutations(redoMutations);
+          
+          // Only update database for SAVED elements (id > 0)
+          if (savedUpdates.length > 0) {
+            for (const { id, newRepere } of savedUpdates) {
+              await window.bilpow.elements.update({ id, repere: newRepere });
+            }
+          }
+          
+          toast.success(`${updates.length} repère(s) mis à jour avec le nouveau préfixe`);
+        }
+        
+        // Update the panel name and prefix setting
+        await window.bilpow.panels.update({ id: panId, name, repere_prefix: newPrefix });
+        setPanel((p) => ({ ...p, name, repere_prefix: newPrefix }));
+        
+        console.log('[savePanelName] Panel updated:', { name, newPrefix });
+      } else {
+        // Just update the name if prefix is not enabled or name didn't change
+        await window.bilpow.panels.update({ id: panId, name });
+        setPanel((p) => ({ ...p, name }));
+        console.log('[savePanelName] Name only updated:', name);
+      }
     } catch (err) {
+      console.error('[savePanelName] Error:', err);
       toast.error(err instanceof Error ? err.message : "Erreur");
     }
   };
