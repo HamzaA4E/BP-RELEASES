@@ -76,8 +76,23 @@ export function usePanelEditing({
     }
 
     try {
+      // Clean up any orphaned temp element changes before saving
+      const cleanedChanges = changes.filter(change => {
+        if (change.type === 'createElement') {
+          // Keep only if the temp ID is still valid (negative)
+          // This prevents "Unresolved temporary element id" errors
+          return change.tempId < 0;
+        }
+        return true;
+      });
+
+      if (cleanedChanges.length === 0) {
+        toast.success("Aucune modification à enregistrer");
+        return;
+      }
+
       // Sauvegarder d'abord les changements dans la base de données
-      await window.bilpow.panels.saveChanges({ panelId, changes });
+      await window.bilpow.panels.saveChanges({ panelId, changes: cleanedChanges });
       markSaved();
       await refreshElements();
       await refreshPanels();

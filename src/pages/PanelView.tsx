@@ -560,6 +560,21 @@ export function PanelView() {
               return change;
             });
             usePanelEditingStore.setState({ pendingChanges: updatedPending });
+          } else {
+            // If there are no temp updates but we have temp elements in the state,
+            // we need to ensure their pending changes are still valid
+            const currentPending = getPendingChanges();
+            const tempElementIds = elements.filter(e => e.id < 0).map(e => e.id);
+            const hasOrphanedTempChanges = currentPending.some(change => 
+              change.type === 'createElement' && !tempElementIds.includes(change.tempId)
+            );
+            if (hasOrphanedTempChanges) {
+              console.log('[applyReperePrefixChange] Removing orphaned temp element pending changes (strip)');
+              const cleanedPending = currentPending.filter(change => 
+                !(change.type === 'createElement' && !tempElementIds.includes(change.tempId))
+              );
+              usePanelEditingStore.setState({ pendingChanges: cleanedPending });
+            }
           }
 
           // Record the operation in undo/redo history
@@ -650,6 +665,21 @@ export function PanelView() {
             });
             // Update the pending changes in the store
             usePanelEditingStore.setState({ pendingChanges: updatedPending });
+          } else {
+            // If there are no temp updates but we have temp elements in the state,
+            // we need to ensure their pending changes are still valid
+            const currentPending = getPendingChanges();
+            const tempElementIds = elements.filter(e => e.id < 0).map(e => e.id);
+            const hasOrphanedTempChanges = currentPending.some(change => 
+              change.type === 'createElement' && !tempElementIds.includes(change.tempId)
+            );
+            if (hasOrphanedTempChanges) {
+              console.log('[applyReperePrefixChange] Removing orphaned temp element pending changes');
+              const cleanedPending = currentPending.filter(change => 
+                !(change.type === 'createElement' && !tempElementIds.includes(change.tempId))
+              );
+              usePanelEditingStore.setState({ pendingChanges: cleanedPending });
+            }
           }
 
           // Record the operation in undo/redo history
