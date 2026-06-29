@@ -747,7 +747,10 @@ export function PanelView() {
         // Skip if repère already has this prefix (case-insensitive)
         if (e.repere.toUpperCase().startsWith(prefix.toUpperCase())) {
           console.log('[renameExistingReperes] Already has prefix:', e.repere);
-          const key = `${e.type}|${parsed.number}`;
+          // For prise elements (including multi-depart), include phase_type in the key when tracking already-prefixed elements
+          const key = e.type === 'prise' || e.is_multi
+            ? `${e.type}|${parsed.number}|${e.phase_type}`
+            : `${e.type}|${parsed.number}`;
           usedKeys.add(key);
           continue;
         }
@@ -755,8 +758,8 @@ export function PanelView() {
         // Simply prepend the prefix to the existing repère - don't change category or number
         const newRepere = `${prefix}${e.repere}`;
         // Use type+number for conflict detection to avoid conflicts between different types (e.g., E1 vs D1)
-        // For multi-depart elements, include phase_type in the key to allow mono+tri with same repere
-        const key = e.is_multi 
+        // For prise elements (including multi-depart), include phase_type in the key to allow mono+tri with same repere
+        const key = e.type === 'prise' || e.is_multi
           ? `${e.type}|${parsed.number}|${e.phase_type}`
           : `${e.type}|${parsed.number}`;
 
