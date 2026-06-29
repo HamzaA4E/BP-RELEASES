@@ -265,7 +265,7 @@ function InlineRepereCell({
         autoFocus
         defaultValue={element.repere}
         onBlur={(e) => {
-          const val = e.target.value.trim().toUpperCase();
+          const val = e.target.value.trim();
           if (val) onCommit(val);
           setEditingField(null);
         }}

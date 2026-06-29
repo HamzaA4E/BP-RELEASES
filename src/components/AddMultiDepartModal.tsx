@@ -579,7 +579,7 @@ export function MultiDepartModal({
                   type="text"
                   value={depart.repere}
                   onChange={(e) => {
-                    setDepart((p) => ({ ...p, repere: e.target.value.toUpperCase() }));
+                    setDepart((p) => ({ ...p, repere: e.target.value }));
                     setRepereError('');
                   }}
                   className={`input-field w-full font-mono ${repereError ? 'border-red-500' : ''}`}
