@@ -108,15 +108,11 @@ export function Dashboard() {
       toast.error("Le nom du projet est requis");
       return;
     }
-    if (!selectedFolder) {
-      toast.error("Veuillez sélectionner un dossier d'abord");
-      return;
-    }
     try {
       const project = await window.bilpow.projects.create({
         name: newName.trim(),
         client: newClient.trim() || undefined,
-        folder_id: selectedFolder.id,
+        folder_id: selectedFolder?.id,
       });
       await loadProjects();
       setShowNewProject(false);
