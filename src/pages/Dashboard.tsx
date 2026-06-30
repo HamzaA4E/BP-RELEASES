@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Download, Loader2, FolderPlus, ArrowLeft, MoreVertical, Folder as FolderIcon } from "lucide-react";
+import { Download, Loader2, FolderPlus, ArrowLeft, MoreVertical, Folder as FolderIcon, Edit2, Trash2 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { formatPower } from "@/utils/calculations";
@@ -24,11 +24,15 @@ export function Dashboard() {
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [showNewProject, setShowNewProject] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [showRenameFolder, setShowRenameFolder] = useState(false);
   const [showMoveToFolder, setShowMoveToFolder] = useState(false);
   const [projectToMove, setProjectToMove] = useState<number | null>(null);
+  const [renameFolderId, setRenameFolderId] = useState<number | null>(null);
+  const [folderMenuId, setFolderMenuId] = useState<number | null>(null);
   const [newName, setNewName] = useState("");
   const [newClient, setNewClient] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
+  const [renameFolderName, setRenameFolderName] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteFolderId, setDeleteFolderId] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
@@ -67,6 +71,17 @@ export function Dashboard() {
   useKeyboardShortcuts({
     onNewProject: () => setShowNewProject(true),
   });
+
+  // Close folder menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (folderMenuId !== null) {
+        setFolderMenuId(null);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [folderMenuId]);
 
   const filtered = projects.filter((p) => {
     const q = searchQuery.toLowerCase();
@@ -172,6 +187,30 @@ export function Dashboard() {
       toast.error(err instanceof Error ? err.message : "Erreur");
     }
     setDeleteFolderId(null);
+  };
+
+  const handleRenameFolder = async () => {
+    if (renameFolderId === null || !renameFolderName.trim()) {
+      toast.error("Le nom du dossier est requis");
+      return;
+    }
+    try {
+      await window.bilpow.folders.update({
+        id: renameFolderId,
+        name: renameFolderName.trim(),
+      });
+      await loadFolders();
+      // Update selected folder name if it's the one being renamed
+      if (selectedFolder?.id === renameFolderId) {
+        setSelectedFolder({ ...selectedFolder, name: renameFolderName.trim() });
+      }
+      setShowRenameFolder(false);
+      setRenameFolderId(null);
+      setRenameFolderName("");
+      toast.success("Dossier renommé");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    }
   };
 
   const handleMoveToFolder = async (folderId: number | null) => {
@@ -315,17 +354,49 @@ export function Dashboard() {
                             <div className="p-3 rounded-lg bg-primary/10 text-primary">
                               <FolderPlus className="w-6 h-6" />
                             </div>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteFolderId(folder.id);
-                              }}
-                              className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all"
-                              title="Supprimer le dossier"
-                            >
-                              <MoreVertical className="w-4 h-4 text-gray-500" />
-                            </button>
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFolderMenuId(folderMenuId === folder.id ? null : folder.id);
+                                }}
+                                className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all"
+                                title="Actions du dossier"
+                              >
+                                <MoreVertical className="w-4 h-4 text-gray-500" />
+                              </button>
+                              {folderMenuId === folder.id && (
+                                <div className="absolute right-0 top-full mt-1 w-36 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setRenameFolderId(folder.id);
+                                      setRenameFolderName(folder.name);
+                                      setShowRenameFolder(true);
+                                      setFolderMenuId(null);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 rounded-t-lg"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                    Renommer
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setDeleteFolderId(folder.id);
+                                      setFolderMenuId(null);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center gap-2 rounded-b-lg"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                    Supprimer
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </div>
                           <h3 className="font-semibold text-gray-800 dark:text-white text-lg mb-1">
                             {folder.name}
@@ -512,6 +583,52 @@ export function Dashboard() {
                 className="btn-primary"
               >
                 Créer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRenameFolder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="card p-6 w-full max-w-md mx-4">
+            <h2 className="text-lg font-semibold mb-4">Renommer le dossier</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Nom du dossier *
+                </label>
+                <input
+                  type="text"
+                  value={renameFolderName}
+                  onChange={(e) => setRenameFolderName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleRenameFolder();
+                  }}
+                  className="input-field"
+                  placeholder="Nom du dossier"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRenameFolder(false);
+                  setRenameFolderId(null);
+                  setRenameFolderName("");
+                }}
+                className="btn-secondary"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleRenameFolder()}
+                className="btn-primary"
+              >
+                Renommer
               </button>
             </div>
           </div>
