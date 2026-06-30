@@ -4,6 +4,7 @@ export interface FolderRow {
   id: number;
   name: string;
   description: string | null;
+  folder_path: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -25,6 +26,7 @@ export function getFolderById(id: number): FolderRow | undefined {
 export function createFolder(data: {
   name: string;
   description?: string;
+  folder_path?: string;
 }): FolderRow {
   if (!data.name || data.name.trim().length === 0) {
     throw new Error('Folder name is required');
@@ -33,12 +35,13 @@ export function createFolder(data: {
   const db = getDatabase();
   const result = db
     .prepare(
-      `INSERT INTO folders (name, description)
-       VALUES (@name, @description)`
+      `INSERT INTO folders (name, description, folder_path)
+       VALUES (@name, @description, @folder_path)`
     )
     .run({
       name: data.name.trim(),
       description: data.description?.trim() || null,
+      folder_path: data.folder_path || null,
     });
 
   const folder = getFolderById(Number(result.lastInsertRowid));

@@ -131,8 +131,16 @@ export function Dashboard() {
       return;
     }
     try {
+      const { filePath, canceled } = await window.bilpow.folders.showFolderDialog(newFolderName.trim());
+      
+      if (canceled) {
+        toast.error("Veuillez choisir un emplacement pour le dossier");
+        return;
+      }
+      
       await window.bilpow.folders.create({
         name: newFolderName.trim(),
+        folder_path: filePath || undefined,
       });
       await loadFolders();
       setShowNewFolder(false);

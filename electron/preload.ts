@@ -48,11 +48,13 @@ const api = {
     getAll: (): Promise<Folder[]> => invoke('folders:getAll'),
     getById: (id: number): Promise<Folder | undefined> =>
       invoke('folders:getById', id),
-    create: (data: { name: string; description?: string }): Promise<Folder> =>
+    create: (data: { name: string; description?: string; folder_path?: string }): Promise<Folder> =>
       invoke('folders:create', data),
     update: (data: { id: number; name?: string; description?: string }): Promise<Folder> =>
       invoke('folders:update', data),
     delete: (id: number): Promise<boolean> => invoke('folders:delete', id),
+    showFolderDialog: (defaultName: string): Promise<{ canceled: boolean; filePath: string | null }> =>
+      ipcRenderer.invoke('folders:showFolderDialog', defaultName) as Promise<{ canceled: boolean; filePath: string | null }>,
   },
   projects: {
     getAll: (): Promise<ProjectWithStats[]> => invoke('projects:getAll'),

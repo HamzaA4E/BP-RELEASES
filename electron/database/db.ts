@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS folders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   description TEXT,
+  folder_path TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -198,6 +199,7 @@ export function getDatabase(): Database.Database {
   migratePanelReperePrefix(db);
   migrateProjectsOriginalId(db);
   migrateProjectsFilePath(db);
+  migrateFoldersFilePath(db);
   migrateElementsTable(db);
   migrateElementsTypeToDivers(db);
   migrateElementArticles(db);
@@ -388,6 +390,17 @@ function migrateProjectsFilePath(database: Database.Database): void {
 
   if (!names.has('file_path')) {
     database.exec(`ALTER TABLE projects ADD COLUMN file_path TEXT`);
+  }
+}
+
+function migrateFoldersFilePath(database: Database.Database): void {
+  if (!tableExists(database, 'folders')) return;
+
+  const cols = database.pragma('table_info(folders)') as Array<{ name: string }>;
+  const names = new Set(cols.map((c) => c.name));
+
+  if (!names.has('folder_path')) {
+    database.exec(`ALTER TABLE folders ADD COLUMN folder_path TEXT`);
   }
 }
 

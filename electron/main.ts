@@ -381,6 +381,7 @@ function registerIpcHandlers(): void {
       data: {
         name: string;
         description?: string;
+        folder_path?: string;
       }
     ) => wrapHandler(() => foldersDb.createFolder(data))
   );
@@ -494,6 +495,21 @@ ipcMain.handle('devtools:open', () => {
       filters: [{ name: 'Projet BilPow', extensions: ['bilpow'] }],
     });
     return { canceled, filePath: filePath || null };
+  });
+
+  ipcMain.handle('folders:showFolderDialog', async (_e, defaultName: string) => {
+    try {
+      const { filePath, canceled } = await dialog.showSaveDialog({
+        title: 'Créer un dossier',
+        defaultPath: defaultName,
+        properties: ['createDirectory'],
+      });
+      return { success: true, data: { canceled, filePath: filePath || null } };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      console.error('[folders:showFolderDialog]', message);
+      return { success: false, error: message };
+    }
   });
 
   ipcMain.handle('elements:getByPanel', (_e, panelId: number) =>
@@ -630,9 +646,21 @@ ipcMain.handle('devtools:open', () => {
       const data = exportProjectForBilpow(projectId);
       const defaultName = `${sanitizeFileName(data.project.name)}.bilpow`;
 
+      // Get project's folder to determine default save location
+      const db = getDatabase();
+      const project = db.prepare('SELECT folder_id FROM projects WHERE id = ?').get(projectId) as { folder_id: number | null } | undefined;
+      
+      let defaultPath = defaultName;
+      if (project?.folder_id) {
+        const folder = db.prepare('SELECT folder_path FROM folders WHERE id = ?').get(project.folder_id) as { folder_path: string | null } | undefined;
+        if (folder?.folder_path) {
+          defaultPath = path.join(folder.folder_path, defaultName);
+        }
+      }
+
       const { filePath, canceled } = await dialog.showSaveDialog({
         title: 'Exporter le projet pour partage',
-        defaultPath: defaultName,
+        defaultPath,
         filters: [{ name: 'Projet BilPow', extensions: ['bilpow'] }],
       });
 
@@ -643,7 +671,6 @@ ipcMain.handle('devtools:open', () => {
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
       
       // Update the project's file_path in the database
-      const db = getDatabase();
       db.prepare('UPDATE projects SET file_path = ? WHERE id = ?').run(filePath, projectId);
       
       // shell.showItemInFolder(filePath);
