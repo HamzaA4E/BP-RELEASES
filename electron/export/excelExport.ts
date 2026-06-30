@@ -933,48 +933,72 @@ function createSyntheseSheet(
   let rowNum = headerRow;
   let dataRowIndex = 0;
 
+  // Group panels by location to merge location cells
+  const groupedByLocation: Record<string, PanelSheetMeta[]> = {};
   for (const meta of panelMetas) {
-    rowNum++;
-    dataRowIndex++;
+    const locationKey = meta.locationName.trim();
+    if (!groupedByLocation[locationKey]) {
+      groupedByLocation[locationKey] = [];
+    }
+    groupedByLocation[locationKey].push(meta);
+  }
 
-    // Fusion des cellules de données
-    sheet.mergeCells(rowNum, 1, rowNum, 2); // A:B
-    sheet.mergeCells(rowNum, 3, rowNum, 4); // C:D
-    sheet.mergeCells(rowNum, 5, rowNum, 6); // E:F
+  for (const locationName in groupedByLocation) {
+    const panels = groupedByLocation[locationName]!;
+    const firstRowOfGroup = rowNum + 1;
 
-    const row = sheet.getRow(rowNum);
-    row.height = 28; // Match panel sheet data row height 
+    // First, create all rows without setting location value and without any merge for A:B
+    for (const meta of panels) {
+      rowNum++;
+      dataRowIndex++;
 
-    row.getCell(1).value = toCellString(meta.locationName);
-    row.getCell(3).value = toCellString(meta.panelName);
-    row.getCell(5).value = { formula: meta.totalPowerCell };
-    row.getCell(7).value = { formula: meta.currentCell };
+      // Fusion des cellules de données - sauter A:B pour l'instant
+      safeMergeCells(sheet, rowNum, 3, rowNum, 4); // C:D
+      safeMergeCells(sheet, rowNum, 5, rowNum, 6); // E:F
 
-    // Alignement
-    [1, 3, 5, 7].forEach((col) => {
-      row.getCell(col).alignment = {
-        horizontal: "center",
-        vertical: "middle",
-      };
-    });
+      const row = sheet.getRow(rowNum);
+      row.height = 28; // Match panel sheet data row height
 
-    // Bordures sur toutes les colonnes utilisées (A à G)
-    for (let c = 1; c <= 7; c++) {
-      applyBorder(row.getCell(c));
+      row.getCell(3).value = toCellString(meta.panelName);
+      row.getCell(5).value = { formula: meta.totalPowerCell };
+      row.getCell(7).value = { formula: meta.currentCell };
+
+      // Alignement
+      [1, 3, 5, 7].forEach((col) => {
+        row.getCell(col).alignment = {
+          horizontal: "center",
+          vertical: "middle",
+        };
+      });
+
+      // Bordures sur toutes les colonnes utilisées (A à G)
+      for (let c = 1; c <= 7; c++) {
+        applyBorder(row.getCell(c));
+      }
+
+      // Apply professional row styling - alternating colors for better readability
+      const rowFill = dataRowIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
+      [2, 4, 6].forEach(col => {
+        const cell = row.getCell(col);
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: rowFill },
+        };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        applyBorder(cell);
+      });
     }
 
-    // Apply professional row styling - alternating colors for better readability
-    const rowFill = dataRowIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
-    [2, 4, 6].forEach(col => {
-      const cell = row.getCell(col);
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: rowFill },
-      };
-      cell.alignment = { horizontal: 'center', vertical: 'middle' };
-      applyBorder(cell);
-    });
+    // Merge location cells as a single merged area (both columns A and B together)
+    if (panels.length > 1) {
+      safeMergeCells(sheet, firstRowOfGroup, 1, rowNum, 2); // A:B merged vertically across all rows
+    } else {
+      // Single panel - just merge horizontally
+      safeMergeCells(sheet, firstRowOfGroup, 1, firstRowOfGroup, 2); // A:B merged horizontally
+    }
+    // Set location name in the top-left cell of the merged area
+    sheet.getCell(firstRowOfGroup, 1).value = toCellString(locationName);
   }
 
   // Largeurs des colonnes - match panel sheet structure
