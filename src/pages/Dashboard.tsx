@@ -72,7 +72,9 @@ export function Dashboard() {
     const matchesSearch =
       p.name.toLowerCase().includes(q) ||
       (p.client?.toLowerCase().includes(q) ?? false);
-    const matchesFolder = selectedFolder ? p.folder_id === selectedFolder.id : true;
+    const matchesFolder = selectedFolder 
+      ? p.folder_id === selectedFolder.id 
+      : p.folder_id === null;
     return matchesSearch && matchesFolder;
   });
 
@@ -81,11 +83,15 @@ export function Dashboard() {
       toast.error("Le nom du projet est requis");
       return;
     }
+    if (!selectedFolder) {
+      toast.error("Veuillez sélectionner un dossier d'abord");
+      return;
+    }
     try {
       const project = await window.bilpow.projects.create({
         name: newName.trim(),
         client: newClient.trim() || undefined,
-        folder_id: selectedFolder?.id ?? null,
+        folder_id: selectedFolder.id,
       });
       await loadProjects();
       setShowNewProject(false);
