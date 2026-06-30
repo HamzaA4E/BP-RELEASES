@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Share2, Download, Loader2, FolderPlus, ArrowLeft, MoreVertical } from "lucide-react";
+import { Download, Loader2, FolderPlus, ArrowLeft, MoreVertical, Folder as FolderIcon } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { formatPower } from "@/utils/calculations";
@@ -24,12 +24,13 @@ export function Dashboard() {
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [showNewProject, setShowNewProject] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [showMoveToFolder, setShowMoveToFolder] = useState(false);
+  const [projectToMove, setProjectToMove] = useState<number | null>(null);
   const [newName, setNewName] = useState("");
   const [newClient, setNewClient] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteFolderId, setDeleteFolderId] = useState<number | null>(null);
-  const [exportingId, setExportingId] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
   
   const loadFolders = async () => {
@@ -164,19 +165,19 @@ export function Dashboard() {
     setDeleteFolderId(null);
   };
 
-  const handleExport = async (projectId: number) => {
-    setExportingId(projectId);
+  const handleMoveToFolder = async (folderId: number | null) => {
+    if (projectToMove === null) return;
     try {
-      const result = await window.bilpow.project.export(projectId);
-      if (result.success && result.filePath) {
-        toast.success("Fichier enregistré !");
-      } else if (result.error && result.error !== "Export annulé") {
-        toast.error(result.error);
-      }
+      await window.bilpow.projects.update({
+        id: projectToMove,
+        folder_id: folderId,
+      });
+      await loadProjects();
+      setShowMoveToFolder(false);
+      setProjectToMove(null);
+      toast.success("Projet déplacé");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur d'export");
-    } finally {
-      setExportingId(null);
+      toast.error(err instanceof Error ? err.message : "Erreur");
     }
   };
 
@@ -362,21 +363,14 @@ export function Dashboard() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => void handleExport(project.id)}
-                    disabled={exportingId === project.id}
+                    onClick={() => {
+                      setProjectToMove(project.id);
+                      setShowMoveToFolder(true);
+                    }}
                     className="btn-outline flex-1 min-w-[80px]"
                   >
-                    {exportingId === project.id ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Export...
-                      </>
-                    ) : (
-                      <>
-                        <Share2 className="w-3.5 h-3.5" />
-                        Partager
-                      </>
-                    )}
+                    <FolderIcon className="w-3.5 h-3.5" />
+                    Déplacer
                   </button>
                   <button
                     type="button"
@@ -485,6 +479,51 @@ export function Dashboard() {
                 className="btn-primary"
               >
                 Créer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showMoveToFolder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="card p-6 w-full max-w-md mx-4">
+            <h2 className="text-lg font-semibold mb-4">Déplacer le projet</h2>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              <button
+                type="button"
+                onClick={() => void handleMoveToFolder(null)}
+                className="w-full text-left p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <FolderIcon className="w-5 h-5 text-gray-400" />
+                  <span className="text-gray-700 dark:text-gray-300">Sans dossier</span>
+                </div>
+              </button>
+              {folders.map((folder) => (
+                <button
+                  key={folder.id}
+                  type="button"
+                  onClick={() => void handleMoveToFolder(folder.id)}
+                  className="w-full text-left p-3 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <FolderPlus className="w-5 h-5 text-primary" />
+                    <span className="text-gray-700 dark:text-gray-300">{folder.name}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-3 mt-5 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMoveToFolder(false);
+                  setProjectToMove(null);
+                }}
+                className="btn-secondary"
+              >
+                Annuler
               </button>
             </div>
           </div>
