@@ -114,7 +114,7 @@ export interface BilPowAPI {
     getAll: () => Promise<Folder[]>;
     getById: (id: number) => Promise<Folder | undefined>;
     create: (data: { name: string; description?: string; folder_path?: string }) => Promise<Folder>;
-    update: (data: { id: number; name?: string; description?: string }) => Promise<Folder>;
+    update: (data: { id: number; name?: string; description?: string; folder_path?: string }) => Promise<Folder>;
     delete: (id: number, option?: 'move' | 'delete') => Promise<boolean>;
     showFolderDialog: (defaultName: string) => Promise<{ canceled: boolean; filePath: string | null }>;
   };

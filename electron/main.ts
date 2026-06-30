@@ -393,6 +393,7 @@ function registerIpcHandlers(): void {
         id: number;
         name?: string;
         description?: string;
+        folder_path?: string;
       }
     ) => wrapHandler(() => foldersDb.updateFolder(data))
   );
@@ -533,7 +534,7 @@ ipcMain.handle('devtools:open', () => {
       });
       
       if (canceled || !filePaths || filePaths.length === 0) {
-        return { success: true, data: { canceled: true, filePath: null } };
+        return { canceled: true, filePath: null };
       }
       
       const parentPath = filePaths[0]!;
@@ -544,11 +545,11 @@ ipcMain.handle('devtools:open', () => {
         fs.mkdirSync(newFolderPath, { recursive: true });
       }
       
-      return { success: true, data: { canceled: false, filePath: newFolderPath } };
+      return { canceled: false, filePath: newFolderPath };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue';
       console.error('[folders:showFolderDialog]', message);
-      return { success: false, error: message };
+      throw new Error(message);
     }
   });
 

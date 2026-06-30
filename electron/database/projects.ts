@@ -78,6 +78,60 @@ export function updateProject(data: {
   const existing = getProjectById(data.id);
   if (!existing) throw new Error('Project not found');
 
+  // Check if folder_id is changing
+  const folderIdChanged = data.folder_id !== undefined && data.folder_id !== existing.folder_id;
+  
+  // Handle physical file movement if folder is changing
+  if (folderIdChanged && existing.file_path) {
+    const fs = require('fs');
+    const path = require('path');
+    
+    console.log('[updateProject] Moving project file:', {
+      projectId: data.id,
+      oldFolderId: existing.folder_id,
+      newFolderId: data.folder_id,
+      existingFilePath: existing.file_path
+    });
+    
+    // Get the new folder's physical path
+    let newFolderPath: string | null = null;
+    if (data.folder_id !== null) {
+      const folder = db.prepare('SELECT folder_path FROM folders WHERE id = ?').get(data.folder_id) as { folder_path: string | null } | undefined;
+      newFolderPath = folder?.folder_path || null;
+      console.log('[updateProject] New folder path:', newFolderPath);
+    }
+    
+    if (newFolderPath && fs.existsSync(newFolderPath)) {
+      // Move the file to the new folder
+      const fileName = path.basename(existing.file_path);
+      const newFilePath = path.join(newFolderPath, fileName);
+      
+      console.log('[updateProject] Attempting to move file from:', existing.file_path, 'to:', newFilePath);
+      
+      try {
+        if (fs.existsSync(existing.file_path)) {
+          fs.copyFileSync(existing.file_path, newFilePath);
+          fs.unlinkSync(existing.file_path);
+          // Update file_path in the database
+          db.prepare('UPDATE projects SET file_path = ? WHERE id = ?').run(newFilePath, data.id);
+          console.log('[updateProject] File moved successfully');
+        } else {
+          console.log('[updateProject] Source file does not exist:', existing.file_path);
+        }
+      } catch (err) {
+        console.error('[updateProject] Failed to move project file:', err);
+      }
+    } else {
+      console.log('[updateProject] Cannot move file - new folder path does not exist or is null');
+    }
+  } else {
+    if (!folderIdChanged) {
+      console.log('[updateProject] Folder ID not changed');
+    } else {
+      console.log('[updateProject] Project has no file_path to move');
+    }
+  }
+
   db.prepare(
     `UPDATE projects SET
       name = @name,

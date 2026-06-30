@@ -220,6 +220,29 @@ export function Dashboard() {
     }
   };
 
+  const handleSetFolderPath = async (folderId: number) => {
+    try {
+      const folder = folders.find(f => f.id === folderId);
+      if (!folder) return;
+
+      const { filePath, canceled } = await window.bilpow.folders.showFolderDialog(folder.name);
+      
+      if (canceled || !filePath) {
+        toast.error("Veuillez choisir un emplacement pour le dossier");
+        return;
+      }
+      
+      await window.bilpow.folders.update({
+        id: folderId,
+        folder_path: filePath,
+      });
+      await loadFolders();
+      toast.success("Emplacement du dossier mis à jour");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    }
+  };
+
   const handleMoveToFolder = async (folderId: number | null) => {
     if (projectToMove === null) return;
     try {
@@ -388,6 +411,18 @@ export function Dashboard() {
                                   >
                                     <Edit2 className="w-4 h-4" />
                                     Renommer
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setFolderMenuId(null);
+                                      void handleSetFolderPath(folder.id);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                                  >
+                                    <FolderIcon className="w-4 h-4" />
+                                    Définir l'emplacement
                                   </button>
                                   <button
                                     type="button"

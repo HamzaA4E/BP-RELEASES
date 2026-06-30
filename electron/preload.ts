@@ -50,7 +50,7 @@ const api = {
       invoke('folders:getById', id),
     create: (data: { name: string; description?: string; folder_path?: string }): Promise<Folder> =>
       invoke('folders:create', data),
-    update: (data: { id: number; name?: string; description?: string }): Promise<Folder> =>
+    update: (data: { id: number; name?: string; description?: string; folder_path?: string }): Promise<Folder> =>
       invoke('folders:update', data),
     delete: (id: number, option?: 'move' | 'delete'): Promise<boolean> => invoke('folders:delete', id, option),
     showFolderDialog: (defaultName: string): Promise<{ canceled: boolean; filePath: string | null }> =>

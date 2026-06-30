@@ -53,6 +53,7 @@ export function updateFolder(data: {
   id: number;
   name?: string;
   description?: string;
+  folder_path?: string;
 }): FolderRow {
   const db = getDatabase();
   const existing = getFolderById(data.id);
@@ -66,12 +67,14 @@ export function updateFolder(data: {
     `UPDATE folders SET
       name = COALESCE(@name, name),
       description = CASE WHEN @description IS NULL THEN description ELSE @description END,
+      folder_path = CASE WHEN @folder_path IS NULL THEN folder_path ELSE @folder_path END,
       updated_at = datetime('now')
     WHERE id = @id`
   ).run({
     id: data.id,
     name: data.name?.trim() || null,
     description: data.description !== undefined ? data.description.trim() || null : null,
+    folder_path: data.folder_path !== undefined ? data.folder_path : null,
   });
 
   const folder = getFolderById(data.id);
