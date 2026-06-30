@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { Download, Loader2, FolderPlus, ArrowLeft, MoreVertical, Folder as FolderIcon, Edit2, Trash2 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import { formatPower } from "@/utils/calculations";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { importBilpowProject } from "@/utils/projectShare";
@@ -35,6 +36,7 @@ export function Dashboard() {
   const [renameFolderName, setRenameFolderName] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [deleteFolderId, setDeleteFolderId] = useState<number | null>(null);
+  const [deleteFolderOption, setDeleteFolderOption] = useState<'move' | 'delete'>('move');
   const [importing, setImporting] = useState(false);
   
   const loadFolders = async () => {
@@ -180,7 +182,7 @@ export function Dashboard() {
   const handleDeleteFolder = async () => {
     if (deleteFolderId === null) return;
     try {
-      await window.bilpow.folders.delete(deleteFolderId);
+      await window.bilpow.folders.delete(deleteFolderId, deleteFolderOption);
       await loadFolders();
       await loadProjects();
       if (selectedFolder?.id === deleteFolderId) {
@@ -191,6 +193,7 @@ export function Dashboard() {
       toast.error(err instanceof Error ? err.message : "Erreur");
     }
     setDeleteFolderId(null);
+    setDeleteFolderOption('move');
   };
 
   const handleRenameFolder = async () => {
@@ -692,11 +695,12 @@ export function Dashboard() {
         onCancel={() => setDeleteId(null)}
       />
 
-      <ConfirmDialog
+      <FolderDeleteDialog
         isOpen={deleteFolderId !== null}
-        title="Supprimer le dossier"
-        message="Êtes-vous sûr de vouloir supprimer ce dossier ? Les projets contenus seront déplacés hors du dossier."
-        onConfirm={() => void handleDeleteFolder()}
+        onConfirm={(option) => {
+          setDeleteFolderOption(option);
+          void handleDeleteFolder();
+        }}
         onCancel={() => setDeleteFolderId(null)}
       />
     </div>

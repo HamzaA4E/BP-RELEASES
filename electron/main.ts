@@ -396,9 +396,28 @@ function registerIpcHandlers(): void {
       }
     ) => wrapHandler(() => foldersDb.updateFolder(data))
   );
-  ipcMain.handle('folders:delete', (_e, id: number) =>
+  ipcMain.handle('folders:delete', (_e, id: number, option: 'move' | 'delete' = 'move') =>
     wrapHandler(() => {
       const folder = foldersDb.getFolderById(id);
+      
+      if (option === 'delete') {
+        // Delete all projects in the folder
+        const db = getDatabase();
+        const projects = db.prepare('SELECT id, file_path FROM projects WHERE folder_id = ?').all(id) as Array<{ id: number; file_path: string | null }>;
+        
+        for (const project of projects) {
+          if (project.file_path && fs.existsSync(project.file_path)) {
+            try {
+              fs.unlinkSync(project.file_path);
+            } catch (err) {
+              console.error('[folders:delete] Failed to delete project file:', err);
+            }
+          }
+          db.prepare('DELETE FROM projects WHERE id = ?').run(project.id);
+        }
+      }
+      
+      // Delete the physical folder
       if (folder?.folder_path && fs.existsSync(folder.folder_path)) {
         try {
           fs.rmSync(folder.folder_path, { recursive: true, force: true });
@@ -406,6 +425,7 @@ function registerIpcHandlers(): void {
           console.error('[folders:delete] Failed to delete physical folder:', err);
         }
       }
+      
       foldersDb.deleteFolder(id);
       return true;
     })

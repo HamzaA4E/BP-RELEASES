@@ -52,7 +52,7 @@ const api = {
       invoke('folders:create', data),
     update: (data: { id: number; name?: string; description?: string }): Promise<Folder> =>
       invoke('folders:update', data),
-    delete: (id: number): Promise<boolean> => invoke('folders:delete', id),
+    delete: (id: number, option?: 'move' | 'delete'): Promise<boolean> => invoke('folders:delete', id, option),
     showFolderDialog: (defaultName: string): Promise<{ canceled: boolean; filePath: string | null }> =>
       ipcRenderer.invoke('folders:showFolderDialog', defaultName) as Promise<{ canceled: boolean; filePath: string | null }>,
   },
