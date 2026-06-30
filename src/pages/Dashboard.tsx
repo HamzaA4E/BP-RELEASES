@@ -218,13 +218,28 @@ export function Dashboard() {
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-primary dark:text-white">
-              Tableau de bord
-            </h1>
-            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-              Gérez vos projets de bilan de puissance
-            </p>
+          <div className="flex items-center gap-4">
+            {selectedFolder && (
+              <button
+                type="button"
+                onClick={() => setSelectedFolder(null)}
+                className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-sm font-medium text-gray-700 dark:text-gray-200"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Retour
+              </button>
+            )}
+            <div>
+              <h1 className="text-2xl font-bold text-primary dark:text-white">
+                {selectedFolder ? selectedFolder.name : 'Tableau de bord'}
+              </h1>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                {selectedFolder 
+                  ? `${projects.filter(p => p.folder_id === selectedFolder.id).length} projet${projects.filter(p => p.folder_id === selectedFolder.id).length !== 1 ? 's' : ''}`
+                  : 'Gérez vos projets de bilan de puissance'
+                }
+              </p>
+            </div>
           </div>
           <div className="flex gap-2 flex-wrap">
             <button
@@ -315,31 +330,7 @@ export function Dashboard() {
                   })}
                 </div>
               </>
-            ) : (
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-lg bg-primary/10 text-primary">
-                      <FolderPlus className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-gray-800 dark:text-white">{selectedFolder.name}</h2>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        {projects.filter(p => p.folder_id === selectedFolder.id).length} projet{projects.filter(p => p.folder_id === selectedFolder.id).length !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFolder(null)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-sm font-medium text-gray-700 dark:text-gray-200"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                    Retour aux dossiers
-                  </button>
-                </div>
-              </div>
-            )}
+            ) : null}
           </div>
         )}
 
