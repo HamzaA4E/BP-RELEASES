@@ -487,6 +487,15 @@ ipcMain.handle('devtools:open', () => {
       wrapHandler(() => applyPanelChanges(payload.panelId, payload.changes))
   );
 
+  ipcMain.handle('panel:showSaveDialog', async (_e, defaultName: string) => {
+    const { filePath, canceled } = await dialog.showSaveDialog({
+      title: 'Enregistrer le projet',
+      defaultPath: defaultName,
+      filters: [{ name: 'Projet BilPow', extensions: ['bilpow'] }],
+    });
+    return { canceled, filePath: filePath || null };
+  });
+
   ipcMain.handle('elements:getByPanel', (_e, panelId: number) =>
     wrapHandler(() => elementsDb.getElementsByPanel(panelId))
   );
@@ -632,6 +641,11 @@ ipcMain.handle('devtools:open', () => {
       }
 
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      
+      // Update the project's file_path in the database
+      const db = getDatabase();
+      db.prepare('UPDATE projects SET file_path = ? WHERE id = ?').run(filePath, projectId);
+      
       // shell.showItemInFolder(filePath);
       return { success: true, filePath };
     } catch (err) {
@@ -645,6 +659,11 @@ ipcMain.handle('devtools:open', () => {
     try {
       const data = exportProjectForBilpow(projectId);
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+      
+      // Update the project's file_path in the database
+      const db = getDatabase();
+      db.prepare('UPDATE projects SET file_path = ? WHERE id = ?').run(filePath, projectId);
+      
       return { success: true, filePath };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue';
