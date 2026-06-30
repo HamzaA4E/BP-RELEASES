@@ -398,6 +398,14 @@ function registerIpcHandlers(): void {
   );
   ipcMain.handle('folders:delete', (_e, id: number) =>
     wrapHandler(() => {
+      const folder = foldersDb.getFolderById(id);
+      if (folder?.folder_path && fs.existsSync(folder.folder_path)) {
+        try {
+          fs.rmSync(folder.folder_path, { recursive: true, force: true });
+        } catch (err) {
+          console.error('[folders:delete] Failed to delete physical folder:', err);
+        }
+      }
       foldersDb.deleteFolder(id);
       return true;
     })
@@ -499,12 +507,24 @@ ipcMain.handle('devtools:open', () => {
 
   ipcMain.handle('folders:showFolderDialog', async (_e, defaultName: string) => {
     try {
-      const { filePath, canceled } = await dialog.showSaveDialog({
-        title: 'Créer un dossier',
-        defaultPath: defaultName,
-        properties: ['createDirectory'],
+      const { filePaths, canceled } = await dialog.showOpenDialog({
+        title: 'Choisir l\'emplacement du dossier',
+        properties: ['openDirectory', 'createDirectory'],
       });
-      return { success: true, data: { canceled, filePath: filePath || null } };
+      
+      if (canceled || !filePaths || filePaths.length === 0) {
+        return { success: true, data: { canceled: true, filePath: null } };
+      }
+      
+      const parentPath = filePaths[0]!;
+      const newFolderPath = path.join(parentPath, defaultName || 'Nouveau Dossier');
+      
+      // Create the physical folder
+      if (!fs.existsSync(newFolderPath)) {
+        fs.mkdirSync(newFolderPath, { recursive: true });
+      }
+      
+      return { success: true, data: { canceled: false, filePath: newFolderPath } };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue';
       console.error('[folders:showFolderDialog]', message);
