@@ -73,10 +73,19 @@ export function Dashboard() {
     const matchesSearch =
       p.name.toLowerCase().includes(q) ||
       (p.client?.toLowerCase().includes(q) ?? false);
-    const matchesFolder = selectedFolder 
-      ? p.folder_id === selectedFolder.id 
-      : p.folder_id === null;
-    return matchesSearch && matchesFolder;
+    
+    // If searching, show all matching projects regardless of folder
+    if (searchQuery.trim()) {
+      return matchesSearch;
+    }
+    
+    // If folder selected, show only projects in that folder
+    if (selectedFolder) {
+      return matchesSearch && p.folder_id === selectedFolder.id;
+    }
+    
+    // Otherwise, show only projects without folder
+    return matchesSearch && p.folder_id === null;
   });
 
   const handleCreate = async () => {
@@ -347,26 +356,35 @@ export function Dashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((project) => (
-              <div
-                key={project.id}
-                className="card p-5 hover:shadow-md transition-shadow"
-              >
-                <h3 className="font-semibold text-lg text-primary dark:text-white mb-1">
-                  {project.name}
-                </h3>
-                {project.client && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
-                    {project.client}
+            {filtered.map((project) => {
+              const projectFolder = folders.find(f => f.id === project.folder_id);
+              return (
+                <div
+                  key={project.id}
+                  className={`card p-5 hover:shadow-md transition-shadow ${project.folder_id ? 'border-l-4 border-l-primary' : ''}`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-semibold text-lg text-primary dark:text-white">
+                      {project.name}
+                    </h3>
+                    {projectFolder && (
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                        {projectFolder.name}
+                      </span>
+                    )}
+                  </div>
+                  {project.client && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                      {project.client}
+                    </p>
+                  )}
+                  <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400 mb-4">
+                    <span>📍 {project.location_count} empl.</span>
+                    <span>⚡ {formatPower(project.total_power_w)}</span>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-4">
+                    Créé le {formatDate(project.created_at)}
                   </p>
-                )}
-                <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400 mb-4">
-                  <span>📍 {project.location_count} empl.</span>
-                  <span>⚡ {formatPower(project.total_power_w)}</span>
-                </div>
-                <p className="text-xs text-gray-400 mb-4">
-                  Créé le {formatDate(project.created_at)}
-                </p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -395,7 +413,8 @@ export function Dashboard() {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
