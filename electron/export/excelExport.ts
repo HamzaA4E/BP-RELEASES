@@ -370,12 +370,16 @@ function writeMultiDepartExcelRows(
   articles: ArticleRow[],
   colMapping: { REPERE: number; TYPE: number; DESIGNATION: number; POWER: number; QTY: number; KS: number; KU: number; TOTAL: number },
   colCount: number,
-  showKu: boolean
+  showKu: boolean,
+  departIndex: number
 ): { endRow: number; powerRows: number[] } {
   const powerRows: number[] = [];
   let rowNum = startRowNum - 1;
   let isFirstArticle = true;
   let articleIndex = 0;
+
+  // Color based on depart index for consistent coloring across all lines of the depart
+  const rowColor = departIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
 
   for (const article of articles) {
     rowNum++;
@@ -392,9 +396,9 @@ function writeMultiDepartExcelRows(
 
     row.getCell(colMapping.TYPE).value =
     article.type_label?.trim() || '';
-    
+
     row.getCell(colMapping.DESIGNATION).value =
-    article.designation?.trim() || ''; 
+    article.designation?.trim() || '';
     row.getCell(colMapping.POWER).value = wattsToKw(article.power_w);
     row.getCell(colMapping.QTY).value = article.quantity;
     const ks = article.coef_ks ?? 1;
@@ -412,8 +416,7 @@ function writeMultiDepartExcelRows(
     };
     powerRows.push(rowNum);
 
-    // Apply professional row styling - alternating colors for better readability
-    const rowColor = articleIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
+    // Apply professional row styling - color by depart (all lines same color)
     for (let c = 1; c <= colCount; c++) {
       row.getCell(c).fill = {
         type: 'pattern',
@@ -583,6 +586,7 @@ function createPanelSheet(
 
   let rowNum = headerRow;
   let dataRowIndex = 0;
+  let departIndex = 0; // Track depart index for coloring by depart instead of by line
   let currentJdb: ElementRow | null = null;
   let groupPowerRows: number[] = [];
   const allPowerRows: number[] = [];
@@ -628,6 +632,7 @@ function createPanelSheet(
       flushRepereGroup(rowNum - 1);
       currentRepereGroupKey = groupKey;
       currentRepereStartRow = rowNum;
+      departIndex++; // Increment depart index for each new depart
     }
 
     if (el.is_multi) {
@@ -640,7 +645,8 @@ function createPanelSheet(
         articles,
         COL_DYNAMIC,
         COL_COUNT_DYNAMIC,
-        showKu
+        showKu,
+        departIndex // Pass depart index for consistent coloring
       );
       rowNum = endRow;
       dataRowIndex++;
@@ -653,7 +659,7 @@ function createPanelSheet(
     const { ks, ku } = resolveElementCoefs(el);
     const typeValue = el.type_label || '';
     const designation = el.emplacement?.trim() || '';
-    
+
     row.getCell(COL_DYNAMIC.REPERE).value = el.repere;
     row.getCell(COL_DYNAMIC.TYPE).value = typeValue;
     row.getCell(COL_DYNAMIC.DESIGNATION).value = designation;
@@ -671,8 +677,8 @@ function createPanelSheet(
     };
 
     dataRowIndex++;
-    // Apply professional row styling - alternating colors for better readability
-    const rowColor = dataRowIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
+    // Apply professional row styling - color by depart instead of by line
+    const rowColor = departIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
     for (let c = 1; c <= COL_COUNT_DYNAMIC; c++) {
       row.getCell(c).fill = {
         type: 'pattern',
@@ -1167,6 +1173,10 @@ export async function exportProjectToExcel(
     allPanelMetas.push(result.meta);
   }
 
+  // Add synthesis sheet for complete project export
+  if (allPanelMetas.length > 0) {
+    createSyntheseSheet(workbook, company, payload.project, 'SYNTHESE — PROJET COMPLET', 'SYNTHESE', allPanelMetas);
+  }
 
   await workbook.xlsx.writeFile(filePath);
 
