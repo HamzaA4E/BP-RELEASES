@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Share2, Download, Loader2 } from "lucide-react";
+import { Share2, Download, Loader2, FolderPlus, ArrowLeft, MoreVertical } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { formatPower } from "@/utils/calculations";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { importBilpowProject } from "@/utils/projectShare";
+import type { Folder } from "../../shared/types";
 
 export function Dashboard() {
   const navigate = useNavigate();
@@ -19,12 +20,27 @@ export function Dashboard() {
     setCurrentProject,
   } = useAppStore();
   const [loading, setLoading] = useState(true);
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [showNewProject, setShowNewProject] = useState(false);
+  const [showNewFolder, setShowNewFolder] = useState(false);
   const [newName, setNewName] = useState("");
   const [newClient, setNewClient] = useState("");
+  const [newFolderName, setNewFolderName] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteFolderId, setDeleteFolderId] = useState<number | null>(null);
   const [exportingId, setExportingId] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
+  
+  const loadFolders = async () => {
+    try {
+      const data = await window.bilpow.folders.getAll();
+      setFolders(data);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur de chargement des dossiers");
+    }
+  };
+
   const loadProjects = async () => {
     try {
       const data = await window.bilpow.projects.getAll();
@@ -38,6 +54,7 @@ export function Dashboard() {
 
   useEffect(() => {
     void loadProjects();
+    void loadFolders();
   }, []);
 
   useEffect(() => {
@@ -52,10 +69,11 @@ export function Dashboard() {
 
   const filtered = projects.filter((p) => {
     const q = searchQuery.toLowerCase();
-    return (
+    const matchesSearch =
       p.name.toLowerCase().includes(q) ||
-      (p.client?.toLowerCase().includes(q) ?? false)
-    );
+      (p.client?.toLowerCase().includes(q) ?? false);
+    const matchesFolder = selectedFolder ? p.folder_id === selectedFolder.id : true;
+    return matchesSearch && matchesFolder;
   });
 
   const handleCreate = async () => {
@@ -67,6 +85,7 @@ export function Dashboard() {
       const project = await window.bilpow.projects.create({
         name: newName.trim(),
         client: newClient.trim() || undefined,
+        folder_id: selectedFolder?.id ?? null,
       });
       await loadProjects();
       setShowNewProject(false);
@@ -74,6 +93,24 @@ export function Dashboard() {
       setNewClient("");
       toast.success("Projet créé");
       openProject(project.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    }
+  };
+
+  const handleCreateFolder = async () => {
+    if (!newFolderName.trim()) {
+      toast.error("Le nom du dossier est requis");
+      return;
+    }
+    try {
+      await window.bilpow.folders.create({
+        name: newFolderName.trim(),
+      });
+      await loadFolders();
+      setShowNewFolder(false);
+      setNewFolderName("");
+      toast.success("Dossier créé");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
     }
@@ -105,6 +142,22 @@ export function Dashboard() {
     setDeleteId(null);
   };
 
+  const handleDeleteFolder = async () => {
+    if (deleteFolderId === null) return;
+    try {
+      await window.bilpow.folders.delete(deleteFolderId);
+      await loadFolders();
+      await loadProjects();
+      if (selectedFolder?.id === deleteFolderId) {
+        setSelectedFolder(null);
+      }
+      toast.success("Dossier supprimé");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    }
+    setDeleteFolderId(null);
+  };
+
   const handleExport = async (projectId: number) => {
     setExportingId(projectId);
     try {
@@ -129,6 +182,13 @@ export function Dashboard() {
         if (result.isNew === false) {
           navigate(`/project/${result.projectId}`);
         } else {
+          // If imported to a folder, update the project's folder_id
+          if (selectedFolder && result.projectId) {
+            await window.bilpow.projects.update({
+              id: result.projectId,
+              folder_id: selectedFolder.id,
+            });
+          }
           await loadProjects();
         }
       }
@@ -162,6 +222,14 @@ export function Dashboard() {
           <div className="flex gap-2 flex-wrap">
             <button
               type="button"
+              onClick={() => setShowNewFolder(true)}
+              className="btn-secondary inline-flex items-center gap-2"
+            >
+              <FolderPlus className="w-4 h-4" />
+              Ajouter un dossier
+            </button>
+            <button
+              type="button"
               onClick={() => void handleImport()}
               disabled={importing}
               className="btn-secondary inline-flex items-center gap-2"
@@ -192,6 +260,58 @@ export function Dashboard() {
             className="input-field max-w-md"
           />
         </div>
+
+        {/* Display Folders */}
+        {!loading && folders.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Dossiers</h2>
+              {selectedFolder && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedFolder(null)}
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Retour
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {folders.map((folder) => {
+                const projectCount = projects.filter(p => p.folder_id === folder.id).length;
+                return (
+                  <div
+                    key={folder.id}
+                    className="card p-4 flex items-center gap-3 hover:shadow-md transition-shadow relative group"
+                  >
+                    <div
+                      onClick={() => setSelectedFolder(folder)}
+                      className="flex items-center gap-3 flex-1 cursor-pointer"
+                    >
+                      <FolderPlus className="w-5 h-5 text-primary" />
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-700 dark:text-gray-300">{folder.name}</span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">{projectCount} projet{projectCount !== 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteFolderId(folder.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-opacity"
+                      title="Supprimer le dossier"
+                    >
+                      <MoreVertical className="w-4 h-4 text-gray-500" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <p className="text-gray-400 text-center py-12">Chargement...</p>
@@ -323,12 +443,62 @@ export function Dashboard() {
         </div>
       )}
 
+      {showNewFolder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="card p-6 w-full max-w-md mx-4">
+            <h2 className="text-lg font-semibold mb-4">Nouveau dossier</h2>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">
+                  Nom du dossier *
+                </label>
+                <input
+                  type="text"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void handleCreateFolder();
+                  }}
+                  className="input-field"
+                  placeholder="Nom du dossier"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowNewFolder(false)}
+                className="btn-secondary"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCreateFolder()}
+                className="btn-primary"
+              >
+                Créer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ConfirmDialog
         isOpen={deleteId !== null}
         title="Supprimer le projet"
         message="Êtes-vous sûr de vouloir supprimer ce projet ? Toutes les données associées seront perdues."
         onConfirm={() => void handleDelete()}
         onCancel={() => setDeleteId(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteFolderId !== null}
+        title="Supprimer le dossier"
+        message="Êtes-vous sûr de vouloir supprimer ce dossier ? Les projets contenus seront déplacés hors du dossier."
+        onConfirm={() => void handleDeleteFolder()}
+        onCancel={() => setDeleteFolderId(null)}
       />
     </div>
   );

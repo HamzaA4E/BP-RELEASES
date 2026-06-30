@@ -10,11 +10,20 @@ export function resolveJdbCategory(
   return category === 'prise' ? 'prise' : 'eclairage';
 }
 
+export interface Folder {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Project {
   id: number;
   name: string;
   client: string | null;
   description: string | null;
+  folder_id: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -126,6 +135,7 @@ export interface CreateProjectInput {
   name: string;
   client?: string;
   description?: string;
+  folder_id?: number | null;
 }
 
 export interface UpdateProjectInput {
@@ -133,6 +143,7 @@ export interface UpdateProjectInput {
   name?: string;
   client?: string;
   description?: string;
+  folder_id?: number | null;
 }
 
 export interface CreateLocationInput {

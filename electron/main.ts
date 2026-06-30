@@ -15,6 +15,7 @@ import * as locationsDb from './database/locations';
 import * as panelsDb from './database/panels';
 import * as elementsDb from './database/elements';
 import * as favoritesDb from './database/favorites';
+import * as foldersDb from './database/folders';
 import { applyPanelChanges } from './database/panelSave';
 import { getCompanySettings, saveCompanySettings } from './database/settings';
 import { exportLocationToExcel, exportProjectToExcel } from './export/excelExport';
@@ -353,6 +354,40 @@ function registerIpcHandlers(): void {
   ipcMain.handle('projects:delete', (_e, id: number) =>
     wrapHandler(() => {
       projectsDb.deleteProject(id);
+      return true;
+    })
+  );
+
+  ipcMain.handle('folders:getAll', () =>
+    wrapHandler(() => foldersDb.getAllFolders())
+  );
+  ipcMain.handle('folders:getById', (_e, id: number) =>
+    wrapHandler(() => foldersDb.getFolderById(id))
+  );
+  ipcMain.handle(
+    'folders:create',
+    (
+      _e,
+      data: {
+        name: string;
+        description?: string;
+      }
+    ) => wrapHandler(() => foldersDb.createFolder(data))
+  );
+  ipcMain.handle(
+    'folders:update',
+    (
+      _e,
+      data: {
+        id: number;
+        name?: string;
+        description?: string;
+      }
+    ) => wrapHandler(() => foldersDb.updateFolder(data))
+  );
+  ipcMain.handle('folders:delete', (_e, id: number) =>
+    wrapHandler(() => {
+      foldersDb.deleteFolder(id);
       return true;
     })
   );

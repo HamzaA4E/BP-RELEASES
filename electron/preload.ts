@@ -4,6 +4,7 @@ import type {
   ProjectImportResult,
 } from '../shared/bilpow';
 import type {
+  Folder,
   Project,
   ProjectWithStats,
   Location,
@@ -43,6 +44,16 @@ async function invoke<T>(channel: string, ...args: unknown[]): Promise<T> {
 }
 
 const api = {
+  folders: {
+    getAll: (): Promise<Folder[]> => invoke('folders:getAll'),
+    getById: (id: number): Promise<Folder | undefined> =>
+      invoke('folders:getById', id),
+    create: (data: { name: string; description?: string }): Promise<Folder> =>
+      invoke('folders:create', data),
+    update: (data: { id: number; name?: string; description?: string }): Promise<Folder> =>
+      invoke('folders:update', data),
+    delete: (id: number): Promise<boolean> => invoke('folders:delete', id),
+  },
   projects: {
     getAll: (): Promise<ProjectWithStats[]> => invoke('projects:getAll'),
     getById: (id: number): Promise<Project | undefined> =>

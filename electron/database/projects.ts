@@ -5,6 +5,7 @@ export interface ProjectRow {
   name: string;
   client: string | null;
   description: string | null;
+  folder_id: number | null;
   created_at: string;
   updated_at: string;
   original_id: number | null;
@@ -45,17 +46,19 @@ export function createProject(data: {
   name: string;
   client?: string;
   description?: string;
+  folder_id?: number | null;
 }): ProjectRow {
   const db = getDatabase();
   const result = db
     .prepare(
-      `INSERT INTO projects (name, client, description)
-       VALUES (@name, @client, @description)`
+      `INSERT INTO projects (name, client, description, folder_id)
+       VALUES (@name, @client, @description, @folder_id)`
     )
     .run({
       name: data.name,
       client: data.client ?? null,
       description: data.description ?? null,
+      folder_id: data.folder_id ?? null,
     });
 
   const project = getProjectById(Number(result.lastInsertRowid));
@@ -68,6 +71,7 @@ export function updateProject(data: {
   name?: string;
   client?: string;
   description?: string;
+  folder_id?: number | null;
 }): ProjectRow {
   const db = getDatabase();
   const existing = getProjectById(data.id);
@@ -78,6 +82,7 @@ export function updateProject(data: {
       name = @name,
       client = @client,
       description = @description,
+      folder_id = @folder_id,
       updated_at = datetime('now')
     WHERE id = @id`
   ).run({
@@ -86,6 +91,7 @@ export function updateProject(data: {
     client: data.client !== undefined ? data.client : existing.client,
     description:
       data.description !== undefined ? data.description : existing.description,
+    folder_id: data.folder_id !== undefined ? data.folder_id : existing.folder_id,
   });
 
   const project = getProjectById(data.id);

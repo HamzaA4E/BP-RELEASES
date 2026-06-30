@@ -29,11 +29,20 @@ function resolveDatabasePath(): string {
 }
 
 const MIGRATIONS = `
+CREATE TABLE IF NOT EXISTS folders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  description TEXT,
+  created_at TEXT DEFAULT (datetime('now')),
+  updated_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   name TEXT NOT NULL,
   client TEXT,
   description TEXT,
+  folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   original_id INTEGER
@@ -172,6 +181,7 @@ export function getDatabase(): Database.Database {
   if (db) {
     ensureElementArticlesSchema(db);
     migrateFavoritesTable(db);
+    migrateFoldersTable(db);
     return db;
   }
 
@@ -191,6 +201,7 @@ export function getDatabase(): Database.Database {
   migrateElementArticles(db);
   migrateCompanySettings(db);
   migrateFavoritesTable(db);
+  migrateFoldersTable(db);
   seedFavorites();
   db.pragma('wal_checkpoint(PASSIVE)');
   console.log('[DB] Connexion prête');
@@ -303,6 +314,33 @@ function ensureElementsColumns(database: Database.Database): void {
   database.exec(
     `UPDATE elements SET type_label = designation WHERE (type_label = '' OR type_label IS NULL) AND designation IS NOT NULL`
   );
+}
+
+function migrateFoldersTable(database: Database.Database): void {
+  // Create folders table if it doesn't exist
+  if (!tableExists(database, 'folders')) {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS folders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+    `);
+  }
+
+  // Add folder_id column to projects table if it doesn't exist
+  if (tableExists(database, 'projects')) {
+    const cols = database.pragma('table_info(projects)') as Array<{ name: string }>;
+    const names = new Set(cols.map((c) => c.name));
+    
+    if (!names.has('folder_id')) {
+      database.exec(`
+        ALTER TABLE projects ADD COLUMN folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL;
+      `);
+    }
+  }
 }
 
 function migratePanelCoefficients(database: Database.Database): void {

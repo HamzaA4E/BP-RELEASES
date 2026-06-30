@@ -24,10 +24,11 @@ import {
 } from '../../shared/powerCalculations';
 
 const PRIMARY_COLOR = 'FF1E3A5F';
-const ALT_ROW_COLOR = 'FFF8F9FA';
+const ALT_ROW_COLOR = 'FFF0F4F8'; // Légèrement plus visible pour une meilleure lisibilité
 const TOTAL_ROW_COLOR = 'FFDBEAFE';
 const SUBTOTAL_ROW_COLOR = 'FFEFF6FF';
 const PROJECT_INFO_COLOR = 'FFE8F0FE';
+const DATA_ROW_COLOR = 'FFFFFFFF'; // Blanc pour les lignes impaires
 
 interface PanelSheetMeta {
   sheetName: string;
@@ -374,9 +375,11 @@ function writeMultiDepartExcelRows(
   const powerRows: number[] = [];
   let rowNum = startRowNum - 1;
   let isFirstArticle = true;
+  let articleIndex = 0;
 
   for (const article of articles) {
     rowNum++;
+    articleIndex++;
     const row = sheet.getRow(rowNum);
 
     // Only set repère for the first article in the multi depart
@@ -409,8 +412,14 @@ function writeMultiDepartExcelRows(
     };
     powerRows.push(rowNum);
 
-    // Apply standard formatting (no special colors)
+    // Apply professional row styling - alternating colors for better readability
+    const rowColor = articleIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
     for (let c = 1; c <= colCount; c++) {
+      row.getCell(c).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: rowColor },
+      };
       applyBorder(row.getCell(c));
     }
   }
@@ -662,14 +671,14 @@ function createPanelSheet(
     };
 
     dataRowIndex++;
-    if (dataRowIndex % 2 === 0) {
-      for (let c = 1; c <= COL_COUNT_DYNAMIC; c++) {
-        row.getCell(c).fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: ALT_ROW_COLOR },
-        };
-      }
+    // Apply professional row styling - alternating colors for better readability
+    const rowColor = dataRowIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
+    for (let c = 1; c <= COL_COUNT_DYNAMIC; c++) {
+      row.getCell(c).fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: rowColor },
+      };
     }
     for (let c = 1; c <= COL_COUNT_DYNAMIC; c++) {
       applyBorder(row.getCell(c));
@@ -790,7 +799,7 @@ function createPanelSheet(
   // Dynamic column widths based on whether Ku is shown
   sheet.columns = showKu
 ? [
-    { width: 10 }, // repère
+    { width: 18 }, // repère (augmenté pour accommoder les repères avec préfixes)
     { width: 25 }, // type
     { width: 25 }, // désignation
     { width: 14 }, // puissance
@@ -800,7 +809,7 @@ function createPanelSheet(
     { width: 14 }, // total
   ]
 : [
-    { width: 10 },
+    { width: 18 }, // repère (augmenté pour accommoder les repères avec préfixes)
     { width: 25 },
     { width: 25 },
     { width: 14 },
@@ -948,8 +957,8 @@ function createSyntheseSheet(
       applyBorder(row.getCell(c));
     }
 
-    // Apply fill to second cells of merged data pairs
-    const rowFill = dataRowIndex % 2 === 0 ? ALT_ROW_COLOR : 'FFFFFFFF';
+    // Apply professional row styling - alternating colors for better readability
+    const rowFill = dataRowIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
     [2, 4, 6].forEach(col => {
       const cell = row.getCell(col);
       cell.fill = {
@@ -963,11 +972,11 @@ function createSyntheseSheet(
   }
 
   // Largeurs des colonnes - match panel sheet structure
-  // Panel sheets: Repère(10), Type(25), Désignation(25), P.Unitaire(14), Qté(8), Ks(8), Ku(8), Total(14)
-  // Synthese: Emplacement(A:B=10+25), Tableau(C:D=25+14), P.Totale(E:F=8+8), Intensité(G=14)
+  // Panel sheets: Repère(18), Type(25), Désignation(25), P.Unitaire(14), Qté(8), Ks(8), Ku(8), Total(14)
+  // Synthese: Emplacement(A:B=18+17), Tableau(C:D=25+14), P.Totale(E:F=8+8), Intensité(G=14)
   sheet.columns = [
-    { width: 10 }, // A - Emplacement (part 1)
-    { width: 25 }, // B - Emplacement (part 2)
+    { width: 18 }, // A - Emplacement (part 1) - augmenté pour accommoder les repères avec préfixes
+    { width: 17 }, // B - Emplacement (part 2)
     { width: 25 }, // C - Tableau (part 1)
     { width: 14 }, // D - Tableau (part 2)
     { width: 8 },  // E - P. Totale (part 1) - match panel sheet column E (Qté)
