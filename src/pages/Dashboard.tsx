@@ -270,53 +270,76 @@ export function Dashboard() {
 
         {/* Display Folders */}
         {!loading && folders.length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300">Dossiers</h2>
-              {selectedFolder && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedFolder(null)}
-                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Retour
-                </button>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {folders.map((folder) => {
-                const projectCount = projects.filter(p => p.folder_id === folder.id).length;
-                return (
-                  <div
-                    key={folder.id}
-                    className="card p-4 flex items-center gap-3 hover:shadow-md transition-shadow relative group"
-                  >
-                    <div
-                      onClick={() => setSelectedFolder(folder)}
-                      className="flex items-center gap-3 flex-1 cursor-pointer"
-                    >
-                      <FolderPlus className="w-5 h-5 text-primary" />
-                      <div className="flex flex-col">
-                        <span className="font-medium text-gray-700 dark:text-gray-300">{folder.name}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{projectCount} projet{projectCount !== 1 ? 's' : ''}</span>
+          <div className="mb-8">
+            {!selectedFolder ? (
+              <>
+                <div className="mb-4">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white">Dossiers</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Organisez vos projets par catégorie</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {folders.map((folder) => {
+                    const projectCount = projects.filter(p => p.folder_id === folder.id).length;
+                    return (
+                      <div
+                        key={folder.id}
+                        onClick={() => setSelectedFolder(folder)}
+                        className="relative group cursor-pointer rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-primary/50 hover:shadow-md transition-all duration-200"
+                      >
+                        <div className="p-5">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="p-3 rounded-lg bg-primary/10 text-primary">
+                              <FolderPlus className="w-6 h-6" />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteFolderId(folder.id);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-all"
+                              title="Supprimer le dossier"
+                            >
+                              <MoreVertical className="w-4 h-4 text-gray-500" />
+                            </button>
+                          </div>
+                          <h3 className="font-semibold text-gray-800 dark:text-white text-lg mb-1">
+                            {folder.name}
+                          </h3>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {projectCount} projet{projectCount !== 1 ? 's' : ''}
+                          </p>
+                        </div>
                       </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-lg bg-primary/10 text-primary">
+                      <FolderPlus className="w-6 h-6" />
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteFolderId(folder.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-opacity"
-                      title="Supprimer le dossier"
-                    >
-                      <MoreVertical className="w-4 h-4 text-gray-500" />
-                    </button>
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-800 dark:text-white">{selectedFolder.name}</h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {projects.filter(p => p.folder_id === selectedFolder.id).length} projet{projects.filter(p => p.folder_id === selectedFolder.id).length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFolder(null)}
+                    className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-sm font-medium text-gray-700 dark:text-gray-200"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Retour aux dossiers
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
