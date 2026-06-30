@@ -213,7 +213,7 @@ function insertPanel(
   return Number(result.lastInsertRowid);
 }
 
-export function importProjectFromBilpow(file: BilpowFile): {
+export function importProjectFromBilpow(file: BilpowFile, filePath?: string): {
   projectId: number;
   projectName: string;
   isNew: boolean;
@@ -250,13 +250,14 @@ export function importProjectFromBilpow(file: BilpowFile): {
   const importTx = db.transaction(() => {
     const projectResult = db
       .prepare(
-        `INSERT INTO projects (name, client, description, created_at, original_id)
-         VALUES (@name, @client, @description, @created_at, @original_id)`
+        `INSERT INTO projects (name, client, description, file_path, created_at, original_id)
+         VALUES (@name, @client, @description, @file_path, @created_at, @original_id)`
       )
       .run({
         name: projectName,
         client: file.project.client || null,
         description: file.project.description || null,
+        file_path: filePath || null,
         created_at: file.project.created_at || new Date().toISOString(),
         original_id: file.project.id,
       });

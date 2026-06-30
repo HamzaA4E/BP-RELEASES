@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS projects (
   client TEXT,
   description TEXT,
   folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL,
+  file_path TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   updated_at TEXT DEFAULT (datetime('now')),
   original_id INTEGER
@@ -196,6 +197,7 @@ export function getDatabase(): Database.Database {
   migratePanelCoefficients(db);
   migratePanelReperePrefix(db);
   migrateProjectsOriginalId(db);
+  migrateProjectsFilePath(db);
   migrateElementsTable(db);
   migrateElementsTypeToDivers(db);
   migrateElementArticles(db);
@@ -375,6 +377,17 @@ function migrateProjectsOriginalId(database: Database.Database): void {
 
   if (!names.has('original_id')) {
     database.exec(`ALTER TABLE projects ADD COLUMN original_id INTEGER`);
+  }
+}
+
+function migrateProjectsFilePath(database: Database.Database): void {
+  if (!tableExists(database, 'projects')) return;
+
+  const cols = database.pragma('table_info(projects)') as Array<{ name: string }>;
+  const names = new Set(cols.map((c) => c.name));
+
+  if (!names.has('file_path')) {
+    database.exec(`ALTER TABLE projects ADD COLUMN file_path TEXT`);
   }
 }
 

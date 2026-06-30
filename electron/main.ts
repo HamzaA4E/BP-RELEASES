@@ -353,7 +353,17 @@ function registerIpcHandlers(): void {
   );
   ipcMain.handle('projects:delete', (_e, id: number) =>
     wrapHandler(() => {
-      projectsDb.deleteProject(id);
+      const { filePath } = projectsDb.deleteProject(id);
+      
+      // Delete the physical file if it exists
+      if (filePath && fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (err) {
+          console.error('[projects:delete] Failed to delete file:', err);
+        }
+      }
+      
       return true;
     })
   );
@@ -690,7 +700,7 @@ ipcMain.handle('devtools:open', () => {
       }
 
       validateBilpowElements(parsed.locations ?? []);
-      const { projectId, projectName, isNew } = importProjectFromBilpow(parsed);
+      const { projectId, projectName, isNew } = importProjectFromBilpow(parsed, filePath);
       return { success: true, projectId, projectName, isNew };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue';

@@ -6,6 +6,7 @@ export interface ProjectRow {
   client: string | null;
   description: string | null;
   folder_id: number | null;
+  file_path: string | null;
   created_at: string;
   updated_at: string;
   original_id: number | null;
@@ -99,8 +100,14 @@ export function updateProject(data: {
   return project;
 }
 
-export function deleteProject(id: number): void {
+export function deleteProject(id: number): { filePath: string | null } {
   const db = getDatabase();
+  const project = getProjectById(id);
+  if (!project) throw new Error('Project not found');
+  
+  const filePath = project.file_path;
   const result = db.prepare('DELETE FROM projects WHERE id = ?').run(id);
   if (result.changes === 0) throw new Error('Project not found');
+  
+  return { filePath };
 }
