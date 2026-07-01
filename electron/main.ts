@@ -399,22 +399,63 @@ function registerIpcHandlers(): void {
   );
   ipcMain.handle('folders:delete', (_e, id: number, option: 'move' | 'delete' = 'move') =>
     wrapHandler(() => {
+      console.log('[folders:delete] Starting deletion with option:', option, 'for folder id:', id);
       const folder = foldersDb.getFolderById(id);
+      const db = getDatabase();
       
       if (option === 'delete') {
+        console.log('[folders:delete] Option is DELETE - will delete all projects');
         // Delete all projects in the folder
-        const db = getDatabase();
         const projects = db.prepare('SELECT id, file_path FROM projects WHERE folder_id = ?').all(id) as Array<{ id: number; file_path: string | null }>;
+        console.log('[folders:delete] Found projects to delete:', projects.length);
         
         for (const project of projects) {
+          console.log('[folders:delete] Deleting project:', project.id, 'with file:', project.file_path);
           if (project.file_path && fs.existsSync(project.file_path)) {
             try {
               fs.unlinkSync(project.file_path);
+              console.log('[folders:delete] Deleted file:', project.file_path);
             } catch (err) {
               console.error('[folders:delete] Failed to delete project file:', err);
             }
           }
           db.prepare('DELETE FROM projects WHERE id = ?').run(project.id);
+          console.log('[folders:delete] Deleted project from DB:', project.id);
+        }
+      } else {
+        console.log('[folders:delete] Option is MOVE - will move projects to root');
+        // Move projects to root (set folder_id to null) and move physical files to default location
+        const projects = db.prepare('SELECT id, file_path FROM projects WHERE folder_id = ?').all(id) as Array<{ id: number; file_path: string | null }>;
+        console.log('[folders:delete] Found projects to move:', projects.length);
+        
+        for (const project of projects) {
+          console.log('[folders:delete] Moving project:', project.id, 'with file:', project.file_path);
+          // Set folder_id to null
+          db.prepare('UPDATE projects SET folder_id = NULL WHERE id = ?').run(project.id);
+          console.log('[folders:delete] Set folder_id to NULL for project:', project.id);
+          
+          // Move physical file to default location if it exists
+          if (project.file_path && fs.existsSync(project.file_path)) {
+            try {
+              const defaultProjectPath = path.join(app.getPath('userData'), 'projects');
+              if (!fs.existsSync(defaultProjectPath)) {
+                fs.mkdirSync(defaultProjectPath, { recursive: true });
+              }
+              
+              const fileName = path.basename(project.file_path);
+              const newFilePath = path.join(defaultProjectPath, fileName);
+              
+              // Only move if not already in default location
+              if (project.file_path !== newFilePath) {
+                fs.copyFileSync(project.file_path, newFilePath);
+                fs.unlinkSync(project.file_path);
+                db.prepare('UPDATE projects SET file_path = ? WHERE id = ?').run(newFilePath, project.id);
+                console.log('[folders:delete] Moved file from:', project.file_path, 'to:', newFilePath);
+              }
+            } catch (err) {
+              console.error('[folders:delete] Failed to move project file to default location:', err);
+            }
+          }
         }
       }
       
@@ -422,12 +463,14 @@ function registerIpcHandlers(): void {
       if (folder?.folder_path && fs.existsSync(folder.folder_path)) {
         try {
           fs.rmSync(folder.folder_path, { recursive: true, force: true });
+          console.log('[folders:delete] Deleted physical folder:', folder.folder_path);
         } catch (err) {
           console.error('[folders:delete] Failed to delete physical folder:', err);
         }
       }
       
       foldersDb.deleteFolder(id);
+      console.log('[folders:delete] Deleted folder from DB:', id);
       return true;
     })
   );

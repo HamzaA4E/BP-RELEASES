@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 interface FolderDeleteDialogProps {
   isOpen: boolean;
   onConfirm: (option: 'move' | 'delete') => void;
@@ -9,6 +11,8 @@ export function FolderDeleteDialog({
   onConfirm,
   onCancel,
 }: FolderDeleteDialogProps) {
+  const [selectedOption, setSelectedOption] = useState<'move' | 'delete'>('move');
+
   if (!isOpen) return null;
 
   return (
@@ -26,7 +30,8 @@ export function FolderDeleteDialog({
               type="radio"
               name="deleteOption"
               value="move"
-              defaultChecked
+              checked={selectedOption === 'move'}
+              onChange={() => setSelectedOption('move')}
               className="mt-1"
             />
             <div>
@@ -43,6 +48,8 @@ export function FolderDeleteDialog({
               type="radio"
               name="deleteOption"
               value="delete"
+              checked={selectedOption === 'delete'}
+              onChange={() => setSelectedOption('delete')}
               className="mt-1"
             />
             <div>
@@ -63,8 +70,8 @@ export function FolderDeleteDialog({
           <button
             type="button"
             onClick={() => {
-              const selected = document.querySelector('input[name="deleteOption"]:checked') as HTMLInputElement;
-              onConfirm(selected?.value === 'delete' ? 'delete' : 'move');
+              console.log('[FolderDeleteDialog] Confirming with option:', selectedOption);
+              onConfirm(selectedOption);
             }}
             className="btn-danger"
           >

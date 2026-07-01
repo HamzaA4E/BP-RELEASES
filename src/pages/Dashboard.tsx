@@ -179,17 +179,22 @@ export function Dashboard() {
     setDeleteId(null);
   };
 
-  const handleDeleteFolder = async () => {
-    if (deleteFolderId === null) return;
+  const handleDeleteFolder = async (option?: 'move' | 'delete') => {
+    const folderId = deleteFolderId;
+    const deleteOption = option || deleteFolderOption;
+    if (folderId === null) return;
+    console.log('[Dashboard] handleDeleteFolder called with folderId:', folderId, 'and option:', deleteOption);
     try {
-      await window.bilpow.folders.delete(deleteFolderId, deleteFolderOption);
+      await window.bilpow.folders.delete(folderId, deleteOption);
+      console.log('[Dashboard] Folder deletion completed');
       await loadFolders();
       await loadProjects();
-      if (selectedFolder?.id === deleteFolderId) {
+      if (selectedFolder?.id === folderId) {
         setSelectedFolder(null);
       }
       toast.success("Dossier supprimé");
     } catch (err) {
+      console.error('[Dashboard] Folder deletion error:', err);
       toast.error(err instanceof Error ? err.message : "Erreur");
     }
     setDeleteFolderId(null);
@@ -733,8 +738,8 @@ export function Dashboard() {
       <FolderDeleteDialog
         isOpen={deleteFolderId !== null}
         onConfirm={(option) => {
-          setDeleteFolderOption(option);
-          void handleDeleteFolder();
+          console.log('[Dashboard] FolderDeleteDialog onConfirm with option:', option);
+          void handleDeleteFolder(option);
         }}
         onCancel={() => setDeleteFolderId(null)}
       />

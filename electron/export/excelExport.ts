@@ -932,6 +932,7 @@ function createSyntheseSheet(
 
   let rowNum = headerRow;
   let dataRowIndex = 0;
+  let locationIndex = 0; // Track location index for coloring by location
 
   // Group panels by location to merge location cells
   const groupedByLocation: Record<string, PanelSheetMeta[]> = {};
@@ -946,6 +947,9 @@ function createSyntheseSheet(
   for (const locationName in groupedByLocation) {
     const panels = groupedByLocation[locationName]!;
     const firstRowOfGroup = rowNum + 1;
+
+    // Determine color for this location (same logic as depart coloring)
+    const locationColor = locationIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
 
     // First, create all rows without setting location value and without any merge for A:B
     for (const meta of panels) {
@@ -976,18 +980,15 @@ function createSyntheseSheet(
         applyBorder(row.getCell(c));
       }
 
-      // Apply professional row styling - alternating colors for better readability
-      const rowFill = dataRowIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
-      [2, 4, 6].forEach(col => {
-        const cell = row.getCell(col);
+      // Apply location-based coloring - same color for all rows in this location
+      for (let c = 1; c <= 7; c++) {
+        const cell = row.getCell(c);
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: rowFill },
+          fgColor: { argb: locationColor },
         };
-        cell.alignment = { horizontal: 'center', vertical: 'middle' };
-        applyBorder(cell);
-      });
+      }
     }
 
     // Merge location cells as a single merged area (both columns A and B together)
@@ -999,6 +1000,9 @@ function createSyntheseSheet(
     }
     // Set location name in the top-left cell of the merged area
     sheet.getCell(firstRowOfGroup, 1).value = toCellString(locationName);
+
+    // Increment location index for next location
+    locationIndex++;
   }
 
   // Largeurs des colonnes - match panel sheet structure
