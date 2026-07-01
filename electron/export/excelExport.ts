@@ -70,6 +70,45 @@ function sanitizeFileName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '_');
 }
 
+function determineOptimalOrientation(colCount: number): 'portrait' | 'landscape' {
+  // A4 dimensions in inches: 8.27 x 11.69
+  // Portrait: width = 8.27, Landscape: width = 11.69
+  // With 0.5" margins: usable width = 7.27 (portrait) or 10.69 (landscape)
+  // Each character ~0.1" at 10pt font
+  const totalWidth = colCount * 2.5; // Approximate width per column in inches
+  return totalWidth > 7.5 ? 'landscape' : 'portrait';
+}
+
+function calculateOptimalColumnWidths(colCount: number, orientation: 'portrait' | 'landscape'): number[] {
+  const usableWidth = orientation === 'portrait' ? 7.27 : 10.69;
+  const baseWidth = usableWidth / colCount;
+  
+  // Return widths in Excel units (1 unit ≈ 0.09 inches)
+  const excelWidth = baseWidth / 0.09;
+  
+  // Distribute widths based on column importance
+  if (colCount === 8) {
+    return [excelWidth * 1.3, excelWidth * 1.2, excelWidth * 1.2, excelWidth * 0.8, excelWidth * 0.5, excelWidth * 0.5, excelWidth * 0.5, excelWidth * 0.8];
+  } else if (colCount === 7) {
+    return [excelWidth * 1.4, excelWidth * 1.3, excelWidth * 1.3, excelWidth * 0.9, excelWidth * 0.6, excelWidth * 0.6, excelWidth * 0.9];
+  }
+  return Array(colCount).fill(excelWidth);
+}
+
+function setupPrintArea(worksheet: ExcelJS.Worksheet, dataEndRow: number, colCount: number): void {
+  const lastCol = colLetter(colCount);
+  worksheet.pageSetup.printArea = `A1:${lastCol}${dataEndRow}`;
+}
+
+function optimizeRowHeights(worksheet: ExcelJS.Worksheet, startRow: number, endRow: number): void {
+  for (let r = startRow; r <= endRow; r++) {
+    const row = worksheet.getRow(r);
+    if (!row.height) {
+      row.height = 22; // Default height for data rows
+    }
+  }
+}
+
 function formatExportDate(): string {
   const d = new Date();
   const dd = String(d.getDate()).padStart(2, '0');
@@ -584,6 +623,9 @@ function createPanelSheet(
   });
   headerRowObj.height = 28;
 
+  // Calculate optimal orientation early (needed for page break logic)
+  const orientation = determineOptimalOrientation(COL_COUNT_DYNAMIC);
+
   let rowNum = headerRow;
   let dataRowIndex = 0;
   let departIndex = 0; // Track depart index for coloring by depart instead of by line
@@ -802,41 +844,30 @@ function createPanelSheet(
   };
   intensiteValueCell.alignment = { horizontal: 'center', vertical: 'middle' };
   applyBorder(intensiteValueCell);
-  // Dynamic column widths based on whether Ku is shown
-  sheet.columns = showKu
-? [
-    { width: 18 }, // repère (augmenté pour accommoder les repères avec préfixes)
-    { width: 25 }, // type
-    { width: 25 }, // désignation
-    { width: 14 }, // puissance
-    { width: 8 },  // qté
-    { width: 8 },  // ks
-    { width: 8 },  // ku
-    { width: 14 }, // total
-  ]
-: [
-    { width: 18 }, // repère (augmenté pour accommoder les repères avec préfixes)
-    { width: 25 },
-    { width: 25 },
-    { width: 14 },
-    { width: 8 },
-    { width: 8 },
-    { width: 14 },
-  ];
+  // Calculate optimal column widths for A4 (orientation already calculated above)
+  const optimalWidths = calculateOptimalColumnWidths(COL_COUNT_DYNAMIC, orientation);
+  
+  sheet.columns = optimalWidths.map(width => ({ width }));
+  
+  // Optimize row heights for content
+  optimizeRowHeights(sheet, dataStartRow, dataEndRow);
+  
+  // Set print area to avoid printing empty cells
+  setupPrintArea(sheet, dataEndRow, COL_COUNT_DYNAMIC);
 
   sheet.views = [{ state: 'frozen', ySplit: headerRow }];
   sheet.pageSetup = {
     printTitlesRow: '1:5',  // répète les lignes 1 à 5 (header + colonnes) sur chaque page imprimée
     paperSize: 9,           // A4
-    orientation: 'portrait',
+    orientation: orientation,
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 0,
     margins: {
-      left: 0.5,
-      right: 0.5,
-      top: 0.75,
-      bottom: 0.75,
+      left: 0.4,
+      right: 0.4,
+      top: 0.7,
+      bottom: 0.7,
       header: 0.3,
       footer: 0.3,
     },
@@ -1005,32 +1036,37 @@ function createSyntheseSheet(
     locationIndex++;
   }
 
-  // Largeurs des colonnes - match panel sheet structure
-  // Panel sheets: Repère(18), Type(25), Désignation(25), P.Unitaire(14), Qté(8), Ks(8), Ku(8), Total(14)
-  // Synthese: Emplacement(A:B=18+17), Tableau(C:D=25+14), P.Totale(E:F=8+8), Intensité(G=14)
+  // Calculate optimal orientation and column widths for A4
+  const orientation = determineOptimalOrientation(7);
+  const optimalWidths = calculateOptimalColumnWidths(7, orientation);
+  
+  // Adjust for synthese sheet structure (merged columns)
   sheet.columns = [
-    { width: 18 }, // A - Emplacement (part 1) - augmenté pour accommoder les repères avec préfixes
-    { width: 17 }, // B - Emplacement (part 2)
-    { width: 25 }, // C - Tableau (part 1)
-    { width: 14 }, // D - Tableau (part 2)
-    { width: 8 },  // E - P. Totale (part 1) - match panel sheet column E (Qté)
-    { width: 8 },  // F - P. Totale (part 2) - match panel sheet column F (Ks)
-    { width: 14 }, // G - Intensité
+    { width: optimalWidths[0] }, // A - Emplacement (part 1)
+    { width: optimalWidths[0] }, // B - Emplacement (part 2) - same width for merge
+    { width: optimalWidths[1] }, // C - Tableau (part 1)
+    { width: optimalWidths[1] }, // D - Tableau (part 2) - same width for merge
+    { width: optimalWidths[4] }, // E - P. Totale (part 1)
+    { width: optimalWidths[4] }, // F - P. Totale (part 2) - same width for merge
+    { width: optimalWidths[6] }, // G - Intensité
   ];
+  
+  // Set print area for synthese sheet
+  setupPrintArea(sheet, rowNum, 7);
 
   sheet.views = [{ state: 'frozen', ySplit: headerRow }];
   sheet.pageSetup = {
     printTitlesRow: '1:5',
     paperSize: 9,
-    orientation: 'portrait',
+    orientation: orientation,
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 0,
     margins: {
-      left: 0.5,
-      right: 0.5,
-      top: 0.75,
-      bottom: 0.75,
+      left: 0.4,
+      right: 0.4,
+      top: 0.7,
+      bottom: 0.7,
       header: 0.3,
       footer: 0.3,
     },
