@@ -1,6 +1,6 @@
 {
   "name": "bilpow",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Bilan de Puissance - Gestion des bilans de puissance pour tableaux électriques",
   "main": "dist-electron/electron/main.js",
   "author": "BilPow",

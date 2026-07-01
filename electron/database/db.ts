@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS elements (
 
 CREATE TABLE IF NOT EXISTS favorites (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  system_key TEXT UNIQUE,
   type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'divers')),
   designation TEXT NOT NULL,
   power_w REAL NOT NULL DEFAULT 0,
@@ -110,11 +111,11 @@ PRAGMA foreign_keys = ON;
 `;
 
 const DEFAULT_FAVORITES = [
-  { type: 'prise', designation: 'Prise normale', power_w: 200, color: '#3B82F6' },
-  { type: 'prise', designation: 'Prise cuisine', power_w: 500, color: '#3B82F6' },
-  { type: 'eclairage', designation: 'Pannel 60x60', power_w: 35, color: '#3B82F6' },
-  { type: 'eclairage', designation: 'Réglette 2x36', power_w: 72, color: '#3B82F6' },
-  { type: 'eclairage', designation: 'Suspension', power_w: 40, color: '#3B82F6' },
+  { system_key: 'prise_normale', type: 'prise', designation: 'Prise normale', power_w: 200, color: '#3B82F6' },
+  { system_key: 'prise_cuisine', type: 'prise', designation: 'Prise cuisine', power_w: 500, color: '#3B82F6' },
+  { system_key: 'pannel_60x60', type: 'eclairage', designation: 'Pannel 60x60', power_w: 35, color: '#3B82F6' },
+  { system_key: 'reglette_2x36', type: 'eclairage', designation: 'Réglette 2x36', power_w: 72, color: '#3B82F6' },
+  { system_key: 'suspension', type: 'eclairage', designation: 'Suspension', power_w: 40, color: '#3B82F6' },
 ] as const;
 
 const RECREATE_ELEMENTS_SQL = `
@@ -206,7 +207,7 @@ export function getDatabase(): Database.Database {
   migrateCompanySettings(db);
   migrateFavoritesTable(db);
   migrateFoldersTable(db);
-  seedFavorites();
+  syncSystemFavorites();
   db.pragma('wal_checkpoint(PASSIVE)');
   console.log('[DB] Connexion prête');
   return db;
@@ -523,53 +524,174 @@ function favoritesTypeAllowsDivers(database: Database.Database): boolean {
 
 function migrateFavoritesTable(database: Database.Database): void {
   if (!tableExists(database, 'favorites')) return;
-  if (favoritesTypeAllowsDivers(database)) return;
+  
+  // Migration 1: Ajouter le type 'divers' si nécessaire
+  if (!favoritesTypeAllowsDivers(database)) {
+    if (tableExists(database, 'favorites_new')) {
+      database.exec('DROP TABLE IF EXISTS favorites_new');
+    }
 
-  if (tableExists(database, 'favorites_new')) {
-    database.exec('DROP TABLE IF EXISTS favorites_new');
+    const run = database.transaction(() => {
+      // Vérifier si system_key existe déjà pour le conserver
+      const hasSystemKey = hasColumn(database, 'favorites', 'system_key');
+      
+      if (hasSystemKey) {
+        // Recréer la table avec system_key pour ne pas perdre les données
+        database.exec(`
+          CREATE TABLE favorites_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            system_key TEXT UNIQUE,
+            type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'divers')),
+            designation TEXT NOT NULL,
+            power_w REAL NOT NULL DEFAULT 0,
+            color TEXT DEFAULT '#3B82F6'
+          );
+
+          INSERT INTO favorites_new (id, system_key, type, designation, power_w, color)
+          SELECT id, system_key, type, designation, power_w, color FROM favorites;
+
+          DROP TABLE favorites;
+          ALTER TABLE favorites_new RENAME TO favorites;
+        `);
+        
+        // Recréer l'index unique sur system_key
+        database.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_system_key ON favorites(system_key)`);
+      } else {
+        // Ancienne base sans system_key - créer la table sans system_key
+        // (sera ajouté par Migration 2)
+        database.exec(`
+          CREATE TABLE favorites_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'divers')),
+            designation TEXT NOT NULL,
+            power_w REAL NOT NULL DEFAULT 0,
+            color TEXT DEFAULT '#3B82F6'
+          );
+
+          INSERT INTO favorites_new (id, type, designation, power_w, color)
+          SELECT id, type, designation, power_w, color FROM favorites;
+
+          DROP TABLE favorites;
+          ALTER TABLE favorites_new RENAME TO favorites;
+        `);
+      }
+    });
+
+    run();
+    console.log('[DB] Migration favorites : type "divers" activé');
   }
 
-  const run = database.transaction(() => {
-    database.exec(`
-      CREATE TABLE favorites_new (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        type TEXT NOT NULL CHECK(type IN ('eclairage', 'prise', 'divers')),
-        designation TEXT NOT NULL,
-        power_w REAL NOT NULL DEFAULT 0,
-        color TEXT DEFAULT '#3B82F6'
-      );
-
-      INSERT INTO favorites_new (id, type, designation, power_w, color)
-      SELECT id, type, designation, power_w, color FROM favorites;
-
-      DROP TABLE favorites;
-      ALTER TABLE favorites_new RENAME TO favorites;
-    `);
-  });
-
-  run();
-  console.log('[DB] Migration favorites : type "divers" activé');
+  // Migration 2: Ajouter la colonne system_key si elle n'existe pas
+  if (!hasColumn(database, 'favorites', 'system_key')) {
+    database.exec(`ALTER TABLE favorites ADD COLUMN system_key TEXT`);
+    
+    // Créer un index unique sur system_key
+    database.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_favorites_system_key ON favorites(system_key)`);
+    
+    // Remplir system_key pour les favoris existants en utilisant leur désignation
+    const legacyMapping: Record<string, string> = {
+      'Prise normale': 'prise_normale',
+      'Prise cuisine': 'prise_cuisine',
+      'Pannel 60x60': 'pannel_60x60',
+      'Réglette 2x36': 'reglette_2x36',
+      'Suspension': 'suspension',
+    };
+    
+    const update = database.prepare('UPDATE favorites SET system_key = ? WHERE designation = ? AND system_key IS NULL');
+    const updateMany = database.transaction(() => {
+      for (const [designation, systemKey] of Object.entries(legacyMapping)) {
+        update.run(systemKey, designation);
+      }
+    });
+    updateMany();
+    
+    console.log('[DB] Migration favorites : colonne system_key ajoutée');
+  }
 }
 
-function seedFavorites(): void {
+/**
+ * Synchronise les favoris système avec la base de données.
+ * Cette fonction est idempotente : elle peut être appelée plusieurs fois sans effet secondaire.
+ * 
+ * Règles de synchronisation :
+ * - Si un favori système n'existe pas dans la DB → INSERT
+ * - Si un favori système existe mais a des valeurs différentes → UPDATE
+ * - Si un favori existe dans la DB mais n'est plus dans DEFAULT_FAVORITES → DELETE (seulement s'il a un system_key)
+ * 
+ * Les favoris créés par l'utilisateur (sans system_key) ne sont jamais supprimés.
+ */
+function syncSystemFavorites(): void {
   const database = db;
   if (!database) return;
 
-  const count = database.prepare('SELECT COUNT(*) as count FROM favorites').get() as {
-    count: number;
-  };
-
-  if (count.count === 0) {
-    const insert = database.prepare(
-      'INSERT INTO favorites (type, designation, power_w, color) VALUES (@type, @designation, @power_w, @color)'
-    );
-    const insertMany = database.transaction(() => {
-      for (const fav of DEFAULT_FAVORITES) {
-        insert.run(fav);
+  const run = database.transaction(() => {
+    // Charger tous les favoris existants depuis la DB
+    const existingFavorites = database
+      .prepare('SELECT id, system_key, type, designation, power_w, color FROM favorites')
+      .all() as Array<{
+        id: number;
+        system_key: string | null;
+        type: string;
+        designation: string;
+        power_w: number;
+        color: string;
+      }>;
+    
+    // Créer un map pour une recherche rapide par system_key
+    const existingByKey = new Map<string, typeof existingFavorites[0]>();
+    
+    for (const fav of existingFavorites) {
+      if (fav.system_key) {
+        existingByKey.set(fav.system_key, fav);
       }
-    });
-    insertMany();
-  }
+    }
+    
+    // Préparer les statements SQL une seule fois pour la performance
+    const insertStmt = database.prepare(
+      'INSERT INTO favorites (system_key, type, designation, power_w, color) VALUES (@system_key, @type, @designation, @power_w, @color)'
+    );
+    const updateStmt = database.prepare(
+      'UPDATE favorites SET type = @type, designation = @designation, power_w = @power_w, color = @color WHERE system_key = @system_key'
+    );
+    const deleteStmt = database.prepare(
+      'DELETE FROM favorites WHERE system_key = ?'
+    );
+    
+    // Traiter chaque favori système par défaut
+    for (const defaultFav of DEFAULT_FAVORITES) {
+      const existing = existingByKey.get(defaultFav.system_key);
+      
+      if (!existing) {
+        // INSERT : le favori n'existe pas
+        insertStmt.run(defaultFav);
+      } else {
+        // UPDATE uniquement si une valeur a changé
+        const needsUpdate =
+          existing.type !== defaultFav.type ||
+          existing.designation !== defaultFav.designation ||
+          existing.power_w !== defaultFav.power_w ||
+          existing.color !== defaultFav.color;
+        
+        if (needsUpdate) {
+          updateStmt.run(defaultFav);
+        }
+        
+        // Marquer comme traité pour éviter le DELETE
+        existingByKey.delete(defaultFav.system_key);
+      }
+    }
+    
+    // DELETE : supprimer les favoris système qui n'existent plus dans DEFAULT_FAVORITES
+    // (ceux qui restent dans existingByKey après traitement)
+    for (const systemKey of existingByKey.keys()) {
+      deleteStmt.run(systemKey);
+    }
+    
+    // Les favoris sans system_key (créés par l'utilisateur) ne sont jamais supprimés
+  });
+  
+  run();
+  console.log('[DB] Synchronisation des favoris système terminée');
 }
 
 export function closeDatabase(): void {

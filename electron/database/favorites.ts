@@ -3,6 +3,7 @@ import { getDatabase } from './db';
 
 export interface FavoriteRow {
   id: number;
+  system_key: string | null;
   type: FavoriteType;
   designation: string;
   power_w: number;
@@ -21,13 +22,15 @@ export function createFavorite(data: {
   designation: string;
   power_w: number;
   color?: string;
+  system_key?: string;
 }): FavoriteRow {
   const db = getDatabase();
   const result = db
     .prepare(
-      'INSERT INTO favorites (type, designation, power_w, color) VALUES (@type, @designation, @power_w, @color)'
+      'INSERT INTO favorites (system_key, type, designation, power_w, color) VALUES (@system_key, @type, @designation, @power_w, @color)'
     )
     .run({
+      system_key: data.system_key ?? null,
       type: data.type,
       designation: data.designation,
       power_w: data.power_w,
