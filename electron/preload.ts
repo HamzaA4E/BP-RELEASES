@@ -25,6 +25,7 @@ import type {
   CreateArticleInput,
   UpdateArticleInput,
   CreateFavoriteInput,
+  UpdateFavoriteInput,
   CompanySettings,
   UpdateCompanySettingsInput,
   UploadLogoResult,
@@ -117,6 +118,8 @@ const api = {
     getAll: (): Promise<Favorite[]> => invoke('favorites:getAll'),
     create: (data: CreateFavoriteInput): Promise<Favorite> =>
       invoke('favorites:create', data),
+    update: (data: UpdateFavoriteInput): Promise<Favorite> =>
+      invoke('favorites:update', data),
     delete: (id: number): Promise<boolean> => invoke('favorites:delete', id),
   },
   export: {

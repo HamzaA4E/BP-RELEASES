@@ -117,18 +117,8 @@ export function usePanelEditing({
         return;
       }
 
-      // Sauvegarder d'abord les changements dans la base de données
-      await window.bilpow.panels.saveChanges({ panelId, changes: cleanedChanges });
-      markSaved();
-      await refreshElements();
-      await refreshPanels();
-
-      // Show success message after database save
-      toast.success("Enregistrement effectué avec succès");
-
-      // Exporter le projet
+      // D'abord, gérer l'export du projet (boîte de dialogue si nécessaire)
       if (currentProject) {
-        // Check localStorage for saved export path for this project
         const localStorageKey = `bilpow_export_path_${currentProject.id}`;
         const storedPath = localStorage.getItem(localStorageKey);
 
@@ -138,10 +128,9 @@ export function usePanelEditing({
             currentProject.id,
             storedPath,
           );
-          if (exportResult.success) {
-            toast.success("Modifications enregistrées");
-          } else if (exportResult.error) {
+          if (exportResult.error) {
             toast.error(exportResult.error);
+            return; // Arrêter si l'export échoue
           }
         } else {
           // Si aucun chemin n'est défini, ouvrir la boîte de dialogue pour exporter
@@ -151,15 +140,24 @@ export function usePanelEditing({
           if (exportResult.success && exportResult.filePath) {
             // Save the path to localStorage for future saves
             localStorage.setItem(localStorageKey, exportResult.filePath);
-            toast.success("Modifications enregistrées");
-          } else if (
-            exportResult.error &&
-            exportResult.error !== "Export annulé"
-          ) {
-            toast.error(exportResult.error);
+          } else if (exportResult.error) {
+            if (exportResult.error !== "Export annulé") {
+              toast.error(exportResult.error);
+            }
+            // Si l'utilisateur annule ou s'il y a une erreur, ne pas sauvegarder
+            return;
           }
         }
       }
+
+      // Sauvegarder les changements dans la base de données seulement après export réussi
+      await window.bilpow.panels.saveChanges({ panelId, changes: cleanedChanges });
+      markSaved();
+      await refreshElements();
+      await refreshPanels();
+
+      // Show success message after both database save and export
+      toast.success("Enregistrement effectué avec succès");
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Erreur lors de la sauvegarde",

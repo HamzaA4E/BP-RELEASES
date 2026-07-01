@@ -32,6 +32,7 @@ import type {
   UpdateCompanySettingsInput,
   CreateElementInput,
   CreateFavoriteInput,
+  UpdateFavoriteInput,
   UpdateElementInput,
   PanelSavePayload,
   UploadLogoResult,
@@ -666,6 +667,9 @@ ipcMain.handle('devtools:open', () => {
   );
   ipcMain.handle('favorites:create', (_e, data: CreateFavoriteInput) =>
     wrapHandler(() => favoritesDb.createFavorite(data))
+  );
+  ipcMain.handle('favorites:update', (_e, data: UpdateFavoriteInput) =>
+    wrapHandler(() => favoritesDb.updateFavorite(data))
   );
   ipcMain.handle('favorites:delete', (_e, id: number) =>
     wrapHandler(() => {

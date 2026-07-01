@@ -5,6 +5,7 @@ interface FavoriteCardProps {
   favorite: Favorite;
   onSelect: (favorite: Favorite) => void;
   onDelete?: (id: number) => void;
+  onEdit?: (favorite: Favorite) => void;
   compact?: boolean;
 }
 
@@ -12,6 +13,7 @@ export function FavoriteCard({
   favorite,
   onSelect,
   onDelete,
+  onEdit,
   compact = false,
 }: FavoriteCardProps) {
   const typeIcon =
@@ -61,6 +63,27 @@ export function FavoriteCard({
             text-red-600 dark:text-red-400 text-xs hover:bg-red-200 transition-opacity"
         >
           ×
+        </span>
+      )}
+      {onEdit && (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(favorite);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.stopPropagation();
+              onEdit(favorite);
+            }
+          }}
+          className="opacity-0 group-hover:opacity-100 absolute top-1 right-7 w-5 h-5
+            flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50
+            text-blue-600 dark:text-blue-400 text-xs hover:bg-blue-200 transition-opacity"
+        >
+          ✏️
         </span>
       )}
     </button>

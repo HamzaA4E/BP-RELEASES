@@ -24,6 +24,10 @@ export function Favorites() {
   const [color] = useState("#3B82F6");
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editDesignation, setEditDesignation] = useState("");
+  const [editPowerW, setEditPowerW] = useState<number | "">("");
+  const [editType, setEditType] = useState<FavoriteType>("eclairage");
 
   const loadFavorites = async () => {
     try {
@@ -63,6 +67,47 @@ export function Favorites() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
     }
+  };
+
+  const handleEdit = (fav: typeof favorites[0]) => {
+    setEditingId(fav.id);
+    setEditDesignation(fav.designation);
+    setEditPowerW(fav.power_w);
+    setEditType(fav.type);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingId === null) return;
+    if (!editDesignation.trim()) {
+      toast.error("La désignation est requise");
+      return;
+    }
+    if (editPowerW === "" || editPowerW <= 0) {
+      toast.error("La puissance doit être supérieure à 0");
+      return;
+    }
+    try {
+      await window.bilpow.favorites.update({
+        id: editingId,
+        type: editType,
+        designation: editDesignation.trim(),
+        power_w: editPowerW,
+      });
+      setEditingId(null);
+      setEditDesignation("");
+      setEditPowerW("");
+      await loadFavorites();
+      toast.success("Favori modifié");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur");
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditDesignation("");
+    setEditPowerW("");
   };
 
   const handleDelete = async () => {
@@ -199,14 +244,80 @@ export function Favorites() {
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {filteredFavorites.map((fav) => (
-              <FavoriteCard
-                key={fav.id}
-                favorite={fav}
-                onSelect={() => {}}
-                onDelete={setDeleteId}
-              />
-            ))}
+            {filteredFavorites.map((fav) => {
+              if (editingId === fav.id) {
+                return (
+                  <form key={`edit-${fav.id}`} onSubmit={handleSaveEdit} className="card p-4">
+                    <h3 className="font-semibold mb-3 text-gray-800 dark:text-white">Modifier le favori</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
+                        <div className="flex rounded-lg overflow-hidden border border-gray-300 dark:border-gray-600">
+                          {FAVORITE_TYPES.map(({ id, label, icon }) => (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => setEditType(id)}
+                              className={`flex-1 py-1.5 text-xs font-medium ${
+                                editType === id
+                                  ? "bg-primary text-white"
+                                  : "bg-white dark:bg-gray-800"
+                              }`}
+                            >
+                              {icon} {label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Désignation</label>
+                        <input
+                          type="text"
+                          value={editDesignation}
+                          onChange={(e) => setEditDesignation(e.target.value)}
+                          className="input-field text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1">Puissance (W)</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={editPowerW}
+                          onChange={(e) =>
+                            setEditPowerW(
+                              e.target.value === "" ? "" : Number(e.target.value)
+                            )
+                          }
+                          className="input-field text-sm"
+                        />
+                      </div>
+                      <div className="flex gap-2 pt-2">
+                        <button type="submit" className="btn-primary text-xs flex-1">
+                          Enregistrer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          className="btn-secondary text-xs flex-1"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                );
+              }
+              return (
+                <FavoriteCard
+                  key={fav.id}
+                  favorite={fav}
+                  onSelect={() => {}}
+                  onDelete={setDeleteId}
+                  onEdit={handleEdit}
+                />
+              );
+            })}
             {filteredFavorites.length === 0 && (
               <p className="text-gray-400 text-sm col-span-2">
                 {searchTerm.trim()

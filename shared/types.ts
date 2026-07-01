@@ -222,6 +222,14 @@ export interface CreateFavoriteInput {
   color?: string;
 }
 
+export interface UpdateFavoriteInput {
+  id: number;
+  type?: FavoriteType;
+  designation?: string;
+  power_w?: number;
+  color?: string;
+}
+
 export interface CompanySettings {
   id: number;
   company_name: string;
