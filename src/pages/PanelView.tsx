@@ -1582,11 +1582,26 @@ export function PanelView() {
           onArticleUpdate={handleArticleUpdate}
           onArticleDelete={handleArticleDelete}
         />
-        <KsGlobalPanel
-          totalPowerW={totalPower}
-          ks={panel.coef_ks ?? 1}
-          onKsChange={(ks) => void saveKsGlobal(ks)}
-        />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <KsGlobalPanel
+            totalPowerW={totalPower}
+            ks={panel.coef_ks ?? 1}
+            onKsChange={(ks) => void saveKsGlobal(ks)}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setEditElement(null);
+              setContextJdb(null);
+              setDepartForNewType(null);
+              setShowAddElement(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-lg text-sm font-medium transition-all shadow-sm"
+          >
+            <span className="text-lg leading-none">+</span>
+            Ajouter un élément
+          </button>
+        </div>
       </div>
 
       <AddElementModal
