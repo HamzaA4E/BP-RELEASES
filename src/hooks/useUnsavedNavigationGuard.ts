@@ -86,6 +86,24 @@ export function useUnsavedNavigationGuard() {
 
     setIsSaving(true);
     try {
+      // First, trigger panel save via custom event
+      const savePromise = new Promise<void>((resolve, reject) => {
+        const handleSaveComplete = () => {
+          window.removeEventListener('panel-save-complete', handleSaveComplete);
+          resolve();
+        };
+        const handleSaveError = () => {
+          window.removeEventListener('panel-save-error', handleSaveError);
+          reject(new Error('Erreur lors de la sauvegarde du panneau'));
+        };
+        window.addEventListener('panel-save-complete', handleSaveComplete);
+        window.addEventListener('panel-save-error', handleSaveError);
+        window.dispatchEvent(new CustomEvent('panel-request-save'));
+      });
+
+      await savePromise;
+
+      // Then export the project
       const localStorageKey = `bilpow_export_path_${currentProject.id}`;
       const storedPath = localStorage.getItem(localStorageKey);
 

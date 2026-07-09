@@ -262,8 +262,24 @@ export function PanelView() {
     initPanel(panId);
     void loadData();
     void window.bilpow.favorites.getAll().then(setFavorites);
-    return () => reset();
-  }, [panId, loadData, setFavorites, initPanel, reset]);
+
+    // Handle panel save request from navigation guard
+    const handleSaveRequest = async () => {
+      try {
+        await save();
+        window.dispatchEvent(new CustomEvent('panel-save-complete'));
+      } catch (err) {
+        window.dispatchEvent(new CustomEvent('panel-save-error'));
+      }
+    };
+
+    window.addEventListener('panel-request-save', handleSaveRequest as EventListener);
+
+    return () => {
+      window.removeEventListener('panel-request-save', handleSaveRequest as EventListener);
+      reset();
+    };
+  }, [panId, loadData, setFavorites, initPanel, reset, save]);
 
 
   // Notify Layout about modal state to hide FAB
