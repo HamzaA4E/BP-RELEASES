@@ -528,6 +528,7 @@ export function Sidebar() {
         onCancel={cancelDiscard}
         tertiaryLabel="Enregistrer"
         onTertiary={() => {
+          cancelDiscard();
           window.dispatchEvent(new CustomEvent('panel-request-save'));
         }}
       />
