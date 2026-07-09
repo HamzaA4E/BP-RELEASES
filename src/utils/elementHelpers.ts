@@ -393,6 +393,7 @@ export function normalizeElement(raw: Element): Element {
     ks: raw.ks ?? DEFAULT_KS,
     coef_ks: raw.coef_ks ?? coefDefaults.coef_ks,
     coef_ku: raw.coef_ku ?? coefDefaults.coef_ku,
+    use_coefs: raw.use_coefs !== 0,
     is_multi: Boolean(raw.is_multi),
   };
 }

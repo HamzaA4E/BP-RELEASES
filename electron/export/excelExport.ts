@@ -21,7 +21,27 @@ import {
   excelCurrentFormula,
   resolveElementCoefs,
   wattsToKw,
+  type PowerElementInput,
 } from '../../shared/powerCalculations';
+
+/**
+ * Convert ElementRow to PowerElementInput for power calculations.
+ * Converts use_coefs from number (database) to boolean (calculation).
+ */
+function elementRowToPowerInput(el: ElementRow): PowerElementInput {
+  return {
+    type: el.type,
+    power_w: el.power_w,
+    quantity: el.quantity,
+    coef_ks: el.coef_ks,
+    coef_ku: el.coef_ku,
+    ks: el.ks,
+    ku: el.ku,
+    row_kind: el.row_kind,
+    is_multi: el.is_multi,
+    use_coefs: el.use_coefs !== 0,
+  };
+}
 
 const PRIMARY_COLOR = 'FF1E3A5F';
 const ALT_ROW_COLOR = 'FFF0F4F8'; // Légèrement plus visible pour une meilleure lisibilité
@@ -440,8 +460,12 @@ function writeMultiDepartExcelRows(
     article.designation?.trim() || '';
     row.getCell(colMapping.POWER).value = wattsToKw(article.power_w);
     row.getCell(colMapping.QTY).value = article.quantity;
-    const ks = article.coef_ks ?? 1;
-    const ku = article.coef_ku ?? 1;
+    
+    // Respect use_coefs flag from parent element
+    const useCoefs = el.use_coefs !== 0;
+    const ks = useCoefs ? (article.coef_ks ?? 1) : 1;
+    const ku = useCoefs ? (article.coef_ku ?? 1) : 1;
+    
     row.getCell(colMapping.KS).value = ks;
     if (showKu) {
       row.getCell(colMapping.KU).value = ku;
@@ -513,13 +537,16 @@ function hasNonUnitaryKu(elements: ElementRow[]): boolean {
   for (const el of elements) {
     if (isJeuDeBarresRow(el)) continue;
     
+    // Si use_coefs est 0 (false), ignorer les coefficients
+    if (el.use_coefs === 0) continue;
+    
     if (el.is_multi) {
       const articles = getArticlesByElement(el.id);
       for (const article of articles) {
         if ((article.coef_ku ?? 1) !== 1) return true;
       }
     } else {
-      const resolvedCoefs = resolveElementCoefs(el);
+      const resolvedCoefs = resolveElementCoefs(elementRowToPowerInput(el));
       if (resolvedCoefs.ku !== 1) return true;
     }
   }
@@ -698,7 +725,13 @@ function createPanelSheet(
     }
 
     const row = sheet.getRow(rowNum);
-    const { ks, ku } = resolveElementCoefs(el);
+    
+    // Respect use_coefs flag
+    const useCoefs = el.use_coefs !== 0;
+    const resolvedCoefs = resolveElementCoefs(elementRowToPowerInput(el));
+    const ks = useCoefs ? resolvedCoefs.ks : 1;
+    const ku = useCoefs ? resolvedCoefs.ku : 1;
+    
     const typeValue = el.type_label || '';
     const designation = el.emplacement?.trim() || '';
 

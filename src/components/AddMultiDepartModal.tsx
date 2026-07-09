@@ -48,6 +48,7 @@ interface DepartForm {
   phase_type: PhaseType;
   coef_ks: number;
   coef_ku: number;
+  use_coefs: boolean;
   circuit: string;
   notes: string;
 }
@@ -79,6 +80,7 @@ function buildDefaultDepart(type: DepartType, existingElements: Element[], conte
     phase_type: 'mono',
     coef_ks: coefs.coef_ks,
     coef_ku: coefs.coef_ku,
+    use_coefs: true,
     circuit: '',
     notes: '',
   };
@@ -312,6 +314,7 @@ export function MultiDepartModal({
         phase_type: editElement.phase_type ?? 'mono',
         coef_ks: editElement.coef_ks,
         coef_ku: editElement.coef_ku,
+        use_coefs: editElement.use_coefs ?? true,
         circuit: editElement.circuit ?? '',
         notes: editElement.notes ?? '',
       });
@@ -440,6 +443,7 @@ export function MultiDepartModal({
           phase_type: depart.phase_type,
           coef_ks: depart.coef_ks,
           coef_ku: depart.coef_ku,
+          use_coefs: depart.use_coefs,
           circuit: depart.circuit.trim() || undefined,
           notes: depart.notes.trim() || undefined,
           is_multi: true,
@@ -493,6 +497,7 @@ export function MultiDepartModal({
           quantity: totalQuantity,
           coef_ks: depart.coef_ks,
           coef_ku: depart.coef_ku,
+          use_coefs: depart.use_coefs,
           circuit: depart.circuit.trim() || undefined,
           notes: depart.notes.trim() || undefined,
           is_multi: true,
@@ -618,7 +623,25 @@ export function MultiDepartModal({
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center justify-between mb-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={depart.use_coefs}
+                    onChange={(e) =>
+                      setDepart((p) => ({ ...p, use_coefs: e.target.checked }))
+                    }
+                    className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
+                  />
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Appliquer les coefficients
+                  </span>
+                </label>
+                <span className="text-xs text-slate-500">
+                  {depart.use_coefs ? "Activé" : "Désactivé"}
+                </span>
+              </div>
+              <div className={`grid grid-cols-2 gap-3 transition-opacity ${!depart.use_coefs ? "opacity-50 pointer-events-none" : ""}`}>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Ks</label>
                   <input

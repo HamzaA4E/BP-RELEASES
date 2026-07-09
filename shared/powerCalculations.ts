@@ -16,6 +16,7 @@ export interface PowerElementInput {
   ku?: number;
   row_kind?: string;
   is_multi?: boolean;
+  use_coefs?: boolean;
 }
 
 export interface ArticlePowerInput {
@@ -75,7 +76,10 @@ export function calcPuissanceTotale(
     return articlesTotalPower(articles);
   }
   const { ks, ku } = resolveElementCoefs(el);
-  return Math.round(el.power_w * el.quantity * ks * ku);
+  // Si use_coefs est false, ignorer les coefficients (utiliser 1)
+  const effectiveKs = el.use_coefs === false ? 1 : ks;
+  const effectiveKu = el.use_coefs === false ? 1 : ku;
+  return Math.round(el.power_w * el.quantity * effectiveKs * effectiveKu);
 }
 
 /** Somme des puissances totales du tableau en W (hors attente et jeux de barres). */

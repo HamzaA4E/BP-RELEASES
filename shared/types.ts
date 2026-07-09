@@ -95,6 +95,7 @@ export interface Element {
   ks: number;
   coef_ks: number;
   coef_ku: number;
+  use_coefs: boolean;
   circuit: string | null;
   notes: string | null;
   is_multi: boolean;
@@ -265,7 +266,7 @@ export interface ProjectExcelExportPayload {
   project: Project;
   locations: Location[];
   panelsByLocation: Record<number, PanelWithStats[]>;
-  elementsByPanel: Record<number, Element[]>;
+  elementsByPanel: Record<number, import('../electron/database/elements').ElementRow[]>;
 }
 
 export interface IpcResponse<T> {

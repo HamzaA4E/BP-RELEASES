@@ -47,7 +47,12 @@ export function getPanelsByLocation(locationId: number): PanelWithStatsRow[] {
   return panels.map((p) => {
     const elements = getElementsByPanel(p.id);
     const articlesByElement = getArticlesByPanel(p.id);
-    const used_power_w = panelTotalPower(elements, articlesByElement);
+    // Convert use_coefs from number to boolean for power calculations
+    const elementsForPower = elements.map((el) => ({
+      ...el,
+      use_coefs: el.use_coefs !== 0,
+    }));
+    const used_power_w = panelTotalPower(elementsForPower, articlesByElement);
     return {
       ...p,
       absorbed_power_w: used_power_w,

@@ -60,6 +60,7 @@ type ElementSavePayload = {
   phase_type: PhaseType;
   coef_ks: number;
   coef_ku: number;
+  use_coefs: boolean;
   notes?: string;
 };
 
@@ -1036,6 +1037,7 @@ export function PanelView() {
         phase_type: data.phase_type,
         coef_ks: data.coef_ks,
         coef_ku: data.coef_ku,
+        use_coefs: data.use_coefs,
         notes: data.notes ?? null,
       };
       recordOperation({
@@ -1056,6 +1058,7 @@ export function PanelView() {
               phase_type: prev.phase_type,
               coef_ks: prev.coef_ks,
               coef_ku: prev.coef_ku,
+              use_coefs: prev.use_coefs,
               notes: prev.notes ?? undefined,
             },
           },

@@ -142,6 +142,7 @@ const RECREATE_ELEMENTS_SQL = `
     coef_ks REAL DEFAULT 0.8,
     coef_ku REAL DEFAULT 1.0,
     coef_fp REAL DEFAULT 1.0,
+    use_coefs INTEGER DEFAULT 1,
     circuit TEXT,
     notes TEXT,
     order_index INTEGER DEFAULT 0
@@ -151,7 +152,7 @@ const RECREATE_ELEMENTS_SQL = `
     id, panel_id, type, repere, designation, type_label, emplacement,
     row_kind, bar_set_index, phase_type, jdb_category,
     power_w, quantity, distance_m, ku, ks, fp,
-    coef_ks, coef_ku, coef_fp, circuit, notes, order_index
+    coef_ks, coef_ku, coef_fp, use_coefs, circuit, notes, order_index
   )
   SELECT
     id, panel_id,
@@ -173,6 +174,7 @@ const RECREATE_ELEMENTS_SQL = `
     power_w, quantity, distance_m,
     COALESCE(ku, 1), COALESCE(ks, 1), COALESCE(fp, 1),
     COALESCE(coef_ks, 0.8), COALESCE(coef_ku, 1.0), COALESCE(coef_fp, 1.0),
+    1,
     circuit, notes, order_index
   FROM elements;
 
@@ -314,6 +316,7 @@ function ensureElementsColumns(database: Database.Database): void {
   addColumn('coef_ks', 'REAL DEFAULT 0.8');
   addColumn('coef_ku', 'REAL DEFAULT 1.0');
   addColumn('coef_fp', 'REAL DEFAULT 1.0');
+  addColumn('use_coefs', 'INTEGER DEFAULT 1');
   addColumn('is_multi', 'INTEGER DEFAULT 0');
 
   database.exec(

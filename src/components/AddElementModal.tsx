@@ -33,6 +33,7 @@ interface FormData {
   phase_type: PhaseType;
   coef_ks: number;
   coef_ku: number;
+  use_coefs: boolean;
   notes: string;
 }
 
@@ -58,6 +59,7 @@ interface AddElementModalProps {
     phase_type: PhaseType;
     coef_ks: number;
     coef_ku: number;
+    use_coefs: boolean;
     notes?: string;
   }) => Promise<void>;
   onSaveMultiple?: (
@@ -71,6 +73,7 @@ interface AddElementModalProps {
       phase_type: PhaseType;
       coef_ks: number;
       coef_ku: number;
+      use_coefs: boolean;
       notes?: string;
     }>,
   ) => Promise<void>;
@@ -109,6 +112,7 @@ function buildDefaultForm(
       quantity: 1,
       phase_type,
       ...coefs,
+      use_coefs: true,
       notes: "",
     };
   }
@@ -122,6 +126,7 @@ function buildDefaultForm(
     quantity: 1,
     phase_type,
     ...coefs,
+    use_coefs: true,
     notes: "",
   };
 }
@@ -204,6 +209,7 @@ export function AddElementModal({
         phase_type,
         coef_ks: editElement.coef_ks,
         coef_ku: editElement.coef_ku,
+        use_coefs: editElement.use_coefs ?? true,
         notes: editElement.notes ?? "",
       });
       setPowerInput(String(wattsToKw(editElement.power_w)));
@@ -221,6 +227,7 @@ export function AddElementModal({
         phase_type,
         coef_ks: addTypeToDepart.coef_ks,
         coef_ku: addTypeToDepart.coef_ku,
+        use_coefs: addTypeToDepart.use_coefs ?? true,
         notes: "",
       });
       setPowerInput("1");
@@ -342,6 +349,7 @@ export function AddElementModal({
     phase_type: formData.phase_type,
     coef_ks: formData.coef_ks,
     coef_ku: formData.coef_ku,
+    use_coefs: formData.use_coefs,
     notes: formData.notes.trim() || undefined,
   });
 
@@ -727,7 +735,25 @@ export function AddElementModal({
               </button>
               {showCoefs && (
                 <div className="p-4 border-t border-slate-200 dark:border-slate-600 space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.use_coefs}
+                        onChange={(e) =>
+                          setFormData((p) => ({ ...p, use_coefs: e.target.checked }))
+                        }
+                        className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
+                      />
+                      <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                        Appliquer les coefficients
+                      </span>
+                    </label>
+                    <span className="text-xs text-slate-500">
+                      {formData.use_coefs ? "Activé" : "Désactivé"}
+                    </span>
+                  </div>
+                  <div className={`grid grid-cols-2 gap-3 transition-opacity ${!formData.use_coefs ? "opacity-50 pointer-events-none" : ""}`}>
                     {(
                       [
                         {

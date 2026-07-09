@@ -26,6 +26,7 @@ export interface ElementRow {
   ks: number;
   coef_ks: number;
   coef_ku: number;
+  use_coefs: number;
   circuit: string | null;
   notes: string | null;
   is_multi: boolean;
@@ -184,6 +185,7 @@ export function createElement(data: {
   ks?: number;
   coef_ks?: number;
   coef_ku?: number;
+  use_coefs?: boolean;
   circuit?: string;
   notes?: string;
   is_multi?: boolean;
@@ -208,13 +210,13 @@ export function createElement(data: {
         panel_id, type, repere, designation, type_label, emplacement,
         row_kind, bar_set_index, phase_type, jdb_category,
         power_w, quantity, distance_m,
-        ku, ks, fp, coef_ks, coef_ku, coef_fp,
+        ku, ks, fp, coef_ks, coef_ku, coef_fp, use_coefs,
         circuit, notes, is_multi, order_index
       ) VALUES (
         @panel_id, @type, @repere, @designation, @type_label, @emplacement,
         @row_kind, @bar_set_index, @phase_type, @jdb_category,
         @power_w, @quantity, @distance_m,
-        @ku, @ks, 1, @coef_ks, @coef_ku, 1,
+        @ku, @ks, 1, @coef_ks, @coef_ku, 1, @use_coefs,
         @circuit, @notes, @is_multi, @order_index
       )`
     )
@@ -236,6 +238,7 @@ export function createElement(data: {
       ks: data.ks ?? 1,
       coef_ks: data.coef_ks ?? coefDefaults.coef_ks,
       coef_ku: data.coef_ku ?? coefDefaults.coef_ku,
+      use_coefs: data.use_coefs !== undefined ? (data.use_coefs ? 1 : 0) : 1,
       circuit: data.circuit ?? null,
       notes: data.notes ?? null,
       is_multi: data.is_multi ? 1 : 0,
@@ -262,6 +265,7 @@ export function updateElement(data: {
   ks?: number;
   coef_ks?: number;
   coef_ku?: number;
+  use_coefs?: boolean;
   circuit?: string;
   notes?: string;
   is_multi?: boolean;
@@ -294,6 +298,7 @@ export function updateElement(data: {
       ks = @ks,
       coef_ks = @coef_ks,
       coef_ku = @coef_ku,
+      use_coefs = @use_coefs,
       circuit = @circuit,
       notes = @notes,
       is_multi = @is_multi
@@ -316,6 +321,7 @@ export function updateElement(data: {
     ks: data.ks ?? existing.ks,
     coef_ks: data.coef_ks ?? existing.coef_ks,
     coef_ku: data.coef_ku ?? existing.coef_ku,
+    use_coefs: data.use_coefs !== undefined ? (data.use_coefs ? 1 : 0) : existing.use_coefs ?? 1,
     circuit: data.circuit !== undefined ? data.circuit : existing.circuit,
     notes: data.notes !== undefined ? data.notes : existing.notes,
     is_multi:
