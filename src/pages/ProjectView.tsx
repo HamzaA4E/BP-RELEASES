@@ -18,6 +18,7 @@ export function ProjectView() {
     setSelection,
     setPanels,
     company,
+    markProjectDirty,
   } = useAppStore();
 
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -86,6 +87,7 @@ export function ProjectView() {
       setNewLocationName("");
       setShowAddLocation(false);
       await loadData();
+      markProjectDirty();
       toast.success("Emplacement ajouté");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
