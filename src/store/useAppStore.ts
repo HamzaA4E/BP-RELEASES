@@ -24,6 +24,7 @@ interface AppState {
   sidebarExpanded: Record<string, boolean>;
   searchQuery: string;
   company: CompanySettings | null;
+  projectDirty: boolean;
 
   setDarkMode: (value: boolean) => void;
   setProjects: (projects: ProjectWithStats[]) => void;
@@ -38,6 +39,8 @@ interface AppState {
   resetViewData: () => void;
   loadCompanySettings: () => Promise<void>;
   updateCompany: (data: UpdateCompanySettingsInput) => void;
+  markProjectDirty: () => void;
+  markProjectClean: () => void;
 }
 
 const defaultSelection: AppSelection = {
@@ -61,6 +64,7 @@ export const useAppStore = create<AppState>()(
       sidebarExpanded: {},
       searchQuery: '',
       company: null,
+      projectDirty: false,
 
       setDarkMode: (value) => {
         document.documentElement.classList.toggle('dark', value);
@@ -96,6 +100,8 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           company: state.company ? { ...state.company, ...data } : null,
         })),
+      markProjectDirty: () => set({ projectDirty: true }),
+      markProjectClean: () => set({ projectDirty: false }),
     }),
     {
       name: 'bilpow-settings',

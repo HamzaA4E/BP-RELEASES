@@ -7,7 +7,7 @@ export function useUnsavedNavigationGuard() {
   const hasUnsaved = usePanelEditingStore((s) => s.pendingChanges.length > 0);
   const savedFilePath = usePanelEditingStore((s) => s.savedFilePath);
   const clearEditingState = usePanelEditingStore((s) => s.clearEditingState);
-  const { currentProject, setProjects, locations, panels } = useAppStore();
+  const { currentProject, setProjects, locations, panels, projectDirty, markProjectClean } = useAppStore();
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -15,8 +15,8 @@ export function useUnsavedNavigationGuard() {
   const guardedNavigate = useCallback(
     (action: () => void) => {
       // Check if project has been saved to disk (has physical file path)
-      const projectSavedPath = currentProject 
-        ? localStorage.getItem(`bilpow_export_path_${currentProject.id}`) 
+      const projectSavedPath = currentProject
+        ? localStorage.getItem(`bilpow_export_path_${currentProject.id}`)
         : null;
       const hasProjectPath = projectSavedPath !== null;
 
@@ -24,16 +24,29 @@ export function useUnsavedNavigationGuard() {
       const hasProjectData = locations.length > 0 || panels.length > 0;
 
       // Only show confirmation if:
-      // - There are unsaved changes in the panel, OR
-      // - The project has no physical file path AND has data (new project with unsaved data)
-      if (!hasUnsaved && hasProjectPath && !hasProjectData) {
+      // - Project is dirty (has unsaved changes), OR
+      // - The project has no physical file path AND has data (new project with unsaved data), OR
+      // - The project has no physical file path AND is the current project (new project that needs to be saved)
+      if (!projectDirty && hasProjectPath) {
         action();
         return;
       }
-      setPendingAction(() => action);
-      setShowConfirm(true);
+      // If project has no path but has data, or is a new project without path, show confirmation
+      if (!hasProjectPath && currentProject) {
+        setPendingAction(() => action);
+        setShowConfirm(true);
+        return;
+      }
+      // If project is dirty, show confirmation
+      if (projectDirty) {
+        setPendingAction(() => action);
+        setShowConfirm(true);
+        return;
+      }
+      // Otherwise allow navigation
+      action();
     },
-    [hasUnsaved, currentProject, locations, panels]
+    [projectDirty, currentProject, locations, panels]
   );
 
   const confirmDiscard = useCallback(async () => {
@@ -77,7 +90,7 @@ export function useUnsavedNavigationGuard() {
 
   const confirmSave = useCallback(async () => {
     if (!currentProject || isSaving) return;
-    
+
     setIsSaving(true);
     try {
       const localStorageKey = `bilpow_export_path_${currentProject.id}`;
@@ -94,14 +107,15 @@ export function useUnsavedNavigationGuard() {
         // Open save dialog for first save
         exportResult = await window.bilpow.project.export(currentProject.id);
       }
-      
+
       if (exportResult.success && exportResult.filePath) {
         // Save the path to localStorage
         localStorage.setItem(localStorageKey, exportResult.filePath);
         toast.success("Projet enregistré");
-        
-        // Clear editing state and proceed with navigation
+
+        // Clear editing state, mark project clean (hierarchical save), and proceed with navigation
         clearEditingState();
+        markProjectClean();
         setShowConfirm(false);
         pendingAction?.();
         setPendingAction(null);
@@ -115,7 +129,7 @@ export function useUnsavedNavigationGuard() {
     } finally {
       setIsSaving(false);
     }
-  }, [currentProject, isSaving, pendingAction, clearEditingState]);
+  }, [currentProject, isSaving, pendingAction, clearEditingState, markProjectClean]);
 
   const cancelDiscard = useCallback(() => {
     setShowConfirm(false);
