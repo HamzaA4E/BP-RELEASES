@@ -6,7 +6,7 @@ import { Sidebar } from "./Sidebar";
 import { QuickActionsMenu } from "./QuickActionsMenu";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useAppStore } from "@/store/useAppStore";
-import { navigateHierarchically, shouldShowBackButton } from "@/utils/hierarchicalNavigation";
+import { navigateHierarchically, shouldShowBackButton, extractNavigationContext } from "@/utils/hierarchicalNavigation";
 import { useUnsavedNavigationGuard } from "@/hooks/useUnsavedNavigationGuard";
 
 export function Layout() {
@@ -15,6 +15,15 @@ export function Layout() {
   const { darkMode, setDarkMode } = useAppStore();
   const canGoBack = shouldShowBackButton(location.pathname);
   const { guardedNavigate, showConfirm, confirmDiscard, cancelDiscard, confirmSave, isSaving } = useUnsavedNavigationGuard();
+
+  // Check if navigation is intra-project (within same project)
+  const isIntraProjectNavigation = () => {
+    const context = extractNavigationContext(location.pathname);
+    // If we're going from panel to location or location to project, it's intra-project
+    // If we're going from project to dashboard, it's inter-project
+    // Only allow intra-project navigation if we're not leaving the project entirely
+    return context.panelId !== undefined || context.locationId !== undefined;
+  };
 
   // Get action handlers from PanelView via custom event
   const [quickActions, setQuickActions] = useState<{

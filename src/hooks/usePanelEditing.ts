@@ -38,7 +38,7 @@ export function usePanelEditing({
     reset,
   } = usePanelEditingStore();
 
-  const { currentProject } = useAppStore();
+  const { currentProject, markProjectDirty } = useAppStore();
 
   const applyMutations = useCallback(
     (mutations: Parameters<typeof applyLocalMutations>[2]) => {
@@ -49,9 +49,10 @@ export function usePanelEditing({
       );
       setElements(result.elements);
       setArticlesByElement(result.articlesByElement);
+      markProjectDirty();
       return result;
     },
-    [elements, articlesByElement, setElements, setArticlesByElement],
+    [elements, articlesByElement, setElements, setArticlesByElement, markProjectDirty],
   );
 
   const undo = useCallback(() => {

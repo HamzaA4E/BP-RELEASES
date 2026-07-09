@@ -24,13 +24,9 @@ export function useUnsavedNavigationGuard() {
       const hasProjectData = locations.length > 0 || panels.length > 0;
 
       // Only show confirmation if:
-      // - Project is dirty AND navigation is leaving the project (not intra-project navigation)
-      // - The project has no physical file path AND has data (new project with unsaved data)
+      // - Project is dirty (has unsaved changes), OR
+      // - The project has no physical file path AND has data (new project with unsaved data), OR
       // - The project has no physical file path AND is the current project (new project that needs to be saved)
-
-      // Allow intra-project navigation (within the same project) even if dirty
-      // This is handled by checking if the action is navigating within the current project
-      // For now, we'll use a simpler approach: only show confirmation if leaving the project
 
       if (!projectDirty && hasProjectPath) {
         action();
@@ -44,9 +40,7 @@ export function useUnsavedNavigationGuard() {
         return;
       }
 
-      // If project is dirty, we need to check if this is intra-project navigation
-      // For now, we'll show confirmation for all dirty state navigation
-      // TODO: Improve this to detect intra-project navigation and allow it
+      // If project is dirty, show confirmation
       if (projectDirty) {
         setPendingAction(() => action);
         setShowConfirm(true);
