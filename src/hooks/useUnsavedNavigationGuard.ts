@@ -7,7 +7,7 @@ export function useUnsavedNavigationGuard() {
   const hasUnsaved = usePanelEditingStore((s) => s.pendingChanges.length > 0);
   const savedFilePath = usePanelEditingStore((s) => s.savedFilePath);
   const clearEditingState = usePanelEditingStore((s) => s.clearEditingState);
-  const { currentProject, setProjects, locations, panels, projectDirty, markProjectClean, setCurrentProject, setLocations, setPanels, newLocationIds, clearNewLocationIds } = useAppStore();
+  const { currentProject, setProjects, locations, panels, projectDirty, markProjectClean, setCurrentProject, setLocations, setPanels, newLocationIds, clearNewLocationIds, newPanelIds, clearNewPanelIds } = useAppStore();
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -86,10 +86,20 @@ export function useUnsavedNavigationGuard() {
           toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
         }
       } else {
-        // Project exists on disk - delete newly created locations only
+        // Project exists on disk - delete newly created locations and panels only
         try {
           console.log('[confirmDiscard] Deleting new locations:', newLocationIds);
+          console.log('[confirmDiscard] Deleting new panels:', newPanelIds);
           console.log('[confirmDiscard] Current locations in state:', locations);
+          
+          // Delete newly created panels
+          for (const panelId of newPanelIds) {
+            await window.bilpow.panels.delete(panelId);
+            console.log('[confirmDiscard] Deleted panel:', panelId);
+          }
+          clearNewPanelIds();
+          
+          // Delete newly created locations
           for (const locationId of newLocationIds) {
             await window.bilpow.locations.delete(locationId);
             console.log('[confirmDiscard] Deleted location:', locationId);
@@ -104,7 +114,7 @@ export function useUnsavedNavigationGuard() {
           
           toast.success("Modifications non enregistrées abandonnées");
         } catch (err) {
-          console.error('[confirmDiscard] Error deleting locations:', err);
+          console.error('[confirmDiscard] Error deleting locations/panels:', err);
           toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
         }
       }
@@ -112,7 +122,7 @@ export function useUnsavedNavigationGuard() {
 
     pendingAction?.();
     setPendingAction(null);
-  }, [clearEditingState, currentProject, setProjects, pendingAction, setCurrentProject, setLocations, setPanels, newLocationIds, clearNewLocationIds]);
+  }, [clearEditingState, currentProject, setProjects, pendingAction, setCurrentProject, setLocations, setPanels, newLocationIds, clearNewLocationIds, newPanelIds, clearNewPanelIds]);
 
   const confirmSave = useCallback(async () => {
     if (!currentProject || isSaving) return;
@@ -158,10 +168,11 @@ export function useUnsavedNavigationGuard() {
         localStorage.setItem(localStorageKey, exportResult.filePath);
         toast.success("Projet enregistré");
 
-        // Clear editing state, mark project clean, clear new location IDs, and proceed with navigation
+        // Clear editing state, mark project clean, clear new location and panel IDs, and proceed with navigation
         clearEditingState();
         markProjectClean();
         clearNewLocationIds();
+        clearNewPanelIds();
         setShowConfirm(false);
         pendingAction?.();
         setPendingAction(null);

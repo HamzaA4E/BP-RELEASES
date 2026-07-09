@@ -26,6 +26,7 @@ interface AppState {
   company: CompanySettings | null;
   projectDirty: boolean;
   newLocationIds: number[];
+  newPanelIds: number[];
 
   setDarkMode: (value: boolean) => void;
   setProjects: (projects: ProjectWithStats[]) => void;
@@ -44,6 +45,8 @@ interface AppState {
   markProjectClean: () => void;
   addNewLocationId: (id: number) => void;
   clearNewLocationIds: () => void;
+  addNewPanelId: (id: number) => void;
+  clearNewPanelIds: () => void;
 }
 
 const defaultSelection: AppSelection = {
@@ -69,6 +72,7 @@ export const useAppStore = create<AppState>()(
       company: null,
       projectDirty: false,
       newLocationIds: [],
+      newPanelIds: [],
 
       setDarkMode: (value) => {
         document.documentElement.classList.toggle('dark', value);
@@ -111,6 +115,11 @@ export const useAppStore = create<AppState>()(
           newLocationIds: [...state.newLocationIds, id],
         })),
       clearNewLocationIds: () => set({ newLocationIds: [] }),
+      addNewPanelId: (id) =>
+        set((state) => ({
+          newPanelIds: [...state.newPanelIds, id],
+        })),
+      clearNewPanelIds: () => set({ newPanelIds: [] }),
     }),
     {
       name: 'bilpow-settings',

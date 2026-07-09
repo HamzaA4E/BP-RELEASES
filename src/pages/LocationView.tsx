@@ -17,7 +17,7 @@ export function LocationView() {
   const navigate = useNavigate();
   const pId = Number(projectId);
   const lId = Number(locationId);
-  const { panels, setPanels, setSelection, setLocations, company, markProjectDirty } =
+  const { panels, setPanels, setSelection, setLocations, company, markProjectDirty, addNewPanelId } =
     useAppStore();
   const { guardedNavigate } = useUnsavedNavigationGuard();
   const [locationName, setLocationName] = useState("");
@@ -69,13 +69,15 @@ export function LocationView() {
       return;
     }
     try {
-      await window.bilpow.panels.create({
+      const panel = await window.bilpow.panels.create({
         location_id: lId,
         name: newPanelName.trim(),
       });
+      addNewPanelId(panel.id);
       setNewPanelName("");
       setShowAddPanel(false);
       await loadData();
+      markProjectDirty();
       toast.success("Tableau ajouté");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur");
