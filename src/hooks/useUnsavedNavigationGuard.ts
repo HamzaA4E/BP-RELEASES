@@ -53,8 +53,9 @@ export function useUnsavedNavigationGuard() {
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
         }
+      } else {
+        toast.success("Modifications abandonnées");
       }
-      // If project has physical path, just navigate - pages will reload their own data
     }
     
     pendingAction?.();
