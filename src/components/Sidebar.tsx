@@ -55,7 +55,7 @@ export function Sidebar() {
   const [exportingProjectId, setExportingProjectId] = useState<number | null>(
     null,
   );
-  const { guardedNavigate, showConfirm, confirmDiscard, cancelDiscard } =
+  const { guardedNavigate, showConfirm, confirmDiscard, cancelDiscard, confirmSave } =
     useUnsavedNavigationGuard();
 
   useEffect(() => {
@@ -529,7 +529,7 @@ export function Sidebar() {
         tertiaryLabel="Enregistrer"
         onTertiary={() => {
           cancelDiscard();
-          window.dispatchEvent(new CustomEvent('panel-request-save'));
+          void confirmSave();
         }}
       />
     </aside>

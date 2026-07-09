@@ -81,6 +81,7 @@ export function usePanelEditing({
       // Also remove any duplicate changes that might have been created by undo/redo
       const seenChanges = new Set<string>();
       const cleanedChanges = changes.filter(change => {
+        console.log('[savePanel] Filtering change:', change.type, change);
         if (change.type === 'createElement') {
           // Keep only if the temp ID is still valid (negative)
           // This prevents "Unresolved temporary element id" errors
@@ -88,25 +89,37 @@ export function usePanelEditing({
           
           // Remove duplicates by tracking seen tempIds
           const key = `createElement-${change.tempId}`;
-          if (seenChanges.has(key)) return false;
+          if (seenChanges.has(key)) {
+            console.log('[savePanel] Skipping duplicate createElement:', change.tempId);
+            return false;
+          }
           seenChanges.add(key);
           return true;
         }
         if (change.type === 'createArticle') {
           const key = `createArticle-${change.tempId}`;
-          if (seenChanges.has(key)) return false;
+          if (seenChanges.has(key)) {
+            console.log('[savePanel] Skipping duplicate createArticle:', change.tempId);
+            return false;
+          }
           seenChanges.add(key);
           return true;
         }
         if (change.type === 'updateElement') {
           const key = `updateElement-${change.id}`;
-          if (seenChanges.has(key)) return false;
+          if (seenChanges.has(key)) {
+            console.log('[savePanel] Skipping duplicate updateElement:', change.id);
+            return false;
+          }
           seenChanges.add(key);
           return true;
         }
         if (change.type === 'updateArticle') {
           const key = `updateArticle-${change.id}`;
-          if (seenChanges.has(key)) return false;
+          if (seenChanges.has(key)) {
+            console.log('[savePanel] Skipping duplicate updateArticle:', change.id);
+            return false;
+          }
           seenChanges.add(key);
           return true;
         }
@@ -152,8 +165,11 @@ export function usePanelEditing({
       }
 
       // Sauvegarder les changements dans la base de données seulement après export réussi
+      console.log('[savePanel] Saving changes:', cleanedChanges.length, 'changes');
       await window.bilpow.panels.saveChanges({ panelId, changes: cleanedChanges });
+      console.log('[savePanel] Changes saved, calling markSaved()');
       markSaved();
+      console.log('[savePanel] After markSaved, pendingChanges:', getPendingChanges().length);
       await refreshElements();
       await refreshPanels();
 

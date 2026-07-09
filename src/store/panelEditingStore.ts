@@ -199,14 +199,27 @@ export const usePanelEditingStore = create<PanelEditingState>((set, get) => ({
     }),
 
   markSaved: () =>
-    set((state) => ({
-      pendingChanges: [],
-      redoStack: [],
-      undoStack: state.undoStack.map((entry) => ({
-        ...entry,
-        committed: true,
-      })),
-    })),
+    set((state) => {
+      console.log('[panelEditingStore markSaved] Before:', {
+        pendingChanges: state.pendingChanges.length,
+        undoStack: state.undoStack.length,
+        redoStack: state.redoStack.length,
+      });
+      const result = {
+        pendingChanges: [],
+        redoStack: [],
+        undoStack: state.undoStack.map((entry) => ({
+          ...entry,
+          committed: true,
+        })),
+      };
+      console.log('[panelEditingStore markSaved] After:', {
+        pendingChanges: result.pendingChanges.length,
+        undoStack: result.undoStack.length,
+        redoStack: result.redoStack.length,
+      });
+      return result;
+    }),
 
   getPendingChanges: () => get().pendingChanges,
 

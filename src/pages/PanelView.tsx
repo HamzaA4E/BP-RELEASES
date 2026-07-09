@@ -325,16 +325,9 @@ export function PanelView() {
       }
     };
 
-    const handleRequestSave = async () => {
-      await save();
-      window.dispatchEvent(new CustomEvent('panel-save-complete'));
-    };
-
     window.addEventListener("keydown", handleKeyDown);
-    window.addEventListener("panel-request-save", handleRequestSave);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-      window.removeEventListener("panel-request-save", handleRequestSave);
     };
   }, [undo, redo, save, canUndo, canRedo]);
 

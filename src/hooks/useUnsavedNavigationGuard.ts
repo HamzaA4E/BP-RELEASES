@@ -14,6 +14,12 @@ export function useUnsavedNavigationGuard() {
 
   const guardedNavigate = useCallback(
     (action: () => void) => {
+      // Prevent multiple dialogs - if already showing confirmation, don't show another
+      if (showConfirm) {
+        console.log('[guardedNavigate] Dialog already open, ignoring navigation request');
+        return;
+      }
+
       // Check if project has been saved to disk (has physical file path)
       const projectSavedPath = currentProject
         ? localStorage.getItem(`bilpow_export_path_${currentProject.id}`)
@@ -50,7 +56,7 @@ export function useUnsavedNavigationGuard() {
       // Otherwise allow navigation
       action();
     },
-    [projectDirty, currentProject, locations, panels]
+    [projectDirty, currentProject, locations, panels, showConfirm]
   );
 
   const confirmDiscard = useCallback(async () => {
@@ -125,8 +131,12 @@ export function useUnsavedNavigationGuard() {
   }, [clearEditingState, currentProject, setProjects, pendingAction, setCurrentProject, setLocations, setPanels, newLocationIds, clearNewLocationIds, newPanelIds, clearNewPanelIds]);
 
   const confirmSave = useCallback(async () => {
-    if (!currentProject || isSaving) return;
+    if (!currentProject || isSaving) {
+      console.log('[confirmSave] Already saving or no project, skipping');
+      return;
+    }
 
+    console.log('[confirmSave] Starting save process');
     setIsSaving(true);
     try {
       // Try to trigger panel save via custom event (with timeout to avoid blocking)
@@ -135,13 +145,16 @@ export function useUnsavedNavigationGuard() {
         const handleSaveComplete = () => {
           window.removeEventListener('panel-save-complete', handleSaveComplete);
           panelSaveCompleted = true;
+          console.log('[confirmSave] Panel save completed');
           resolve();
         };
         window.addEventListener('panel-save-complete', handleSaveComplete);
+        console.log('[confirmSave] Dispatching panel-request-save event');
         window.dispatchEvent(new CustomEvent('panel-request-save'));
         // Timeout after 2 seconds if no response
         setTimeout(() => {
           window.removeEventListener('panel-save-complete', handleSaveComplete);
+          console.log('[confirmSave] Panel save timeout');
           resolve();
         }, 2000);
       });
