@@ -151,6 +151,20 @@ export function ProjectView() {
     navigate(`/project/${id}/location/${locationId}`);
   };
 
+  const handleDeleteLocation = async (locationId: number, locationName: string) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'emplacement "${locationName}" ?\n\nCette action supprimera également tous les tableaux contenus dans cet emplacement.`)) {
+      return;
+    }
+    try {
+      await window.bilpow.locations.delete(locationId);
+      toast.success("Emplacement supprimé");
+      await loadData();
+      markProjectDirty();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    }
+  };
+
   if (!currentProject) {
     return <p className="p-6 text-gray-400">Chargement...</p>;
   }
@@ -245,10 +259,21 @@ export function ProjectView() {
             {locations.map((loc) => (
               <div
                 key={loc.id}
-                className="card card-hover-readable p-4 flex items-center justify-between hover:shadow-md transition-colors cursor-pointer"
+                className="card card-hover-readable p-4 flex items-center justify-between hover:shadow-md transition-colors cursor-pointer relative group"
                 onClick={() => void openLocation(loc.id)}
               >
-                <div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleDeleteLocation(loc.id, loc.name);
+                  }}
+                  className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                  title="Supprimer l'emplacement"
+                >
+                  🗑️
+                </button>
+                <div className="pr-8">
                   <h3 className="font-medium text-primary dark:text-white">
                     {loc.name}
                   </h3>

@@ -135,6 +135,33 @@ export function LocationView() {
     );
   };
 
+  const handleDeleteLocation = async () => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'emplacement "${locationName}" ?\n\nCette action supprimera également tous les tableaux contenus dans cet emplacement.`)) {
+      return;
+    }
+    try {
+      await window.bilpow.locations.delete(lId);
+      toast.success("Emplacement supprimé");
+      navigate(`/project/${pId}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    }
+  };
+
+  const handleDeletePanel = async (panelId: number, panelName: string) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le tableau "${panelName}" ?\n\nCette action est irréversible.`)) {
+      return;
+    }
+    try {
+      await window.bilpow.panels.delete(panelId);
+      toast.success("Tableau supprimé");
+      await loadData();
+      markProjectDirty();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="max-w-5xl mx-auto">
@@ -152,6 +179,14 @@ export function LocationView() {
             </p>
           </div>
           <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleDeleteLocation}
+              className="btn-danger text-sm"
+              title="Supprimer l'emplacement"
+            >
+              🗑️ Supprimer l'emplacement
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -182,10 +217,21 @@ export function LocationView() {
             {panels.map((panel) => (
               <div
                 key={panel.id}
-                className="card card-hover-readable p-5 hover:shadow-md transition-all cursor-pointer border-2 border-transparent hover:border-accent/30"
+                className="card card-hover-readable p-5 hover:shadow-md transition-all cursor-pointer border-2 border-transparent hover:border-accent/30 relative group"
                 onClick={() => openPanel(panel.id)}
               >
-                <h3 className="font-semibold text-primary dark:text-white mb-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleDeletePanel(panel.id, panel.name);
+                  }}
+                  className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                  title="Supprimer le tableau"
+                >
+                  🗑️
+                </button>
+                <h3 className="font-semibold text-primary dark:text-white mb-2 pr-8">
                   ⚡ {panel.name}
                 </h3>
                 <div className="space-y-1 text-sm text-gray-500 dark:text-gray-400">
