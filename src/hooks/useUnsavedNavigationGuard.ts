@@ -54,6 +54,7 @@ export function useUnsavedNavigationGuard() {
           toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
         }
       }
+      // If project has physical path, just navigate - pages will reload their own data
     }
     
     pendingAction?.();
@@ -65,11 +66,24 @@ export function useUnsavedNavigationGuard() {
     
     setIsSaving(true);
     try {
-      const exportResult = await window.bilpow.project.export(currentProject.id);
+      const localStorageKey = `bilpow_export_path_${currentProject.id}`;
+      const storedPath = localStorage.getItem(localStorageKey);
+
+      let exportResult;
+      if (storedPath) {
+        // Export directly with the saved path (no dialog)
+        exportResult = await window.bilpow.project.exportWithPath(
+          currentProject.id,
+          storedPath,
+        );
+      } else {
+        // Open save dialog for first save
+        exportResult = await window.bilpow.project.export(currentProject.id);
+      }
       
       if (exportResult.success && exportResult.filePath) {
         // Save the path to localStorage
-        localStorage.setItem(`bilpow_export_path_${currentProject.id}`, exportResult.filePath);
+        localStorage.setItem(localStorageKey, exportResult.filePath);
         toast.success("Projet enregistré");
         
         // Clear editing state and proceed with navigation
