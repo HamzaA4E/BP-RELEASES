@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Share2, Loader2 } from "lucide-react";
@@ -20,12 +20,14 @@ export function ProjectView() {
     setPanels,
     company,
     markProjectDirty,
+    markProjectClean,
     addNewLocationId,
   } = useAppStore();
   const { guardedNavigate } = useUnsavedNavigationGuard();
 
   const [exportingExcel, setExportingExcel] = useState(false);
   const [exportingShare, setExportingShare] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [editFields, setEditFields] = useState({
     name: "",
     client: "",
@@ -33,6 +35,13 @@ export function ProjectView() {
   });
   const [newLocationName, setNewLocationName] = useState("");
   const [showAddLocation, setShowAddLocation] = useState(false);
+  const locationInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showAddLocation && locationInputRef.current) {
+      locationInputRef.current.focus();
+    }
+  }, [showAddLocation]);
 
   const loadData = useCallback(async () => {
     try {
@@ -116,6 +125,38 @@ export function ProjectView() {
       toast.error(err instanceof Error ? err.message : "Erreur d'export");
     } finally {
       setExportingShare(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const localStorageKey = `bilpow_export_path_${id}`;
+      const storedPath = localStorage.getItem(localStorageKey);
+
+      if (storedPath) {
+        const result = await window.bilpow.project.exportWithPath(id, storedPath);
+        if (result.error) {
+          toast.error(result.error);
+          return;
+        }
+      } else {
+        const result = await window.bilpow.project.export(id);
+        if (result.success && result.filePath) {
+          localStorage.setItem(localStorageKey, result.filePath);
+        } else if (result.error) {
+          if (result.error !== "Export annulé") {
+            toast.error(result.error);
+          }
+          return;
+        }
+      }
+      markProjectClean();
+      toast.success("Projet enregistré avec succès");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la sauvegarde");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -215,6 +256,21 @@ export function ProjectView() {
           <div className="flex gap-2 flex-wrap">
             <button
               type="button"
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className="btn-primary text-sm"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Enregistrement...
+                </>
+              ) : (
+                "💾 Enregistrer"
+              )}
+            </button>
+            <button
+              type="button"
               onClick={() => void handleExportShare()}
               disabled={exportingShare}
               className="btn-outline text-sm py-2"
@@ -259,21 +315,10 @@ export function ProjectView() {
             {locations.map((loc) => (
               <div
                 key={loc.id}
-                className="card card-hover-readable p-4 flex items-center justify-between hover:shadow-md transition-colors cursor-pointer relative group"
+                className="card card-hover-readable p-4 flex items-center justify-between hover:shadow-md transition-colors cursor-pointer group"
                 onClick={() => void openLocation(loc.id)}
               >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void handleDeleteLocation(loc.id, loc.name);
-                  }}
-                  className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
-                  title="Supprimer l'emplacement"
-                >
-                  🗑️
-                </button>
-                <div className="pr-8">
+                <div className="flex-1">
                   <h3 className="font-medium text-primary dark:text-white">
                     {loc.name}
                   </h3>
@@ -282,7 +327,18 @@ export function ProjectView() {
                     · {formatPower(loc.total_power_w)}
                   </p>
                 </div>
-                <span className="text-accent">→</span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void handleDeleteLocation(loc.id, loc.name);
+                  }}
+                  className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                  title="Supprimer l'emplacement"
+                >
+                  🗑️
+                </button>
+                <span className="text-accent ml-2">→</span>
               </div>
             ))}
           </div>
@@ -293,6 +349,7 @@ export function ProjectView() {
             <div className="card p-6 w-full max-w-sm mx-4">
               <h3 className="font-semibold mb-3">Nouvel emplacement</h3>
               <input
+                ref={locationInputRef}
                 type="text"
                 value={newLocationName}
                 onChange={(e) => setNewLocationName(e.target.value)}
@@ -301,7 +358,6 @@ export function ProjectView() {
                 }}
                 className="input-field mb-4"
                 placeholder="Ex: RDC, Étage 1..."
-                autoFocus
               />
               <div className="flex gap-2 justify-end">
                 <button

@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { Loader2 } from "lucide-react";
 import { useParams, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { useAppStore } from "@/store/useAppStore";
@@ -17,12 +18,53 @@ export function LocationView() {
   const navigate = useNavigate();
   const pId = Number(projectId);
   const lId = Number(locationId);
-  const { panels, setPanels, setSelection, setLocations, company, markProjectDirty, addNewPanelId } =
+  const { panels, setPanels, setSelection, setLocations, company, markProjectDirty, markProjectClean, addNewPanelId, currentProject } =
     useAppStore();
   const { guardedNavigate } = useUnsavedNavigationGuard();
   const [locationName, setLocationName] = useState("");
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [newPanelName, setNewPanelName] = useState("");
+  const [saving, setSaving] = useState(false);
+  const panelInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (showAddPanel && panelInputRef.current) {
+      panelInputRef.current.focus();
+    }
+  }, [showAddPanel]);
+
+  const handleSave = async () => {
+    if (!currentProject) return;
+    setSaving(true);
+    try {
+      const localStorageKey = `bilpow_export_path_${pId}`;
+      const storedPath = localStorage.getItem(localStorageKey);
+
+      if (storedPath) {
+        const result = await window.bilpow.project.exportWithPath(pId, storedPath);
+        if (result.error) {
+          toast.error(result.error);
+          return;
+        }
+      } else {
+        const result = await window.bilpow.project.export(pId);
+        if (result.success && result.filePath) {
+          localStorage.setItem(localStorageKey, result.filePath);
+        } else if (result.error) {
+          if (result.error !== "Export annulé") {
+            toast.error(result.error);
+          }
+          return;
+        }
+      }
+      markProjectClean();
+      toast.success("Projet enregistré avec succès");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la sauvegarde");
+    } finally {
+      setSaving(false);
+    }
+  };
   const [, setExporting] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [selectedPanelIds, setSelectedPanelIds] = useState<number[]>([]);
@@ -181,6 +223,21 @@ export function LocationView() {
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={() => void handleSave()}
+              disabled={saving}
+              className="btn-primary text-sm"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Enregistrement...
+                </>
+              ) : (
+                "💾 Enregistrer"
+              )}
+            </button>
+            <button
+              type="button"
               onClick={handleDeleteLocation}
               className="btn-danger text-sm"
               title="Supprimer l'emplacement"
@@ -259,6 +316,7 @@ export function LocationView() {
             <div className="card p-6 w-full max-w-sm mx-4">
               <h3 className="font-semibold mb-3">Nouveau tableau</h3>
               <input
+                ref={panelInputRef}
                 type="text"
                 value={newPanelName}
                 onChange={(e) => setNewPanelName(e.target.value)}
@@ -267,7 +325,6 @@ export function LocationView() {
                 }}
                 className="input-field mb-4"
                 placeholder="Ex: TGBT, TD01..."
-                autoFocus
               />
               <div className="flex gap-2 justify-end">
                 <button
