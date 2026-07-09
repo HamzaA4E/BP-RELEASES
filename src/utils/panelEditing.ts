@@ -178,7 +178,7 @@ export function buildLocalElement(
     ks: 1,
     coef_ks: data.coef_ks,
     coef_ku: data.coef_ku,
-    use_coefs: data.use_coefs ?? true,
+    use_coefs: data.use_coefs ?? false,
     circuit: null,
     notes: data.notes ?? null,
     is_multi: data.is_multi ?? false,

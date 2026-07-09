@@ -430,6 +430,7 @@ function writeMultiDepartExcelRows(
   colMapping: { REPERE: number; TYPE: number; DESIGNATION: number; POWER: number; QTY: number; KS: number; KU: number; TOTAL: number },
   colCount: number,
   showKu: boolean,
+  showCoefs: boolean,
   departIndex: number
 ): { endRow: number; powerRows: number[] } {
   const powerRows: number[] = [];
@@ -466,16 +467,19 @@ function writeMultiDepartExcelRows(
     const ks = useCoefs ? (article.coef_ks ?? 1) : 1;
     const ku = useCoefs ? (article.coef_ku ?? 1) : 1;
     
-    row.getCell(colMapping.KS).value = ks;
-    if (showKu) {
-      row.getCell(colMapping.KU).value = ku;
+    if (showCoefs) {
+      row.getCell(colMapping.KS).value = ks;
+      if (showKu) {
+        row.getCell(colMapping.KU).value = ku;
+      }
     }
 
+    const ksCol = showCoefs ? colLetter(colMapping.KS) : '1';
+    const ksValue = showCoefs ? `${ksCol}${rowNum}` : '1';
     const kuCol = showKu ? colLetter(colMapping.KU) : '1';
     const kuValue = showKu ? `${kuCol}${rowNum}` : '1';
-    const ksCol = colLetter(colMapping.KS);
     row.getCell(colMapping.TOTAL).value = {
-      formula: `${colLetter(colMapping.POWER)}${rowNum}*${colLetter(colMapping.QTY)}${rowNum}*${ksCol}${rowNum}*${kuValue}`,
+      formula: `${colLetter(colMapping.POWER)}${rowNum}*${colLetter(colMapping.QTY)}${rowNum}*${ksValue}*${kuValue}`,
     };
     powerRows.push(rowNum);
 
@@ -534,6 +538,10 @@ interface PanelSheetResult {
 }
 
 function hasNonUnitaryKu(elements: ElementRow[]): boolean {
+  // Check if any element has use_coefs enabled
+  const anyUseCoefs = elements.some(el => !isJeuDeBarresRow(el) && el.use_coefs !== 0);
+  if (!anyUseCoefs) return false;
+  
   for (const el of elements) {
     if (isJeuDeBarresRow(el)) continue;
     
@@ -551,6 +559,14 @@ function hasNonUnitaryKu(elements: ElementRow[]): boolean {
     }
   }
   return false;
+}
+
+/**
+ * Check if any element has use_coefs enabled.
+ * If no element uses coefficients, hide both Ks and Ku columns.
+ */
+function anyElementUsesCoefs(elements: ElementRow[]): boolean {
+  return elements.some(el => !isJeuDeBarresRow(el) && el.use_coefs !== 0);
 }
 
 function createPanelSheet(
@@ -588,9 +604,10 @@ function createPanelSheet(
     return el;
   });
 
-  // Check if Ku is needed BEFORE calling addCompanyHeader
-  const showKu = hasNonUnitaryKu(data.elements);
-  const COL_COUNT_DYNAMIC = showKu ? 8 : 7;
+  // Check if any element uses coefficients to show/hide Ks/Ku columns
+  const showCoefs = anyElementUsesCoefs(data.elements);
+  const showKu = showCoefs && hasNonUnitaryKu(data.elements);
+  const COL_COUNT_DYNAMIC = showCoefs ? (showKu ? 8 : 7) : 6;
 
   const { headerRow, svgSkipped } = addCompanyHeader(
     sheet,
@@ -608,29 +625,39 @@ function createPanelSheet(
     DESIGNATION: 3,
     POWER: 4,
     QTY: 5,
-    KS: 6,
+    KS: showCoefs ? 6 : 0,
     KU: showKu ? 7 : 0,
-    TOTAL: showKu ? 8 : 7,
+    TOTAL: showCoefs ? (showKu ? 8 : 7) : 6,
   } as const;
 
-  const headers = showKu
-    ? [
-        'Repère',
-        'Type',
-        'Désignation',
-        'P. Unitaire (kW)',
-        'Qté',
-        'Ks',
-        'Ku',
-        'P. totale (kW)',
-      ]
+  const headers = showCoefs
+    ? (showKu
+        ? [
+            'Repère',
+            'Type',
+            'Désignation',
+            'P. Unitaire (kW)',
+            'Qté',
+            'Ks',
+            'Ku',
+            'P. totale (kW)',
+          ]
+        : [
+            'Repère',
+            'Type',
+            'Désignation',
+            'P. Unitaire (kW)',
+            'Qté',
+            'Ks',
+            'P. totale (kW)',
+          ]
+      )
     : [
         'Repère',
         'Type',
         'Désignation',
         'P. Unitaire (kW)',
         'Qté',
-        'Ks',
         'P. totale (kW)',
       ];
 
@@ -715,6 +742,7 @@ function createPanelSheet(
         COL_DYNAMIC,
         COL_COUNT_DYNAMIC,
         showKu,
+        showCoefs,
         departIndex // Pass depart index for consistent coloring
       );
       rowNum = endRow;
@@ -740,15 +768,19 @@ function createPanelSheet(
     row.getCell(COL_DYNAMIC.DESIGNATION).value = designation;
     row.getCell(COL_DYNAMIC.POWER).value = wattsToKw(el.power_w);
     row.getCell(COL_DYNAMIC.QTY).value = el.quantity;
-    row.getCell(COL_DYNAMIC.KS).value = ks;
-    if (showKu) {
-      row.getCell(COL_DYNAMIC.KU).value = ku;
+    if (showCoefs) {
+      row.getCell(COL_DYNAMIC.KS).value = ks;
+      if (showKu) {
+        row.getCell(COL_DYNAMIC.KU).value = ku;
+      }
     }
 
+    const ksCol = showCoefs ? colLetter(COL_DYNAMIC.KS) : '1';
+    const ksValue = showCoefs ? `${ksCol}${rowNum}` : '1';
     const kuCol = showKu ? colLetter(COL_DYNAMIC.KU) : '1';
     const kuValue = showKu ? `${kuCol}${rowNum}` : '1';
     row.getCell(COL_DYNAMIC.TOTAL).value = {
-      formula: `${colLetter(COL_DYNAMIC.POWER)}${rowNum}*${colLetter(COL_DYNAMIC.QTY)}${rowNum}*${colLetter(COL_DYNAMIC.KS)}${rowNum}*${kuValue}`,
+      formula: `${colLetter(COL_DYNAMIC.POWER)}${rowNum}*${colLetter(COL_DYNAMIC.QTY)}${rowNum}*${ksValue}*${kuValue}`,
     };
 
     dataRowIndex++;

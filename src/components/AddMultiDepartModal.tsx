@@ -80,7 +80,7 @@ function buildDefaultDepart(type: DepartType, existingElements: Element[], conte
     phase_type: 'mono',
     coef_ks: coefs.coef_ks,
     coef_ku: coefs.coef_ku,
-    use_coefs: true,
+    use_coefs: false,
     circuit: '',
     notes: '',
   };
@@ -314,7 +314,7 @@ export function MultiDepartModal({
         phase_type: editElement.phase_type ?? 'mono',
         coef_ks: editElement.coef_ks,
         coef_ku: editElement.coef_ku,
-        use_coefs: editElement.use_coefs ?? true,
+        use_coefs: editElement.use_coefs ?? false,
         circuit: editElement.circuit ?? '',
         notes: editElement.notes ?? '',
       });

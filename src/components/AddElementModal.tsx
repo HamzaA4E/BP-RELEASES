@@ -112,7 +112,7 @@ function buildDefaultForm(
       quantity: 1,
       phase_type,
       ...coefs,
-      use_coefs: true,
+      use_coefs: false,
       notes: "",
     };
   }
@@ -126,7 +126,7 @@ function buildDefaultForm(
     quantity: 1,
     phase_type,
     ...coefs,
-    use_coefs: true,
+    use_coefs: false,
     notes: "",
   };
 }
@@ -209,7 +209,7 @@ export function AddElementModal({
         phase_type,
         coef_ks: editElement.coef_ks,
         coef_ku: editElement.coef_ku,
-        use_coefs: editElement.use_coefs ?? true,
+        use_coefs: editElement.use_coefs ?? false,
         notes: editElement.notes ?? "",
       });
       setPowerInput(String(wattsToKw(editElement.power_w)));
@@ -227,7 +227,7 @@ export function AddElementModal({
         phase_type,
         coef_ks: addTypeToDepart.coef_ks,
         coef_ku: addTypeToDepart.coef_ku,
-        use_coefs: addTypeToDepart.use_coefs ?? true,
+        use_coefs: addTypeToDepart.use_coefs ?? false,
         notes: "",
       });
       setPowerInput("1");

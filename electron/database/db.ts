@@ -142,7 +142,7 @@ const RECREATE_ELEMENTS_SQL = `
     coef_ks REAL DEFAULT 0.8,
     coef_ku REAL DEFAULT 1.0,
     coef_fp REAL DEFAULT 1.0,
-    use_coefs INTEGER DEFAULT 1,
+    use_coefs INTEGER DEFAULT 0,
     circuit TEXT,
     notes TEXT,
     order_index INTEGER DEFAULT 0
@@ -316,7 +316,7 @@ function ensureElementsColumns(database: Database.Database): void {
   addColumn('coef_ks', 'REAL DEFAULT 0.8');
   addColumn('coef_ku', 'REAL DEFAULT 1.0');
   addColumn('coef_fp', 'REAL DEFAULT 1.0');
-  addColumn('use_coefs', 'INTEGER DEFAULT 1');
+  addColumn('use_coefs', 'INTEGER DEFAULT 0');
   addColumn('is_multi', 'INTEGER DEFAULT 0');
 
   database.exec(

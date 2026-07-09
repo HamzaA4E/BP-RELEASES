@@ -955,24 +955,28 @@ function SortableMultiDepartRow({
               onCommit={(v) => void onArticleUpdate(article.id, "quantity", v)}
             />
           </td>
-          <td className="px-3 py-2 text-sm text-center">
-            <ArticleCoefCell
-              article={article}
-              field="coef_ks"
-              articleEditing={articleEditing}
-              setArticleEditing={setArticleEditing}
-              onCommit={(v) => void onArticleUpdate(article.id, "coef_ks", v)}
-            />
-          </td>
-          <td className="px-3 py-2 text-sm text-center">
-            <ArticleCoefCell
-              article={article}
-              field="coef_ku"
-              articleEditing={articleEditing}
-              setArticleEditing={setArticleEditing}
-              onCommit={(v) => void onArticleUpdate(article.id, "coef_ku", v)}
-            />
-          </td>
+          {element.use_coefs && (
+            <>
+              <td className="px-3 py-2 text-sm text-center">
+                <ArticleCoefCell
+                  article={article}
+                  field="coef_ks"
+                  articleEditing={articleEditing}
+                  setArticleEditing={setArticleEditing}
+                  onCommit={(v) => void onArticleUpdate(article.id, "coef_ks", v)}
+                />
+              </td>
+              <td className="px-3 py-2 text-sm text-center">
+                <ArticleCoefCell
+                  article={article}
+                  field="coef_ku"
+                  articleEditing={articleEditing}
+                  setArticleEditing={setArticleEditing}
+                  onCommit={(v) => void onArticleUpdate(article.id, "coef_ku", v)}
+                />
+              </td>
+            </>
+          )}
           <td className="px-3 py-2 text-sm text-right font-medium">
             {formatNumber(wattsToKw(calcArticlePower(article)), 3)}
           </td>
@@ -1047,10 +1051,13 @@ function SortableDataRow({
   const { ks, ku } = resolveElementCoefs(element);
   const coefsLine = formatCoefsLine(ks, ku);
 
-  const coefFields: Array<{ key: CoefField; label: string }> = [
-    { key: "coef_ks", label: "Ks" },
-    { key: "coef_ku", label: "Ku" },
-  ];
+  // Only show coefficient fields if use_coefs is enabled
+  const coefFields: Array<{ key: CoefField; label: string }> = element.use_coefs
+    ? [
+        { key: "coef_ks", label: "Ks" },
+        { key: "coef_ku", label: "Ku" },
+      ]
+    : [];
 
   return (
     <>
@@ -1184,7 +1191,7 @@ function SortableDataRow({
         <td />
         <td />
         <td
-          colSpan={TOTAL_COLUMN_COUNT - 2}
+          colSpan={coefFields.length + 6}
           className="px-3 py-0.5 text-xs text-gray-400 italic"
         >
           {coefsLine}
@@ -1233,42 +1240,52 @@ export function ElementTable({
 
   const totalPower = panelTotalPower(elements, articlesByElement);
   const tableRows = buildElementTableRows(elements, articlesByElement);
+  
+  // Check if any element has use_coefs enabled to show/hide coefficient columns
+  const anyElementUsesCoefs = elements.some(el => el.use_coefs);
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+    <div className="w-full rounded-xl border border-gray-200 dark:border-gray-700">
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <table className="w-full text-left min-w-[1000px]">
+        <table className="w-full text-left" style={{ tableLayout: 'fixed', width: '100%' }}>
           <thead>
             <tr className="bg-primary text-white text-xs uppercase tracking-wide">
-              <th className="w-8 px-2 py-3" />
+              <th style={{ width: anyElementUsesCoefs ? '3%' : '4%' }} className="px-2 py-3" />
               <th
-                className="w-8 px-1 py-3"
+                style={{ width: anyElementUsesCoefs ? '3%' : '4%' }}
+                className="px-1 py-3"
                 title="Ajouter un type sur le départ"
               />
-              <th className="px-3 py-3">Cat.</th>
-              <th className="px-3 py-3">Repère</th>
-              <th className="px-3 py-3 min-w-[100px]">Type</th>
-              <th className="px-3 py-3 min-w-[100px]">Désignation</th>
-              <th className="px-3 py-3 text-right">P. Unitaire (kW)</th>
-              <th className="px-3 py-3 text-center">Qté</th>
-              <th
-                className="px-3 py-3 text-center w-14"
-                title="Coefficient de simultanéité"
-              >
-                Ks
-              </th>
-              <th
-                className="px-3 py-3 text-center w-14"
-                title="Coefficient d'utilisation"
-              >
-                Ku
-              </th>
-              <th className="px-3 py-3 text-right">P. totale (kW)</th>
-              <th className="px-3 py-3 w-20">Actions</th>
+              <th style={{ width: anyElementUsesCoefs ? '6%' : '8%' }} className="px-3 py-3">Cat.</th>
+              <th style={{ width: anyElementUsesCoefs ? '8%' : '10%' }} className="px-3 py-3">Repère</th>
+              <th style={{ width: anyElementUsesCoefs ? '10%' : '12%' }} className="px-3 py-3">Type</th>
+              <th style={{ width: anyElementUsesCoefs ? '30%' : '30%' }} className="px-3 py-3">Désignation</th>
+              <th style={{ width: anyElementUsesCoefs ? '8%' : '10%' }} className="px-3 py-3 text-right">P. Unitaire (kW)</th>
+              <th style={{ width: anyElementUsesCoefs ? '5%' : '6%' }} className="px-3 py-3 text-center">Qté</th>
+              {anyElementUsesCoefs && (
+                <>
+                  <th
+                    style={{ width: '6%' }}
+                    className="px-3 py-3 text-center"
+                    title="Coefficient de simultanéité"
+                  >
+                    Ks
+                  </th>
+                  <th
+                    style={{ width: '6%' }}
+                    className="px-3 py-3 text-center"
+                    title="Coefficient d'utilisation"
+                  >
+                    Ku
+                  </th>
+                </>
+              )}
+              <th style={{ width: anyElementUsesCoefs ? '9%' : '10%' }} className="px-3 py-3 text-right">P. totale (kW)</th>
+              <th style={{ width: anyElementUsesCoefs ? '6%' : '8%' }} className="px-3 py-3">Actions</th>
             </tr>
           </thead>
           <tbody>

@@ -238,7 +238,7 @@ export function createElement(data: {
       ks: data.ks ?? 1,
       coef_ks: data.coef_ks ?? coefDefaults.coef_ks,
       coef_ku: data.coef_ku ?? coefDefaults.coef_ku,
-      use_coefs: data.use_coefs !== undefined ? (data.use_coefs ? 1 : 0) : 1,
+      use_coefs: data.use_coefs !== undefined ? (data.use_coefs ? 1 : 0) : 0,
       circuit: data.circuit ?? null,
       notes: data.notes ?? null,
       is_multi: data.is_multi ? 1 : 0,
@@ -321,7 +321,7 @@ export function updateElement(data: {
     ks: data.ks ?? existing.ks,
     coef_ks: data.coef_ks ?? existing.coef_ks,
     coef_ku: data.coef_ku ?? existing.coef_ku,
-    use_coefs: data.use_coefs !== undefined ? (data.use_coefs ? 1 : 0) : existing.use_coefs ?? 1,
+    use_coefs: data.use_coefs !== undefined ? (data.use_coefs ? 1 : 0) : existing.use_coefs ?? 0,
     circuit: data.circuit !== undefined ? data.circuit : existing.circuit,
     notes: data.notes !== undefined ? data.notes : existing.notes,
     is_multi:
