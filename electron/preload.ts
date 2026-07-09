@@ -170,6 +170,8 @@ const api = {
       ipcRenderer.invoke('project:exportWithPath', projectId, filePath) as Promise<ProjectExportResult>,
     import: (filePath?: string): Promise<ProjectImportResult> =>
       ipcRenderer.invoke('project:import', filePath) as Promise<ProjectImportResult>,
+    restore: (projectId: number, filePath: string): Promise<ProjectImportResult> =>
+      ipcRenderer.invoke('project:restore', projectId, filePath) as Promise<ProjectImportResult>,
     onAutoImport: (callback: (filePath: string) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, filePath: string): void => {
         callback(filePath);

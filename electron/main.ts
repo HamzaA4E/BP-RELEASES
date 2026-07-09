@@ -24,6 +24,7 @@ import type { ProjectExcelExportPayload } from '../shared/types';
 import {
   exportProjectForBilpow,
   importProjectFromBilpow,
+  restoreProjectFromBilpow,
   validateBilpowElements,
 } from './database/projectShare';
 import { isBilpowFile } from '../shared/bilpow';
@@ -839,6 +840,39 @@ ipcMain.handle('devtools:open', () => {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Erreur inconnue';
       console.error('[project:import]', message);
+      return { success: false, error: message };
+    }
+  });
+
+  ipcMain.handle('project:restore', async (_e, projectId: number, filePath: string) => {
+    try {
+      if (!filePath || !fs.existsSync(filePath)) {
+        return { success: false, error: 'Fichier introuvable' };
+      }
+
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      const parsed: unknown = JSON.parse(raw);
+
+      if (!isBilpowFile(parsed)) {
+        return {
+          success: false,
+          error: "Fichier invalide — ce n'est pas un fichier BilPow.",
+        };
+      }
+
+      if (!parsed.project?.name) {
+        return {
+          success: false,
+          error: 'Fichier invalide — données de projet manquantes.',
+        };
+      }
+
+      validateBilpowElements(parsed.locations ?? []);
+      const { projectName } = restoreProjectFromBilpow(projectId, parsed);
+      return { success: true, projectId, projectName };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erreur inconnue';
+      console.error('[project:restore]', message);
       return { success: false, error: message };
     }
   });

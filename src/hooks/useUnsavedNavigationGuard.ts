@@ -54,7 +54,20 @@ export function useUnsavedNavigationGuard() {
           toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
         }
       } else {
-        toast.success("Modifications abandonnées");
+        // Project exists on disk, restore from last save
+        try {
+          const restoreResult = await window.bilpow.project.restore(currentProject.id, projectSavedPath);
+          if (restoreResult.success && restoreResult.projectId) {
+            // Refresh projects list
+            const projects = await window.bilpow.projects.getAll();
+            setProjects(projects);
+            toast.success("Projet restauré depuis le dernier enregistrement");
+          } else {
+            toast.error("Erreur lors de la restauration du projet");
+          }
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Erreur lors de la restauration");
+        }
       }
     }
     

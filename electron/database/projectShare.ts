@@ -289,6 +289,66 @@ export function importProjectFromBilpow(file: BilpowFile, filePath?: string): {
   return importTx();
 }
 
+export function restoreProjectFromBilpow(projectId: number, file: BilpowFile): {
+  projectId: number;
+  projectName: string;
+} {
+  const db = getDatabase();
+
+  const restoreTx = db.transaction(() => {
+    // Get all locations for this project
+    const locations = db
+      .prepare('SELECT id FROM locations WHERE project_id = ?')
+      .all(projectId) as Array<{ id: number }>;
+
+    // Delete all elements in panels for these locations
+    for (const loc of locations) {
+      const panels = db
+        .prepare('SELECT id FROM panels WHERE location_id = ?')
+        .all(loc.id) as Array<{ id: number }>;
+
+      for (const panel of panels) {
+        db.prepare('DELETE FROM elements WHERE panel_id = ?').run(panel.id);
+      }
+
+      // Delete all panels for this location
+      db.prepare('DELETE FROM panels WHERE location_id = ?').run(loc.id);
+    }
+
+    // Delete all locations for this project
+    db.prepare('DELETE FROM locations WHERE project_id = ?').run(projectId);
+
+    // Update project metadata
+    db.prepare(
+      `UPDATE projects SET name = ?, client = ?, description = ? WHERE id = ?`
+    ).run(file.project.name, file.project.client || null, file.project.description || null, projectId);
+
+    // Re-import locations and panels from file
+    for (const location of file.locations ?? []) {
+      const locResult = db
+        .prepare(
+          'INSERT INTO locations (project_id, name, order_index) VALUES (?, ?, ?)'
+        )
+        .run(projectId, location.name, location.order_index);
+      const locationId = Number(locResult.lastInsertRowid);
+
+      for (const panel of location.panels) {
+        const panelId = insertPanel(locationId, panel);
+        const sortedElements = [...panel.elements].sort(
+          (a, b) => a.order_index - b.order_index
+        );
+        for (const el of sortedElements) {
+          insertElement(panelId, el);
+        }
+      }
+    }
+
+    return { projectId, projectName: file.project.name };
+  });
+
+  return restoreTx();
+}
+
 export function validateBilpowElements(locations: BilpowFile['locations']): void {
   for (const loc of locations) {
     for (const panel of loc.panels) {

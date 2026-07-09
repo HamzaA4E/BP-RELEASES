@@ -108,6 +108,7 @@ export interface BilPowAPI {
     export: (projectId: number) => Promise<ProjectExportResult>;
     exportWithPath: (projectId: number, filePath: string) => Promise<ProjectExportResult>;
     import: (filePath?: string) => Promise<ProjectImportResult>;
+    restore: (projectId: number, filePath: string) => Promise<ProjectImportResult>;
     onAutoImport: (callback: (filePath: string) => void) => () => void;
   };
   folders: {
