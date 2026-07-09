@@ -357,6 +357,7 @@ function JeuDeBarresRow({
   onFieldUpdate,
   editingField,
   setEditingField,
+  visibleColumnCount,
 }: {
   element: Element;
   onDelete: (id: number) => void;
@@ -366,6 +367,7 @@ function JeuDeBarresRow({
   setEditingField: (
     v: { id: number; field: EditableField | CoefField } | null,
   ) => void;
+  visibleColumnCount: number;
 }) {
   const {
     attributes,
@@ -395,7 +397,7 @@ function JeuDeBarresRow({
         ⋮⋮
       </td>
       <td />
-      <td colSpan={TOTAL_COLUMN_COUNT - 2} className="p-0">
+      <td colSpan={visibleColumnCount - 2} className="p-0">
         <div className="flex items-center justify-between gap-4 px-5 py-3 bg-gradient-to-r from-[#1E3A5F] to-[#2a4f7a] border-y border-[#162d4a]">
           <div className="flex items-center gap-3 min-w-0">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/15 text-base">
@@ -456,11 +458,13 @@ function SubtotalRow({
   totalPower,
   jdb,
   onAddElement,
+  anyElementUsesCoefs,
 }: {
   label: string;
   totalPower: number;
   jdb: Element;
   onAddElement: (jdb: Element) => void;
+  anyElementUsesCoefs: boolean;
 }) {
   return (
     <tr className="bg-blue-50/80 dark:bg-blue-900/15">
@@ -472,7 +476,7 @@ function SubtotalRow({
       >
         {label}
       </td>
-      <td colSpan={5} />
+      <td colSpan={anyElementUsesCoefs ? 7 : 5} />
       <td className="px-3 py-2 text-right">
         <button
           type="button"
@@ -1243,6 +1247,10 @@ export function ElementTable({
   
   // Check if any element has use_coefs enabled to show/hide coefficient columns
   const anyElementUsesCoefs = elements.some(el => el.use_coefs);
+  // Calculate dynamic column count based on coefficient visibility
+  // Base columns: drag + add + cat + repere + type + designation + power + qty + total + actions = 10
+  // Plus 2 coefficient columns if visible
+  const visibleColumnCount = anyElementUsesCoefs ? 12 : 10;
 
   return (
     <div className="w-full rounded-xl border border-gray-200 dark:border-gray-700">
@@ -1262,8 +1270,8 @@ export function ElementTable({
               />
               <th style={{ width: anyElementUsesCoefs ? '6%' : '8%' }} className="px-3 py-3">Cat.</th>
               <th style={{ width: anyElementUsesCoefs ? '8%' : '10%' }} className="px-3 py-3">Repère</th>
-              <th style={{ width: anyElementUsesCoefs ? '10%' : '12%' }} className="px-3 py-3">Type</th>
-              <th style={{ width: anyElementUsesCoefs ? '30%' : '30%' }} className="px-3 py-3">Désignation</th>
+              <th style={{ width: anyElementUsesCoefs ? '10%' : '13%' }} className="px-3 py-3">Type</th>
+              <th style={{ width: anyElementUsesCoefs ? '30%' : '35%' }} className="px-3 py-3">Désignation</th>
               <th style={{ width: anyElementUsesCoefs ? '8%' : '10%' }} className="px-3 py-3 text-right">P. Unitaire (kW)</th>
               <th style={{ width: anyElementUsesCoefs ? '5%' : '6%' }} className="px-3 py-3 text-center">Qté</th>
               {anyElementUsesCoefs && (
@@ -1304,6 +1312,7 @@ export function ElementTable({
                       onFieldUpdate={onFieldUpdate}
                       editingField={editingField}
                       setEditingField={setEditingField}
+                      visibleColumnCount={visibleColumnCount}
                     />
                   );
                 }
@@ -1315,6 +1324,7 @@ export function ElementTable({
                       totalPower={row.totalPower}
                       jdb={row.jdb}
                       onAddElement={onAddElementUnderJdb}
+                      anyElementUsesCoefs={anyElementUsesCoefs}
                     />
                   );
                 }
@@ -1357,7 +1367,7 @@ export function ElementTable({
             {elements.length === 0 && (
               <tr>
                 <td
-                  colSpan={TOTAL_COLUMN_COUNT}
+                  colSpan={visibleColumnCount}
                   className="px-4 py-12 text-center text-gray-400 text-sm"
                 >
                   Aucun élément. Ajoutez un élément ou un jeu de barres pour
@@ -1368,7 +1378,7 @@ export function ElementTable({
             {elements.length > 0 && (
               <tr className="bg-blue-50 dark:bg-blue-900/20 font-bold">
                 <td
-                  colSpan={10}
+                  colSpan={anyElementUsesCoefs ? 10 : 8}
                   className="px-3 py-3 text-sm text-right text-primary dark:text-accent-light"
                 >
                   TOTAL
