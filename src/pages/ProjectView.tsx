@@ -20,6 +20,7 @@ export function ProjectView() {
     setPanels,
     company,
     markProjectDirty,
+    addNewLocationId,
   } = useAppStore();
   const { guardedNavigate } = useUnsavedNavigationGuard();
 
@@ -40,13 +41,16 @@ export function ProjectView() {
         navigate("/");
         return;
       }
+      console.log('[ProjectView loadData] Project file_path:', project.file_path);
       setCurrentProject(project);
+      // Don't clear newLocationIds here - only clear when saving or changing projects
       setEditFields({
         name: project.name,
         client: project.client ?? "",
         description: project.description ?? "",
       });
       const locs = await window.bilpow.locations.getByProject(id);
+      console.log('[ProjectView loadData] Loaded locations from DB:', locs);
       setLocations(locs);
       setSelection({
         type: "project",
@@ -82,10 +86,13 @@ export function ProjectView() {
       return;
     }
     try {
-      await window.bilpow.locations.create({
+      const location = await window.bilpow.locations.create({
         project_id: id,
         name: newLocationName.trim(),
       });
+      console.log('[ProjectView handleAddLocation] Created location with ID:', location.id);
+      addNewLocationId(location.id);
+      console.log('[ProjectView handleAddLocation] newLocationIds after add:', useAppStore.getState().newLocationIds);
       setNewLocationName("");
       setShowAddLocation(false);
       await loadData();

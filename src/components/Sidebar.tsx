@@ -387,7 +387,7 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-primary-light px-3 py-3 flex-shrink-0 space-y-2">
-        {/* <button
+        <button
           type="button"
           onClick={async () => {
             try {
@@ -400,7 +400,7 @@ export function Sidebar() {
         >
           <span>🔧</span>
           Console Dev
-        </button> */}
+        </button>
         
         <button
           type="button"

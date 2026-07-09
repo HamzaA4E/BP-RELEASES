@@ -269,7 +269,8 @@ export function PanelView() {
         await save();
         window.dispatchEvent(new CustomEvent('panel-save-complete'));
       } catch (err) {
-        window.dispatchEvent(new CustomEvent('panel-save-error'));
+        // If save fails, still dispatch complete to avoid blocking
+        window.dispatchEvent(new CustomEvent('panel-save-complete'));
       }
     };
 

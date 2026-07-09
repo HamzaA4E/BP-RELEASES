@@ -25,6 +25,7 @@ interface AppState {
   searchQuery: string;
   company: CompanySettings | null;
   projectDirty: boolean;
+  newLocationIds: number[];
 
   setDarkMode: (value: boolean) => void;
   setProjects: (projects: ProjectWithStats[]) => void;
@@ -41,6 +42,8 @@ interface AppState {
   updateCompany: (data: UpdateCompanySettingsInput) => void;
   markProjectDirty: () => void;
   markProjectClean: () => void;
+  addNewLocationId: (id: number) => void;
+  clearNewLocationIds: () => void;
 }
 
 const defaultSelection: AppSelection = {
@@ -65,6 +68,7 @@ export const useAppStore = create<AppState>()(
       searchQuery: '',
       company: null,
       projectDirty: false,
+      newLocationIds: [],
 
       setDarkMode: (value) => {
         document.documentElement.classList.toggle('dark', value);
@@ -102,6 +106,11 @@ export const useAppStore = create<AppState>()(
         })),
       markProjectDirty: () => set({ projectDirty: true }),
       markProjectClean: () => set({ projectDirty: false }),
+      addNewLocationId: (id) =>
+        set((state) => ({
+          newLocationIds: [...state.newLocationIds, id],
+        })),
+      clearNewLocationIds: () => set({ newLocationIds: [] }),
     }),
     {
       name: 'bilpow-settings',

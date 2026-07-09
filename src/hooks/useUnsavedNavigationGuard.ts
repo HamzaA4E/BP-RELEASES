@@ -7,7 +7,7 @@ export function useUnsavedNavigationGuard() {
   const hasUnsaved = usePanelEditingStore((s) => s.pendingChanges.length > 0);
   const savedFilePath = usePanelEditingStore((s) => s.savedFilePath);
   const clearEditingState = usePanelEditingStore((s) => s.clearEditingState);
-  const { currentProject, setProjects, locations, panels, projectDirty, markProjectClean } = useAppStore();
+  const { currentProject, setProjects, locations, panels, projectDirty, markProjectClean, setCurrentProject, setLocations, setPanels, newLocationIds, clearNewLocationIds } = useAppStore();
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -62,48 +62,82 @@ export function useUnsavedNavigationGuard() {
       const projectSavedPath = localStorage.getItem(`bilpow_export_path_${currentProject.id}`);
       if (!projectSavedPath) {
         try {
+          // Delete all locations first (to ensure cascade deletion works properly)
+          const locations = await window.bilpow.locations.getByProject(currentProject.id);
+          for (const location of locations) {
+            await window.bilpow.locations.delete(location.id);
+          }
+          
+          // Delete the project
           await window.bilpow.projects.delete(currentProject.id);
+          
+          // Clear local state
+          setCurrentProject(null);
+          setLocations([]);
+          setPanels([]);
+          clearNewLocationIds();
+          
           // Refresh projects list
           const projects = await window.bilpow.projects.getAll();
           setProjects(projects);
+          
           toast.success("Projet non enregistré supprimé");
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
         }
       } else {
-        // Project exists on disk, just clear unsaved changes
-        // The page will reload data naturally after navigation
-        toast.success("Modifications non enregistrées abandonnées");
+        // Project exists on disk - delete newly created locations only
+        try {
+          console.log('[confirmDiscard] Deleting new locations:', newLocationIds);
+          console.log('[confirmDiscard] Current locations in state:', locations);
+          for (const locationId of newLocationIds) {
+            await window.bilpow.locations.delete(locationId);
+            console.log('[confirmDiscard] Deleted location:', locationId);
+          }
+          clearNewLocationIds();
+          
+          // Reload project data to reflect the deletion
+          const locs = await window.bilpow.locations.getByProject(currentProject.id);
+          console.log('[confirmDiscard] Reloaded locations after deletion:', locs);
+          console.log('[confirmDiscard] Setting locations to:', locs);
+          setLocations(locs);
+          
+          toast.success("Modifications non enregistrées abandonnées");
+        } catch (err) {
+          console.error('[confirmDiscard] Error deleting locations:', err);
+          toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+        }
       }
     }
 
     pendingAction?.();
     setPendingAction(null);
-  }, [clearEditingState, currentProject, setProjects, pendingAction]);
+  }, [clearEditingState, currentProject, setProjects, pendingAction, setCurrentProject, setLocations, setPanels, newLocationIds, clearNewLocationIds]);
 
   const confirmSave = useCallback(async () => {
     if (!currentProject || isSaving) return;
 
     setIsSaving(true);
     try {
-      // First, trigger panel save via custom event
-      const savePromise = new Promise<void>((resolve, reject) => {
+      // Try to trigger panel save via custom event (with timeout to avoid blocking)
+      let panelSaveCompleted = false;
+      const savePromise = new Promise<void>((resolve) => {
         const handleSaveComplete = () => {
           window.removeEventListener('panel-save-complete', handleSaveComplete);
+          panelSaveCompleted = true;
           resolve();
         };
-        const handleSaveError = () => {
-          window.removeEventListener('panel-save-error', handleSaveError);
-          reject(new Error('Erreur lors de la sauvegarde du panneau'));
-        };
         window.addEventListener('panel-save-complete', handleSaveComplete);
-        window.addEventListener('panel-save-error', handleSaveError);
         window.dispatchEvent(new CustomEvent('panel-request-save'));
+        // Timeout after 2 seconds if no response
+        setTimeout(() => {
+          window.removeEventListener('panel-save-complete', handleSaveComplete);
+          resolve();
+        }, 2000);
       });
 
       await savePromise;
 
-      // Then export the project
       const localStorageKey = `bilpow_export_path_${currentProject.id}`;
       const storedPath = localStorage.getItem(localStorageKey);
 
@@ -124,9 +158,10 @@ export function useUnsavedNavigationGuard() {
         localStorage.setItem(localStorageKey, exportResult.filePath);
         toast.success("Projet enregistré");
 
-        // Clear editing state, mark project clean (hierarchical save), and proceed with navigation
+        // Clear editing state, mark project clean, clear new location IDs, and proceed with navigation
         clearEditingState();
         markProjectClean();
+        clearNewLocationIds();
         setShowConfirm(false);
         pendingAction?.();
         setPendingAction(null);

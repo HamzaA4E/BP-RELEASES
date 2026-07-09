@@ -104,7 +104,7 @@ export function Layout() {
       <ConfirmDialog
         isOpen={showConfirm}
         title="Modifications non enregistrées"
-        message="Vous avez des modifications non enregistrées sur ce tableau. Voulez-vous les abandonner ?"
+        message="Vous avez des modifications non enregistrées. Voulez-vous les abandonner ?"
         confirmLabel="Abandonner"
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}

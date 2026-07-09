@@ -14,6 +14,7 @@ export interface Folder {
   id: number;
   name: string;
   description: string | null;
+  folder_path: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +25,7 @@ export interface Project {
   client: string | null;
   description: string | null;
   folder_id: number | null;
+  file_path: string | null;
   created_at: string;
   updated_at: string;
 }

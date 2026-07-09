@@ -1,4 +1,5 @@
 import { getDatabase } from './db';
+import fs from 'fs';
 
 export interface ProjectRow {
   id: number;
@@ -19,7 +20,7 @@ export interface ProjectWithStatsRow extends ProjectRow {
 
 export function getAllProjects(): ProjectWithStatsRow[] {
   const db = getDatabase();
-  return db
+  const projects = db
     .prepare(
       `SELECT p.*,
         (SELECT COUNT(*) FROM locations l WHERE l.project_id = p.id) as location_count,
@@ -34,6 +35,23 @@ export function getAllProjects(): ProjectWithStatsRow[] {
       ORDER BY p.updated_at DESC`
     )
     .all() as ProjectWithStatsRow[];
+  
+  // Filter out projects without valid physical files
+  return projects.filter(project => {
+    // If project has no file_path, it's considered invalid
+    if (!project.file_path) {
+      console.log(`[getAllProjects] Filtering out project ${project.id} (${project.name}): no file_path`);
+      return false;
+    }
+    
+    // Check if the physical file exists
+    if (!fs.existsSync(project.file_path)) {
+      console.log(`[getAllProjects] Filtering out project ${project.id} (${project.name}): file does not exist at ${project.file_path}`);
+      return false;
+    }
+    
+    return true;
+  });
 }
 
 export function getProjectById(id: number): ProjectRow | undefined {
