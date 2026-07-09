@@ -264,6 +264,7 @@ export function duplicatePanel(id: number): PanelRow {
       ks: el.ks,
       coef_ks: el.coef_ks,
       coef_ku: el.coef_ku,
+      use_coefs: el.use_coefs !== 0,
       circuit: el.circuit ?? undefined,
       notes: el.notes ?? undefined,
     });

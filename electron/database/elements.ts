@@ -138,7 +138,7 @@ function mapRow(raw: RawElementRow): ElementRow {
 
 const ELEMENT_SELECT = `SELECT id, panel_id, type, repere, designation, type_label, emplacement,
   row_kind, bar_set_index, phase_type, jdb_category,
-  power_w, quantity, distance_m, ku, ks, coef_ks, coef_ku,
+  power_w, quantity, distance_m, ku, ks, coef_ks, coef_ku, use_coefs,
   circuit, notes, is_multi, order_index`;
 
 export function getElementsByPanel(panelId: number): ElementRow[] {

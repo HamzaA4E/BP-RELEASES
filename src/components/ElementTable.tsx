@@ -1145,7 +1145,7 @@ function SortableDataRow({
             }}
           />
         </td>
-        {coefFields.map((c) => (
+        {element.use_coefs && coefFields.map((c) => (
           <td key={c.key} className="px-2 py-2 text-sm text-center">
             <InlineNumberCell
               elementId={element.id}
@@ -1166,6 +1166,9 @@ function SortableDataRow({
               }}
             />
           </td>
+        ))}
+        {!element.use_coefs && coefFields.map((c) => (
+          <td key={c.key} className="px-2 py-2 text-sm text-center" />
         ))}
         <td className="px-3 py-2 text-sm text-right font-medium">
           {formatNumber(wattsToKw(totalPower), 3)}
@@ -1245,7 +1248,7 @@ export function ElementTable({
   const totalPower = panelTotalPower(elements, articlesByElement);
   const tableRows = buildElementTableRows(elements, articlesByElement);
   
-  // Check if any element has use_coefs enabled to show/hide coefficient columns
+  // Check if any element has use_coefs enabled to show/hide coefficient columns in header
   const anyElementUsesCoefs = elements.some(el => el.use_coefs);
   // Calculate dynamic column count based on coefficient visibility
   // Base columns: drag + add + cat + repere + type + designation + power + qty + total + actions = 10

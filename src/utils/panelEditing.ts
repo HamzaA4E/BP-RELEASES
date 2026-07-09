@@ -230,6 +230,7 @@ export function createElementPending(
       quantity: data.quantity,
       coef_ks: data.coef_ks,
       coef_ku: data.coef_ku,
+      use_coefs: data.use_coefs,
       notes: data.notes ?? undefined,
       is_multi: data.is_multi,
     },

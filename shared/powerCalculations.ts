@@ -51,6 +51,10 @@ export function resolveElementCoefs(el: PowerElementInput): {
   ks: number;
   ku: number;
 } {
+  // Si use_coefs est false, ignorer les coefficients (utiliser 1)
+  if (el.use_coefs === false) {
+    return { ks: 1, ku: 1 };
+  }
   return {
     ks: el.coef_ks ?? el.ks ?? 1,
     ku: el.coef_ku ?? el.ku ?? 1,
