@@ -1,38 +1,95 @@
 import { useState, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { usePanelEditingStore } from '@/store/panelEditingStore';
+import { useAppStore } from '@/store/useAppStore';
 
 export function useUnsavedNavigationGuard() {
   const hasUnsaved = usePanelEditingStore((s) => s.pendingChanges.length > 0);
   const savedFilePath = usePanelEditingStore((s) => s.savedFilePath);
   const clearEditingState = usePanelEditingStore((s) => s.clearEditingState);
+  const { currentProject, setProjects } = useAppStore();
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const guardedNavigate = useCallback(
     (action: () => void) => {
-      // Only show confirmation if there are unsaved changes AND no physical file path
-      // (i.e., new project that hasn't been saved to disk yet)
-      if (!hasUnsaved || savedFilePath !== null) {
+      // Check if project has been saved to disk (has physical file path)
+      const projectSavedPath = currentProject 
+        ? localStorage.getItem(`bilpow_export_path_${currentProject.id}`) 
+        : null;
+      const hasProjectPath = projectSavedPath !== null;
+
+      // Only show confirmation if:
+      // - There are unsaved changes in the panel, OR
+      // - The project has no physical file path (new project not yet saved to disk)
+      if (!hasUnsaved && hasProjectPath) {
         action();
         return;
       }
       setPendingAction(() => action);
       setShowConfirm(true);
     },
-    [hasUnsaved, savedFilePath]
+    [hasUnsaved, currentProject]
   );
 
-  const confirmDiscard = useCallback(() => {
+  const confirmDiscard = useCallback(async () => {
     clearEditingState();
     setShowConfirm(false);
+    
+    // If project has no physical file path, delete it from database
+    if (currentProject) {
+      const projectSavedPath = localStorage.getItem(`bilpow_export_path_${currentProject.id}`);
+      if (!projectSavedPath) {
+        try {
+          await window.bilpow.projects.delete(currentProject.id);
+          // Refresh projects list
+          const projects = await window.bilpow.projects.getAll();
+          setProjects(projects);
+          toast.success("Projet non enregistré supprimé");
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+        }
+      }
+    }
+    
     pendingAction?.();
     setPendingAction(null);
-  }, [clearEditingState, pendingAction]);
+  }, [clearEditingState, currentProject, setProjects, pendingAction]);
+
+  const confirmSave = useCallback(async () => {
+    if (!currentProject || isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      const exportResult = await window.bilpow.project.export(currentProject.id);
+      
+      if (exportResult.success && exportResult.filePath) {
+        // Save the path to localStorage
+        localStorage.setItem(`bilpow_export_path_${currentProject.id}`, exportResult.filePath);
+        toast.success("Projet enregistré");
+        
+        // Clear editing state and proceed with navigation
+        clearEditingState();
+        setShowConfirm(false);
+        pendingAction?.();
+        setPendingAction(null);
+      } else if (exportResult.error && exportResult.error !== "Export annulé") {
+        toast.error(exportResult.error);
+        // User canceled or error occurred, don't navigate
+      }
+      // If user canceled, don't navigate (dialog stays open)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'enregistrement");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [currentProject, isSaving, pendingAction, clearEditingState]);
 
   const cancelDiscard = useCallback(() => {
     setShowConfirm(false);
     setPendingAction(null);
   }, []);
 
-  return { guardedNavigate, showConfirm, confirmDiscard, cancelDiscard, hasUnsaved };
+  return { guardedNavigate, showConfirm, confirmDiscard, cancelDiscard, confirmSave, hasUnsaved, isSaving };
 }

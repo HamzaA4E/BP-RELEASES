@@ -14,7 +14,7 @@ export function Layout() {
   const location = useLocation();
   const { darkMode, setDarkMode } = useAppStore();
   const canGoBack = shouldShowBackButton(location.pathname);
-  const { guardedNavigate, showConfirm, confirmDiscard, cancelDiscard } = useUnsavedNavigationGuard();
+  const { guardedNavigate, showConfirm, confirmDiscard, cancelDiscard, confirmSave, isSaving } = useUnsavedNavigationGuard();
 
   // Get action handlers from PanelView via custom event
   const [quickActions, setQuickActions] = useState<{
@@ -100,10 +100,8 @@ export function Layout() {
         onConfirm={confirmDiscard}
         onCancel={cancelDiscard}
         tertiaryLabel="Enregistrer"
-        onTertiary={() => {
-          cancelDiscard();
-          window.dispatchEvent(new CustomEvent('panel-request-save'));
-        }}
+        onTertiary={confirmSave}
+        tertiaryDisabled={isSaving}
       />
     </div>
   );
