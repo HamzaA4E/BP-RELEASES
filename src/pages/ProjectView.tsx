@@ -22,6 +22,7 @@ export function ProjectView() {
     markProjectDirty,
     markProjectClean,
     addNewLocationId,
+    clearNewLocationIds,
   } = useAppStore();
   const { guardedNavigate } = useUnsavedNavigationGuard();
 
@@ -152,6 +153,7 @@ export function ProjectView() {
         }
       }
       markProjectClean();
+      clearNewLocationIds();
       toast.success("Projet enregistré avec succès");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur lors de la sauvegarde");
