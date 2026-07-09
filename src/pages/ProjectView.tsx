@@ -37,6 +37,8 @@ export function ProjectView() {
   const [newLocationName, setNewLocationName] = useState("");
   const [showAddLocation, setShowAddLocation] = useState(false);
   const locationInputRef = useRef<HTMLInputElement>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [locationToDelete, setLocationToDelete] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
     if (showAddLocation && locationInputRef.current) {
@@ -194,17 +196,23 @@ export function ProjectView() {
     navigate(`/project/${id}/location/${locationId}`);
   };
 
-  const handleDeleteLocation = async (locationId: number, locationName: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'emplacement "${locationName}" ?\n\nCette action supprimera également tous les tableaux contenus dans cet emplacement.`)) {
-      return;
-    }
+  const handleDeleteLocation = (locationId: number, locationName: string) => {
+    setLocationToDelete({ id: locationId, name: locationName });
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteLocation = async () => {
+    if (!locationToDelete) return;
     try {
-      await window.bilpow.locations.delete(locationId);
+      await window.bilpow.locations.delete(locationToDelete.id);
       toast.success("Emplacement supprimé");
       await loadData();
       markProjectDirty();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    } finally {
+      setShowDeleteConfirm(false);
+      setLocationToDelete(null);
     }
   };
 
@@ -347,8 +355,14 @@ export function ProjectView() {
         )}
 
         {showAddLocation && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="card p-6 w-full max-w-sm mx-4">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => setShowAddLocation(false)}
+          >
+            <div
+              className="card p-6 w-full max-w-sm mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h3 className="font-semibold mb-3">Nouvel emplacement</h3>
               <input
                 ref={locationInputRef}
@@ -357,9 +371,11 @@ export function ProjectView() {
                 onChange={(e) => setNewLocationName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void handleAddLocation();
+                  if (e.key === "Escape") setShowAddLocation(false);
                 }}
                 className="input-field mb-4"
                 placeholder="Ex: RDC, Étage 1..."
+                autoFocus
               />
               <div className="flex gap-2 justify-end">
                 <button
@@ -375,6 +391,42 @@ export function ProjectView() {
                   className="btn-primary"
                 >
                   Ajouter
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showDeleteConfirm && locationToDelete && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => setShowDeleteConfirm(false)}
+          >
+            <div
+              className="card p-6 w-full max-w-sm mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-semibold text-lg mb-2">Confirmer la suppression</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                Êtes-vous sûr de vouloir supprimer l'emplacement "{locationToDelete.name}" ?
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
+                Cette action supprimera également tous les tableaux contenus dans cet emplacement.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="btn-secondary"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmDeleteLocation()}
+                  className="btn-danger"
+                >
+                  Supprimer
                 </button>
               </div>
             </div>

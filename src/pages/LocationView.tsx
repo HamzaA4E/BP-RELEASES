@@ -26,6 +26,8 @@ export function LocationView() {
   const [newPanelName, setNewPanelName] = useState("");
   const [saving, setSaving] = useState(false);
   const panelInputRef = useRef<HTMLInputElement>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [panelToDelete, setPanelToDelete] = useState<{ id: number; name: string } | null>(null);
 
   useEffect(() => {
     if (showAddPanel && panelInputRef.current) {
@@ -192,17 +194,23 @@ export function LocationView() {
     }
   };
 
-  const handleDeletePanel = async (panelId: number, panelName: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer le tableau "${panelName}" ?\n\nCette action est irréversible.`)) {
-      return;
-    }
+  const handleDeletePanel = (panelId: number, panelName: string) => {
+    setPanelToDelete({ id: panelId, name: panelName });
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeletePanel = async () => {
+    if (!panelToDelete) return;
     try {
-      await window.bilpow.panels.delete(panelId);
+      await window.bilpow.panels.delete(panelToDelete.id);
       toast.success("Tableau supprimé");
       await loadData();
       markProjectDirty();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    } finally {
+      setShowDeleteConfirm(false);
+      setPanelToDelete(null);
     }
   };
 
@@ -314,8 +322,14 @@ export function LocationView() {
         )}
 
         {showAddPanel && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="card p-6 w-full max-w-sm mx-4">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => setShowAddPanel(false)}
+          >
+            <div
+              className="card p-6 w-full max-w-sm mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h3 className="font-semibold mb-3">Nouveau tableau</h3>
               <input
                 ref={panelInputRef}
@@ -324,9 +338,11 @@ export function LocationView() {
                 onChange={(e) => setNewPanelName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void handleAddPanel();
+                  if (e.key === "Escape") setShowAddPanel(false);
                 }}
                 className="input-field mb-4"
                 placeholder="Ex: TGBT, TD01..."
+                autoFocus
               />
               <div className="flex gap-2 justify-end">
                 <button
@@ -349,8 +365,17 @@ export function LocationView() {
         )}
 
         {showExportDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="card p-6 w-full max-w-md mx-4">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => {
+              setShowExportDialog(false);
+              setSelectedPanelIds([]);
+            }}
+          >
+            <div
+              className="card p-6 w-full max-w-md mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h3 className="font-semibold text-lg mb-1">
                 Exporter les tableaux
               </h3>
@@ -416,6 +441,42 @@ export function LocationView() {
                   className="btn-primary disabled:opacity-50"
                 >
                   Exporter {selectedPanelIds.length > 0 && selectedPanelIds.length}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showDeleteConfirm && panelToDelete && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => setShowDeleteConfirm(false)}
+          >
+            <div
+              className="card p-6 w-full max-w-sm mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-semibold text-lg mb-2">Confirmer la suppression</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                Êtes-vous sûr de vouloir supprimer le tableau "{panelToDelete.name}" ?
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
+                Cette action est irréversible.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="btn-secondary"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmDeletePanel()}
+                  className="btn-danger"
+                >
+                  Supprimer
                 </button>
               </div>
             </div>
