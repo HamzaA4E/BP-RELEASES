@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
 import { formatPower } from "@/utils/calculations";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useUnsavedNavigationGuard } from "@/hooks/useUnsavedNavigationGuard";
 import { importBilpowProject } from "@/utils/projectShare";
 import type { Folder } from "../../shared/types";
 
@@ -19,7 +20,9 @@ export function Dashboard() {
     setSearchQuery,
     setSelection,
     setCurrentProject,
+    markProjectClean,
   } = useAppStore();
+  const { guardedNavigate } = useUnsavedNavigationGuard();
   const [loading, setLoading] = useState(true);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
@@ -305,7 +308,7 @@ export function Dashboard() {
             {selectedFolder && (
               <button
                 type="button"
-                onClick={() => setSelectedFolder(null)}
+                onClick={() => guardedNavigate(() => setSelectedFolder(null))}
                 className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors text-sm font-medium text-gray-700 dark:text-gray-200"
               >
                 <ArrowLeft className="w-4 h-4" />

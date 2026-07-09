@@ -5,6 +5,7 @@ import { Share2, Loader2 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { formatPower } from "@/utils/calculations";
 import { exportProjectExcelById } from "@/utils/projectExcelExport";
+import { useUnsavedNavigationGuard } from "@/hooks/useUnsavedNavigationGuard";
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -20,6 +21,7 @@ export function ProjectView() {
     company,
     markProjectDirty,
   } = useAppStore();
+  const { guardedNavigate } = useUnsavedNavigationGuard();
 
   const [exportingExcel, setExportingExcel] = useState(false);
   const [exportingShare, setExportingShare] = useState(false);
@@ -139,7 +141,7 @@ export function ProjectView() {
       locationId,
       panelId: null,
     });
-    navigate(`/project/${id}/location/${locationId}`);
+    guardedNavigate(() => navigate(`/project/${id}/location/${locationId}`));
   };
 
   if (!currentProject) {

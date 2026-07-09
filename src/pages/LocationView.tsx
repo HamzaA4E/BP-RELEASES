@@ -5,6 +5,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { calculationCurrent, formatPower } from "@/utils/calculations";
 import { exportLocationToExcel } from "@/utils/export";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useUnsavedNavigationGuard } from "@/hooks/useUnsavedNavigationGuard";
 import { formatNumber } from "@/utils/calculations";
 import type { PanelWithStats } from "@/types";
 
@@ -16,8 +17,9 @@ export function LocationView() {
   const navigate = useNavigate();
   const pId = Number(projectId);
   const lId = Number(locationId);
-  const { panels, setPanels, setSelection, setLocations, company } =
+  const { panels, setPanels, setSelection, setLocations, company, markProjectDirty } =
     useAppStore();
+  const { guardedNavigate } = useUnsavedNavigationGuard();
   const [locationName, setLocationName] = useState("");
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [newPanelName, setNewPanelName] = useState("");
@@ -82,7 +84,7 @@ export function LocationView() {
 
   const openPanel = (panelId: number) => {
     setSelection({ type: "panel", projectId: pId, locationId: lId, panelId });
-    navigate(`/project/${pId}/location/${lId}/panel/${panelId}`);
+    guardedNavigate(() => navigate(`/project/${pId}/location/${lId}/panel/${panelId}`));
   };
 
   const handleExport = async (panelIds?: number[]) => {
