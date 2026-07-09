@@ -56,7 +56,7 @@ export function useUnsavedNavigationGuard() {
   const confirmDiscard = useCallback(async () => {
     clearEditingState();
     setShowConfirm(false);
-    
+
     // If project has no physical file path, delete it from database
     if (currentProject) {
       const projectSavedPath = localStorage.getItem(`bilpow_export_path_${currentProject.id}`);
@@ -71,23 +71,12 @@ export function useUnsavedNavigationGuard() {
           toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
         }
       } else {
-        // Project exists on disk, restore from last save
-        try {
-          const restoreResult = await window.bilpow.project.restore(currentProject.id, projectSavedPath);
-          if (restoreResult.success && restoreResult.projectId) {
-            // Refresh projects list
-            const projects = await window.bilpow.projects.getAll();
-            setProjects(projects);
-            toast.success("Projet restauré depuis le dernier enregistrement");
-          } else {
-            toast.error("Erreur lors de la restauration du projet");
-          }
-        } catch (err) {
-          toast.error(err instanceof Error ? err.message : "Erreur lors de la restauration");
-        }
+        // Project exists on disk, just clear unsaved changes
+        // The page will reload data naturally after navigation
+        toast.success("Modifications non enregistrées abandonnées");
       }
     }
-    
+
     pendingAction?.();
     setPendingAction(null);
   }, [clearEditingState, currentProject, setProjects, pendingAction]);
