@@ -7,7 +7,7 @@ export function useUnsavedNavigationGuard() {
   const hasUnsaved = usePanelEditingStore((s) => s.pendingChanges.length > 0);
   const savedFilePath = usePanelEditingStore((s) => s.savedFilePath);
   const clearEditingState = usePanelEditingStore((s) => s.clearEditingState);
-  const { currentProject, setProjects } = useAppStore();
+  const { currentProject, setProjects, locations, panels } = useAppStore();
   const [showConfirm, setShowConfirm] = useState(false);
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -20,17 +20,20 @@ export function useUnsavedNavigationGuard() {
         : null;
       const hasProjectPath = projectSavedPath !== null;
 
+      // Check if project has unsaved data (locations or panels)
+      const hasProjectData = locations.length > 0 || panels.length > 0;
+
       // Only show confirmation if:
       // - There are unsaved changes in the panel, OR
-      // - The project has no physical file path (new project not yet saved to disk)
-      if (!hasUnsaved && hasProjectPath) {
+      // - The project has no physical file path AND has data (new project with unsaved data)
+      if (!hasUnsaved && hasProjectPath && !hasProjectData) {
         action();
         return;
       }
       setPendingAction(() => action);
       setShowConfirm(true);
     },
-    [hasUnsaved, currentProject]
+    [hasUnsaved, currentProject, locations, panels]
   );
 
   const confirmDiscard = useCallback(async () => {
