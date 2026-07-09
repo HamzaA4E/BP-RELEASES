@@ -84,7 +84,7 @@ export function LocationView() {
 
   const openPanel = (panelId: number) => {
     setSelection({ type: "panel", projectId: pId, locationId: lId, panelId });
-    guardedNavigate(() => navigate(`/project/${pId}/location/${lId}/panel/${panelId}`));
+    navigate(`/project/${pId}/location/${lId}/panel/${panelId}`);
   };
 
   const handleExport = async (panelIds?: number[]) => {

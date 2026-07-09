@@ -141,7 +141,7 @@ export function ProjectView() {
       locationId,
       panelId: null,
     });
-    guardedNavigate(() => navigate(`/project/${id}/location/${locationId}`));
+    navigate(`/project/${id}/location/${locationId}`);
   };
 
   if (!currentProject) {
