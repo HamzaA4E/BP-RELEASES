@@ -18,7 +18,7 @@ export function LocationView() {
   const navigate = useNavigate();
   const pId = Number(projectId);
   const lId = Number(locationId);
-  const { panels, setPanels, setSelection, setLocations, company, markProjectDirty, markProjectClean, addNewPanelId, currentProject } =
+  const { panels, setPanels, setSelection, setLocations, company, markProjectDirty, markProjectClean, addNewPanelId, clearNewPanelIds, clearNewLocationIds, currentProject } =
     useAppStore();
   const { guardedNavigate } = useUnsavedNavigationGuard();
   const [locationName, setLocationName] = useState("");
@@ -58,6 +58,8 @@ export function LocationView() {
         }
       }
       markProjectClean();
+      clearNewPanelIds();
+      clearNewLocationIds();
       toast.success("Projet enregistré avec succès");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur lors de la sauvegarde");
