@@ -138,8 +138,7 @@ export function usePanelEditing({
 
       // D'abord, gérer l'export du projet (boîte de dialogue si nécessaire)
       if (currentProject) {
-        const localStorageKey = `bilpow_export_path_${currentProject.id}`;
-        const storedPath = localStorage.getItem(localStorageKey);
+        const storedPath = currentProject.file_path;
 
         if (storedPath) {
           // Exporter directement avec le chemin sauvegardé
@@ -156,10 +155,7 @@ export function usePanelEditing({
           const exportResult = await window.bilpow.project.export(
             currentProject.id,
           );
-          if (exportResult.success && exportResult.filePath) {
-            // Save the path to localStorage for future saves
-            localStorage.setItem(localStorageKey, exportResult.filePath);
-          } else if (exportResult.error) {
+          if (exportResult.error) {
             if (exportResult.error !== "Export annulé") {
               toast.error(exportResult.error);
             }

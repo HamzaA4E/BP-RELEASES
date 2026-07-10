@@ -39,8 +39,7 @@ export function LocationView() {
     if (!currentProject) return;
     setSaving(true);
     try {
-      const localStorageKey = `bilpow_export_path_${pId}`;
-      const storedPath = localStorage.getItem(localStorageKey);
+      const storedPath = currentProject.file_path;
 
       if (storedPath) {
         const result = await window.bilpow.project.exportWithPath(pId, storedPath);
@@ -50,9 +49,7 @@ export function LocationView() {
         }
       } else {
         const result = await window.bilpow.project.export(pId);
-        if (result.success && result.filePath) {
-          localStorage.setItem(localStorageKey, result.filePath);
-        } else if (result.error) {
+        if (result.error) {
           if (result.error !== "Export annulé") {
             toast.error(result.error);
           }

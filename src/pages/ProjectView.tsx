@@ -134,8 +134,7 @@ export function ProjectView() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const localStorageKey = `bilpow_export_path_${id}`;
-      const storedPath = localStorage.getItem(localStorageKey);
+      const storedPath = currentProject?.file_path;
 
       if (storedPath) {
         const result = await window.bilpow.project.exportWithPath(id, storedPath);
@@ -145,9 +144,7 @@ export function ProjectView() {
         }
       } else {
         const result = await window.bilpow.project.export(id);
-        if (result.success && result.filePath) {
-          localStorage.setItem(localStorageKey, result.filePath);
-        } else if (result.error) {
+        if (result.error) {
           if (result.error !== "Export annulé") {
             toast.error(result.error);
           }

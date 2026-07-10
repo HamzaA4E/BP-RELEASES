@@ -20,11 +20,8 @@ export function useUnsavedNavigationGuard() {
         return;
       }
 
-      // Check if project has been saved to disk (has physical file path)
-      const projectSavedPath = currentProject
-        ? localStorage.getItem(`bilpow_export_path_${currentProject.id}`)
-        : null;
-      const hasProjectPath = projectSavedPath !== null;
+      // Check if project has been saved to disk (has physical file path in database)
+      const hasProjectPath = currentProject?.file_path !== null && currentProject?.file_path !== undefined;
 
       // Check if project has unsaved data (locations or panels)
       const hasProjectData = locations.length > 0 || panels.length > 0;
@@ -63,10 +60,10 @@ export function useUnsavedNavigationGuard() {
     clearEditingState();
     setShowConfirm(false);
 
-    // If project has no physical file path, delete it from database
+    // If project has no physical file path in database, delete it from database
     if (currentProject) {
-      const projectSavedPath = localStorage.getItem(`bilpow_export_path_${currentProject.id}`);
-      if (!projectSavedPath) {
+      const hasProjectPath = currentProject.file_path !== null && currentProject.file_path !== undefined;
+      if (!hasProjectPath) {
         try {
           // Delete all locations first (to ensure cascade deletion works properly)
           const locations = await window.bilpow.locations.getByProject(currentProject.id);
@@ -164,8 +161,7 @@ export function useUnsavedNavigationGuard() {
         await savePromise;
       }
 
-      const localStorageKey = `bilpow_export_path_${currentProject.id}`;
-      const storedPath = localStorage.getItem(localStorageKey);
+      const storedPath = currentProject.file_path;
 
       let exportResult;
       if (storedPath) {
@@ -180,8 +176,6 @@ export function useUnsavedNavigationGuard() {
       }
 
       if (exportResult.success && exportResult.filePath) {
-        // Save the path to localStorage
-        localStorage.setItem(localStorageKey, exportResult.filePath);
         toast.success("Projet enregistré");
 
         // Clear editing state, mark project clean, clear new location and panel IDs, and proceed with navigation
