@@ -430,7 +430,7 @@ export function Dashboard() {
                                     <Edit2 className="w-4 h-4" />
                                     Renommer
                                   </button>
-                                  <button
+                                  {/* <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -441,7 +441,7 @@ export function Dashboard() {
                                   >
                                     <FolderIcon className="w-4 h-4" />
                                     Définir l'emplacement
-                                  </button>
+                                  </button> */}
                                   <button
                                     type="button"
                                     onClick={(e) => {

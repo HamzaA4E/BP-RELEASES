@@ -439,15 +439,18 @@ function registerIpcHandlers(): void {
           // Move physical file to default location if it exists
           if (project.file_path && fs.existsSync(project.file_path)) {
             try {
-              const defaultProjectPath = path.join(app.getPath('userData'), 'projects');
-              if (!fs.existsSync(defaultProjectPath)) {
-                fs.mkdirSync(defaultProjectPath, { recursive: true });
+              const os = require('os');
+              const desktopPath = path.join(os.homedir(), 'Desktop');
+              const bilpowFolder = path.join(desktopPath, 'Projet BilPow');
+              
+              if (!fs.existsSync(bilpowFolder)) {
+                fs.mkdirSync(bilpowFolder, { recursive: true });
               }
               
               const fileName = path.basename(project.file_path);
-              const newFilePath = path.join(defaultProjectPath, fileName);
+              const newFilePath = path.join(bilpowFolder, fileName);
               
-              // Only move if not already in default location
+              // Only move if not already in BilPow folder
               if (project.file_path !== newFilePath) {
                 fs.copyFileSync(project.file_path, newFilePath);
                 fs.unlinkSync(project.file_path);
@@ -455,7 +458,7 @@ function registerIpcHandlers(): void {
                 console.log('[folders:delete] Moved file from:', project.file_path, 'to:', newFilePath);
               }
             } catch (err) {
-              console.error('[folders:delete] Failed to move project file to default location:', err);
+              console.error('[folders:delete] Failed to move project file to BilPow folder:', err);
             }
           }
         }
