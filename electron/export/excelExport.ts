@@ -431,7 +431,8 @@ function writeMultiDepartExcelRows(
   colCount: number,
   showKu: boolean,
   showCoefs: boolean,
-  departIndex: number
+  departIndex: number,
+  maxDesignationLengthRef: { value: number }
 ): { endRow: number; powerRows: number[] } {
   const powerRows: number[] = [];
   let rowNum = startRowNum - 1;
@@ -457,8 +458,13 @@ function writeMultiDepartExcelRows(
     row.getCell(colMapping.TYPE).value =
     article.type_label?.trim() || '';
 
-    row.getCell(colMapping.DESIGNATION).value =
-    article.designation?.trim() || '';
+    const designation = article.designation?.trim() || '';
+    row.getCell(colMapping.DESIGNATION).value = designation;
+    
+    // Track maximum designation length
+    if (designation.length > maxDesignationLengthRef.value) {
+      maxDesignationLengthRef.value = designation.length;
+    }
     row.getCell(colMapping.POWER).value = wattsToKw(article.power_w);
     row.getCell(colMapping.QTY).value = article.quantity;
     
@@ -686,6 +692,7 @@ function createPanelSheet(
   let currentJdb: ElementRow | null = null;
   let groupPowerRows: number[] = [];
   const allPowerRows: number[] = [];
+  let maxDesignationLength = 0;
 
   // Tracking for repère merging (only within same repère + category, e.g. multi-départ)
   let currentRepereGroupKey = '';
@@ -743,7 +750,8 @@ function createPanelSheet(
         COL_COUNT_DYNAMIC,
         showKu,
         showCoefs,
-        departIndex // Pass depart index for consistent coloring
+        departIndex,
+        { value: maxDesignationLength }
       );
       rowNum = endRow;
       dataRowIndex++;
@@ -766,6 +774,11 @@ function createPanelSheet(
     row.getCell(COL_DYNAMIC.REPERE).value = el.repere;
     row.getCell(COL_DYNAMIC.TYPE).value = typeValue;
     row.getCell(COL_DYNAMIC.DESIGNATION).value = designation;
+    
+    // Track maximum designation length
+    if (designation.length > maxDesignationLength) {
+      maxDesignationLength = designation.length;
+    }
     row.getCell(COL_DYNAMIC.POWER).value = wattsToKw(el.power_w);
     row.getCell(COL_DYNAMIC.QTY).value = el.quantity;
     if (showCoefs) {
@@ -810,7 +823,7 @@ function createPanelSheet(
   const totalRowNum = rowNum;
 
   const totalRow = sheet.getRow(totalRowNum);
-  const mergeEndCol = showKu ? COL_DYNAMIC.KU : COL_DYNAMIC.KS;
+  const mergeEndCol = COL_DYNAMIC.TOTAL - 1;
   safeMergeCells(sheet, totalRowNum, COL_DYNAMIC.REPERE, totalRowNum, mergeEndCol);
   totalRow.getCell(COL_DYNAMIC.REPERE).value = 'TOTAL';
   totalRow.getCell(COL_DYNAMIC.REPERE).font = { bold: true };
@@ -911,6 +924,12 @@ function createPanelSheet(
   applyBorder(intensiteValueCell);
   // Calculate optimal column widths for A4 (orientation already calculated above)
   const optimalWidths = calculateOptimalColumnWidths(COL_COUNT_DYNAMIC, orientation);
+  
+  // Adjust designation column width based on maximum designation length
+  // Each character is approximately 0.09 Excel units at 10pt font
+  const designationMinWidth = 15; // Minimum width for designation column
+  const designationCalculatedWidth = Math.max(designationMinWidth, maxDesignationLength * 0.9);
+  optimalWidths[COL_DYNAMIC.DESIGNATION - 1] = designationCalculatedWidth;
   
   sheet.columns = optimalWidths.map(width => ({ width }));
   
