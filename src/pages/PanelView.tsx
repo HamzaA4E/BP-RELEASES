@@ -1144,7 +1144,9 @@ export function PanelView() {
       }
     }
 
-    let insertAt = contextJdb
+    let insertAt = insertAtIndex !== null
+      ? insertAtIndex
+      : contextJdb
       ? getInsertIndexAfterJdbSection(elements, contextJdb.id)
       : elements.length;
     const prevElements = elements;
@@ -1162,7 +1164,7 @@ export function PanelView() {
     }
 
     const reordered = reorderElementsList(newElements, newIds);
-    if (contextJdb) {
+    if (contextJdb || insertAtIndex !== null) {
       pending.push({ type: "reorderElements", orderedIds: newIds });
     }
 
@@ -1173,6 +1175,7 @@ export function PanelView() {
     });
     applyMutations([{ op: "setElements", elements: reordered }]);
     setContextJdb(null);
+    setInsertAtIndex(null);
     toast.success(`${items.length} éléments ajoutés avec succès`);
   };
 
