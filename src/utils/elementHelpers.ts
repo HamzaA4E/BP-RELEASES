@@ -393,7 +393,7 @@ export function normalizeElement(raw: Element): Element {
     ks: raw.ks ?? DEFAULT_KS,
     coef_ks: raw.coef_ks ?? coefDefaults.coef_ks,
     coef_ku: raw.coef_ku ?? coefDefaults.coef_ku,
-    use_coefs: raw.use_coefs !== 0,
+    use_coefs: typeof raw.use_coefs === 'boolean' ? raw.use_coefs : raw.use_coefs !== 0,
     is_multi: Boolean(raw.is_multi),
   };
 }
@@ -522,4 +522,127 @@ export function typeBadge(element: Element): {
   }
   
   return badgeConfig[element.type] || badgeConfig.jeu_de_barres!;
+}
+
+/**
+ * Represents a complete JDB section including the JDB element and all its child elements.
+ */
+export interface JdbSection {
+  jdb: Element;
+  elements: Element[];
+  startIndex: number;
+  endIndex: number;
+}
+
+/**
+ * Identifies all JDB sections in the elements array.
+ * @param elements - Array of elements to analyze
+ * @returns Array of JDB sections with their indices and child elements
+ */
+export function identifyJdbSections(elements: Element[]): JdbSection[] {
+  const sections: JdbSection[] = [];
+  let currentSection: JdbSection | null = null;
+
+  for (let i = 0; i < elements.length; i++) {
+    const element = elements[i]!;
+
+    if (isJeuDeBarres(element)) {
+      // Save previous section if exists
+      if (currentSection) {
+        currentSection.endIndex = i;
+        sections.push(currentSection);
+      }
+
+      // Start new section
+      currentSection = {
+        jdb: element,
+        elements: [],
+        startIndex: i,
+        endIndex: elements.length,
+      };
+    } else if (currentSection) {
+      // Add element to current section
+      currentSection.elements.push(element);
+    }
+  }
+
+  // Save last section
+  if (currentSection) {
+    sections.push(currentSection);
+  }
+
+  return sections;
+}
+
+/**
+ * Finds the JDB section that contains a specific element ID.
+ * @param elements - Array of elements to search
+ * @param elementId - The element ID to find
+ * @returns The JDB section containing the element, or null if not found
+ */
+export function findJdbSectionForElement(elements: Element[], elementId: number): JdbSection | null {
+  const sections = identifyJdbSections(elements);
+  return sections.find(section => 
+    section.jdb.id === elementId || 
+    section.elements.some(e => e.id === elementId)
+  ) || null;
+}
+
+/**
+ * Reorders elements while keeping JDB sections intact.
+ * When a JDB is moved, all its elements move with it.
+ * @param elements - Current elements array
+ * @param orderedIds - New order of element IDs (may include JDBs and individual elements)
+ * @returns Reordered elements array with JDB sections preserved
+ */
+export function reorderElementsWithJdbSections(elements: Element[], orderedIds: number[]): Element[] {
+  const sections = identifyJdbSections(elements);
+  const idToElement = new Map(elements.map(e => [e.id, e]));
+  const result: Element[] = [];
+  const processedIds = new Set<number>();
+
+  for (const id of orderedIds) {
+    if (processedIds.has(id)) continue;
+
+    const element = idToElement.get(id);
+    if (!element) continue;
+
+    if (isJeuDeBarres(element)) {
+      // This is a JDB, move the entire section
+      const section = sections.find(s => s.jdb.id === id);
+      if (section) {
+        result.push(section.jdb);
+        result.push(...section.elements);
+        processedIds.add(id);
+        section.elements.forEach(e => processedIds.add(e.id));
+      }
+    } else {
+      // This is a regular element
+      const section = sections.find(s => s.elements.some(e => e.id === id));
+      if (section) {
+        // Element belongs to a JDB section
+        // Only add it if the JDB hasn't been added yet
+        if (!processedIds.has(section.jdb.id)) {
+          result.push(section.jdb);
+          result.push(...section.elements);
+          processedIds.add(section.jdb.id);
+          section.elements.forEach(e => processedIds.add(e.id));
+        }
+      } else {
+        // Element is not in any JDB section (top-level element)
+        result.push(element);
+        processedIds.add(id);
+      }
+    }
+  }
+
+  // Add any remaining elements that weren't in the ordered list
+  for (const element of elements) {
+    if (!processedIds.has(element.id)) {
+      result.push(element);
+    }
+  }
+
+  // Update order_index for all elements
+  return result.map((el, i) => ({ ...el, order_index: i }));
 }

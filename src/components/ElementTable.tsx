@@ -34,6 +34,7 @@ import {
   jeuDeBarresTitle,
   jdbCategoryLabel,
   buildElementTableRows,
+  reorderElementsWithJdbSections,
 } from "@/utils/elementHelpers";
 import {
   displayArticleTypeLabel,
@@ -1289,7 +1290,11 @@ export function ElementTable({
 
     const oldIndex = elements.findIndex((e) => e.id === active.id);
     const newIndex = elements.findIndex((e) => e.id === over.id);
-    const reordered = arrayMove(elements, oldIndex, newIndex);
+    
+    // Move the element using arrayMove, then apply JDB-aware reordering
+    const movedIds = arrayMove(elements.map((e) => e.id), oldIndex, newIndex);
+    const reordered = reorderElementsWithJdbSections(elements, movedIds);
+    
     onReorder(reordered.map((e) => e.id));
   };
 

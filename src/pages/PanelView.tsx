@@ -22,6 +22,7 @@ import {
   departCategoryOf,
   findElementByRepereAndCategory,
   getInsertIndexAfterRepereGroup,
+  reorderElementsWithJdbSections,
 } from "@/utils/elementHelpers";
 import {
   panelTotalPower,
@@ -1294,11 +1295,12 @@ export function PanelView() {
 
   const handleReorder = async (orderedIds: number[]) => {
     const prevElements = elements;
-    const reordered = reorderElementsList(elements, orderedIds);
+    const reordered = reorderElementsWithJdbSections(elements, orderedIds);
+    const newOrderedIds = reordered.map((e) => e.id);
     recordOperation({
       inverse: [{ op: "setElements", elements: prevElements }],
       redo: [{ op: "setElements", elements: reordered }],
-      pending: [{ type: "reorderElements", orderedIds }],
+      pending: [{ type: "reorderElements", orderedIds: newOrderedIds }],
       undoPending: [
         { type: "reorderElements", orderedIds: prevElements.map((e) => e.id) },
       ],
