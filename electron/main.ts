@@ -44,7 +44,6 @@ import {
   checkForUpdates,
   installUpdate,
   getCurrentVersion,
-  getGitHubConfig,
 } from './updater/updater';
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -931,10 +930,6 @@ ipcMain.handle('devtools:open', () => {
 
   ipcMain.handle('update:getCurrentVersion', () => {
     return { success: true, data: getCurrentVersion() };
-  });
-
-  ipcMain.handle('update:getGitHubConfig', () => {
-    return { success: true, data: getGitHubConfig() };
   });
 
   ipcMain.handle('app:getPlatform', () => process.platform);

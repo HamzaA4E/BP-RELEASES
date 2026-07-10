@@ -1,11 +1,5 @@
 import { autoUpdater, UpdateInfo } from 'electron-updater';
 import { BrowserWindow } from 'electron';
-import path from 'path';
-
-// GitHub repository configuration
-// TODO: Replace with your actual GitHub owner and repository name
-const GITHUB_OWNER = 'YOUR_GITHUB_OWNER';
-const GITHUB_REPO = 'YOUR_GITHUB_REPO';
 
 // Update progress information interface
 export interface UpdateProgressInfo {
@@ -15,14 +9,6 @@ export interface UpdateProgressInfo {
   bytesPerSecond: number;
 }
 
-// Update event types for IPC communication
-export type UpdateEventType = 
-  | 'update-available'
-  | 'update-not-available'
-  | 'update-progress'
-  | 'update-downloaded'
-  | 'update-error';
-
 // Logger for update events
 function logUpdate(message: string, ...args: any[]): void {
   console.log(`[AutoUpdater] ${message}`, ...args);
@@ -30,24 +16,17 @@ function logUpdate(message: string, ...args: any[]): void {
 
 // Configure autoUpdater
 function configureAutoUpdater(): void {
-  // Set the feed URL for GitHub Releases
-  autoUpdater.setFeedURL({
-    provider: 'github',
-    owner: GITHUB_OWNER,
-    repo: GITHUB_REPO,
-  });
-
   // Enable automatic download of updates
   autoUpdater.autoDownload = true;
 
   // Don't automatically install updates on quit (user confirmation required)
   autoUpdater.autoInstallOnAppQuit = false;
 
-  logUpdate('Configured with GitHub provider:', { owner: GITHUB_OWNER, repo: GITHUB_REPO });
+  logUpdate('AutoUpdater configured (using electron-builder.yml publish configuration)');
 }
 
 // Send update event to renderer process
-function sendUpdateEventToRenderer(event: UpdateEventType, data?: any): void {
+function sendUpdateEventToRenderer(event: string, data?: any): void {
   const windows = BrowserWindow.getAllWindows();
   windows.forEach(window => {
     if (!window.isDestroyed()) {
@@ -136,18 +115,6 @@ export async function checkForUpdates(): Promise<void> {
   }
 }
 
-// Download update (if not already downloaded)
-export async function downloadUpdate(): Promise<void> {
-  try {
-    logUpdate('Downloading update...');
-    await autoUpdater.downloadUpdate();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    logUpdate('Error downloading update:', message);
-    sendUpdateEventToRenderer('update-error', { message });
-  }
-}
-
 // Install update and quit
 export function installUpdate(): void {
   try {
@@ -194,12 +161,4 @@ export function scheduleAutoUpdateCheck(delayMs: number = 5000): void {
 // Get current version
 export function getCurrentVersion(): string {
   return autoUpdater.currentVersion.version;
-}
-
-// Get the GitHub configuration (for reference)
-export function getGitHubConfig(): { owner: string; repo: string } {
-  return {
-    owner: GITHUB_OWNER,
-    repo: GITHUB_REPO,
-  };
 }

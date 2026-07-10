@@ -217,7 +217,6 @@ const api = {
     checkForUpdates: (): Promise<{ success: boolean }> => invoke('update:checkForUpdates'),
     installUpdate: (): Promise<{ success: boolean }> => invoke('update:installUpdate'),
     getCurrentVersion: (): Promise<string> => invoke('update:getCurrentVersion'),
-    getGitHubConfig: (): Promise<{ owner: string; repo: string }> => invoke('update:getGitHubConfig'),
     onUpdateAvailable: (callback: (data: { version: string; releaseDate?: string; releaseNotes?: string }) => void): (() => void) => {
       const listener = (_event: Electron.IpcRendererEvent, data: { version: string; releaseDate?: string; releaseNotes?: string }): void => {
         callback(data);
