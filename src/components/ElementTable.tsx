@@ -819,6 +819,7 @@ function SortableMultiDepartRow({
   hoveredElementId,
   setHoveredElementId,
   elementIndex,
+  anyElementUsesCoefs,
 }: {
   element: Element;
   articles: Article[];
@@ -837,6 +838,7 @@ function SortableMultiDepartRow({
   hoveredElementId: number | null;
   setHoveredElementId: (id: number | null) => void;
   elementIndex: number;
+  anyElementUsesCoefs: boolean;
 }) {
   const {
     attributes,
@@ -979,8 +981,8 @@ function SortableMultiDepartRow({
               onCommit={(v) => void onArticleUpdate(article.id, "quantity", v)}
             />
           </td>
-          <td className="px-3 py-2 text-sm text-center">
-            {element.use_coefs ? (
+          {anyElementUsesCoefs && (
+            <td className="px-3 py-2 text-sm text-center">
               <ArticleCoefCell
                 article={article}
                 field="coef_ks"
@@ -988,12 +990,10 @@ function SortableMultiDepartRow({
                 setArticleEditing={setArticleEditing}
                 onCommit={(v) => void onArticleUpdate(article.id, "coef_ks", v)}
               />
-            ) : (
-              <span className="text-gray-400 font-mono text-sm">1.00</span>
-            )}
-          </td>
-          <td className="px-3 py-2 text-sm text-center">
-            {element.use_coefs ? (
+            </td>
+          )}
+          {anyElementUsesCoefs && (
+            <td className="px-3 py-2 text-sm text-center">
               <ArticleCoefCell
                 article={article}
                 field="coef_ku"
@@ -1001,10 +1001,8 @@ function SortableMultiDepartRow({
                 setArticleEditing={setArticleEditing}
                 onCommit={(v) => void onArticleUpdate(article.id, "coef_ku", v)}
               />
-            ) : (
-              <span className="text-gray-400 font-mono text-sm">1.00</span>
-            )}
-          </td>
+            </td>
+          )}
           {idx === 0 ? (
             <td
               rowSpan={rowCount}
@@ -1016,7 +1014,7 @@ function SortableMultiDepartRow({
           {idx === 0 && (
             <td
               rowSpan={rowCount}
-              className={`px-2 py-2 align-middle whitespace-nowrap ${rowSpanHoverClass}`}
+              className={`px-4 py-2 align-middle whitespace-nowrap ${rowSpanHoverClass}`}
             >
               <div className="flex gap-1 justify-end">
                 <button
@@ -1056,6 +1054,7 @@ function SortableDataRow({
   hoveredElementId,
   setHoveredElementId,
   elementIndex,
+  anyElementUsesCoefs,
 }: {
   element: Element;
   onEdit: (el: Element) => void;
@@ -1070,6 +1069,7 @@ function SortableDataRow({
   hoveredElementId: number | null;
   setHoveredElementId: (id: number | null) => void;
   elementIndex: number;
+  anyElementUsesCoefs: boolean;
 }) {
   const {
     attributes,
@@ -1186,36 +1186,32 @@ function SortableDataRow({
             }}
           />
         </td>
-        {coefFields.map((c) => (
+        {anyElementUsesCoefs && coefFields.map((c) => (
           <td key={c.key} className="px-2 py-2 text-sm text-center">
-            {element.use_coefs ? (
-              <InlineNumberCell
-                elementId={element.id}
-                field={c.key}
-                value={element[c.key]}
-                editingField={editingField}
-                setEditingField={setEditingField}
-                min={0}
-                max={1}
-                step={0.05}
-                format={(v) =>
-                  c.key === "coef_ku" ? formatKuDisplay(v) : v.toFixed(2)
-                }
-                title={coefsLine}
-                onCommit={(v) => {
-                  const clamped = Math.min(1, Math.max(0, v));
-                  void onFieldUpdate(element.id, c.key, clamped);
-                }}
-              />
-            ) : (
-              <span className="text-gray-400 font-mono text-sm">1.00</span>
-            )}
+            <InlineNumberCell
+              elementId={element.id}
+              field={c.key}
+              value={element[c.key]}
+              editingField={editingField}
+              setEditingField={setEditingField}
+              min={0}
+              max={1}
+              step={0.05}
+              format={(v) =>
+                c.key === "coef_ku" ? formatKuDisplay(v) : v.toFixed(2)
+              }
+              title={coefsLine}
+              onCommit={(v) => {
+                const clamped = Math.min(1, Math.max(0, v));
+                void onFieldUpdate(element.id, c.key, clamped);
+              }}
+            />
           </td>
         ))}
         <td className="px-3 py-2 text-sm text-right font-medium">
           {formatNumber(wattsToKw(totalPower), 3)}
         </td>
-        <td className="px-2 py-2 whitespace-nowrap">
+        <td className="px-4 py-2 whitespace-nowrap">
           <div className="flex gap-1 justify-end">
             <button
               type="button"
@@ -1364,7 +1360,7 @@ export function ElementTable({
                 </>
               )}
               <th style={{ width: anyElementUsesCoefs ? '9%' : '10%' }} className="px-3 py-3 text-right">P. totale (kW)</th>
-              <th style={{ width: anyElementUsesCoefs ? '8%' : '10%' }} className="px-2 py-3 text-center">Actions</th>
+              <th style={{ width: anyElementUsesCoefs ? '10%' : '12%' }} className="px-4 py-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -1420,6 +1416,7 @@ export function ElementTable({
                       hoveredElementId={hoveredElementId}
                       setHoveredElementId={setHoveredElementId}
                       elementIndex={idx}
+                      anyElementUsesCoefs={anyElementUsesCoefs}
                     />
                   );
                 }
@@ -1437,6 +1434,7 @@ export function ElementTable({
                     hoveredElementId={hoveredElementId}
                     setHoveredElementId={setHoveredElementId}
                     elementIndex={idx}
+                    anyElementUsesCoefs={anyElementUsesCoefs}
                   />
                 );
               })}
