@@ -399,9 +399,9 @@ function JeuDeBarresRow({
       </td>
       <td />
       <td colSpan={visibleColumnCount - 2} className="p-0">
-        <div className="flex items-center justify-between gap-4 px-5 py-3 bg-gradient-to-r from-[#1E3A5F] to-[#2a4f7a] border-y border-[#162d4a]">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/15 text-base">
+        <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-gradient-to-r from-[#1E3A5F] to-[#2a4f7a] border-y border-[#162d4a] overflow-hidden">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-sm">
               ⚡
             </span>
             <div className="min-w-0 flex-1">
@@ -419,30 +419,30 @@ function JeuDeBarresRow({
                   )
                 }
                 className="block text-white font-semibold text-sm tracking-wide truncate hover:bg-white/15 hover:text-white px-2 py-0.5 rounded"
-                inputClassName="w-full min-w-[12rem] bg-white/20 text-white border border-white/40 rounded px-2 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/50"
+                inputClassName="w-full min-w-[10rem] bg-white/20 text-white border border-white/40 rounded px-2 py-1 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-white/50"
               />
-              <p className="text-white/60 text-xs mt-0.5 px-2">
+              <p className="text-white/60 text-xs mt-0.5 px-2 truncate">
                 Jeu de barres · {categoryLabel}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs font-medium uppercase tracking-wider text-white/80 bg-white/10 px-2.5 py-1 rounded hidden sm:inline">
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className="text-xs font-medium uppercase tracking-wider text-white/80 bg-white/10 px-2 py-0.5 rounded hidden sm:inline whitespace-nowrap">
               {categoryLabel}
             </span>
             <button
               type="button"
               onClick={() => onAddElement(element)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded-lg transition-colors"
+              className="flex items-center gap-1 px-2 py-1 bg-white/15 hover:bg-white/25 text-white text-xs font-medium rounded transition-colors whitespace-nowrap"
               title="Ajouter un élément dans cette section"
             >
-              <span className="text-sm leading-none">+</span>
-              Ajouter un élément
+              <span className="text-xs leading-none">+</span>
+              Ajouter
             </button>
             <button
               type="button"
               onClick={() => onDelete(element.id)}
-              className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-red-300 p-1 rounded"
+              className="opacity-0 group-hover:opacity-100 transition-opacity text-white/50 hover:text-red-300 p-1 rounded shrink-0"
               title="Supprimer ce jeu de barres et tous ses éléments"
             >
               🗑️
@@ -477,19 +477,19 @@ function SubtotalRow({
       >
         {label}
       </td>
-      <td colSpan={anyElementUsesCoefs ? 7 : 5} />
-      <td className="px-3 py-2 text-right">
+      <td colSpan={anyElementUsesCoefs ? 6 : 4} />
+      <td className="px-2 py-2 text-right whitespace-nowrap">
         <button
           type="button"
           onClick={() => onAddElement(jdb)}
-          className="inline-flex items-center gap-1 px-3 py-1 bg-[#1E3A5F]/10 hover:bg-[#1E3A5F]/20 text-[#1E3A5F] dark:text-blue-300 text-xs font-medium rounded-lg transition-colors whitespace-nowrap"
+          className="inline-flex items-center gap-1 px-2 py-1 bg-[#1E3A5F]/10 hover:bg-[#1E3A5F]/20 text-[#1E3A5F] dark:text-blue-300 text-xs font-medium rounded transition-colors whitespace-nowrap"
           title="Ajouter un élément dans cette section"
         >
-          <span className="text-sm leading-none">+</span>
-          Ajouter un élément
+          <span className="text-xs leading-none">+</span>
+          Ajouter
         </button>
       </td>
-      <td className="px-3 py-2 text-sm text-right font-bold italic text-primary dark:text-white">
+      <td className="px-3 py-2 text-sm text-right font-bold italic text-primary dark:text-white whitespace-nowrap">
         {formatNumber(wattsToKw(totalPower), 3)} kW
       </td>
       <td />
@@ -999,13 +999,13 @@ function SortableMultiDepartRow({
           {idx === 0 && (
             <td
               rowSpan={rowCount}
-              className={`px-3 py-2 align-middle ${rowSpanHoverClass}`}
+              className={`px-2 py-2 align-middle whitespace-nowrap ${rowSpanHoverClass}`}
             >
-              <div className="flex gap-1">
+              <div className="flex gap-1 justify-end">
                 <button
                   type="button"
                   onClick={() => onInsertAt(elementIndex)}
-                  className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+                  className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors shrink-0"
                   title="Insérer un départ ici"
                 >
                   ➕
@@ -1013,7 +1013,7 @@ function SortableMultiDepartRow({
                 <button
                   type="button"
                   onClick={() => onDelete(element.id)}
-                  className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                  className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors shrink-0"
                   title="Supprimer le départ"
                 >
                   🗑️
@@ -1199,12 +1199,12 @@ function SortableDataRow({
         <td className="px-3 py-2 text-sm text-right font-medium">
           {formatNumber(wattsToKw(totalPower), 3)}
         </td>
-        <td className="px-3 py-2">
-          <div className="flex gap-1">
+        <td className="px-2 py-2 whitespace-nowrap">
+          <div className="flex gap-1 justify-end">
             <button
               type="button"
               onClick={() => onInsertAt(elementIndex)}
-              className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+              className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors shrink-0"
               title="Insérer un départ ici"
             >
               ➕
@@ -1212,7 +1212,7 @@ function SortableDataRow({
             <button
               type="button"
               onClick={() => onEdit(element)}
-              className="p-1 text-accent interactive-hover rounded transition-colors"
+              className="p-1 text-accent interactive-hover rounded transition-colors shrink-0"
               title="Modifier"
             >
               ✏️
@@ -1220,7 +1220,7 @@ function SortableDataRow({
             <button
               type="button"
               onClick={() => onDelete(element.id)}
-              className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+              className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors shrink-0"
               title="Supprimer"
             >
               🗑️
@@ -1331,7 +1331,7 @@ export function ElementTable({
                 </>
               )}
               <th style={{ width: anyElementUsesCoefs ? '9%' : '10%' }} className="px-3 py-3 text-right">P. totale (kW)</th>
-              <th style={{ width: anyElementUsesCoefs ? '6%' : '8%' }} className="px-3 py-3">Actions</th>
+              <th style={{ width: anyElementUsesCoefs ? '8%' : '10%' }} className="px-2 py-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
