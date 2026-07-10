@@ -139,27 +139,30 @@ export function useUnsavedNavigationGuard() {
     console.log('[confirmSave] Starting save process');
     setIsSaving(true);
     try {
-      // Try to trigger panel save via custom event (with timeout to avoid blocking)
-      let panelSaveCompleted = false;
-      const savePromise = new Promise<void>((resolve) => {
-        const handleSaveComplete = () => {
-          window.removeEventListener('panel-save-complete', handleSaveComplete);
-          panelSaveCompleted = true;
-          console.log('[confirmSave] Panel save completed');
-          resolve();
-        };
-        window.addEventListener('panel-save-complete', handleSaveComplete);
-        console.log('[confirmSave] Dispatching panel-request-save event');
-        window.dispatchEvent(new CustomEvent('panel-request-save'));
-        // Timeout after 2 seconds if no response
-        setTimeout(() => {
-          window.removeEventListener('panel-save-complete', handleSaveComplete);
-          console.log('[confirmSave] Panel save timeout');
-          resolve();
-        }, 2000);
-      });
+      // Only try to trigger panel save if we have pending panel changes
+      // This avoids the 2-second timeout when not in PanelView
+      if (hasUnsaved) {
+        let panelSaveCompleted = false;
+        const savePromise = new Promise<void>((resolve) => {
+          const handleSaveComplete = () => {
+            window.removeEventListener('panel-save-complete', handleSaveComplete);
+            panelSaveCompleted = true;
+            console.log('[confirmSave] Panel save completed');
+            resolve();
+          };
+          window.addEventListener('panel-save-complete', handleSaveComplete);
+          console.log('[confirmSave] Dispatching panel-request-save event');
+          window.dispatchEvent(new CustomEvent('panel-request-save'));
+          // Timeout after 2 seconds if no response
+          setTimeout(() => {
+            window.removeEventListener('panel-save-complete', handleSaveComplete);
+            console.log('[confirmSave] Panel save timeout');
+            resolve();
+          }, 2000);
+        });
 
-      await savePromise;
+        await savePromise;
+      }
 
       const localStorageKey = `bilpow_export_path_${currentProject.id}`;
       const storedPath = localStorage.getItem(localStorageKey);
@@ -199,7 +202,7 @@ export function useUnsavedNavigationGuard() {
     } finally {
       setIsSaving(false);
     }
-  }, [currentProject, isSaving, pendingAction, clearEditingState, markProjectClean]);
+  }, [currentProject, isSaving, pendingAction, clearEditingState, markProjectClean, hasUnsaved]);
 
   const cancelDiscard = useCallback(() => {
     setShowConfirm(false);
