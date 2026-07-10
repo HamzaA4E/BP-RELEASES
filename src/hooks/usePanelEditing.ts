@@ -123,6 +123,21 @@ export function usePanelEditing({
           seenChanges.add(key);
           return true;
         }
+        if (change.type === 'reorderElements') {
+          // Filter out any temporary IDs from the reorder list
+          // This prevents "Unresolved temporary element id" errors
+          const filteredIds = change.orderedIds.filter(id => id >= 0);
+          if (filteredIds.length !== change.orderedIds.length) {
+            console.log('[savePanel] Filtering temporary IDs from reorderElements:', change.orderedIds, '->', filteredIds);
+            // If all IDs were temporary, skip this change entirely
+            if (filteredIds.length === 0) {
+              return false;
+            }
+            // Otherwise, replace the change with filtered IDs
+            change.orderedIds = filteredIds;
+          }
+          return true;
+        }
         return true;
       });
 

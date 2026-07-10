@@ -230,6 +230,7 @@ export const usePanelEditingStore = create<PanelEditingState>((set, get) => ({
         if (c.type === "createArticle" && c.data.element_id === tempId)
           return false;
         if (c.type === "updateElement" && c.id === tempId) return false;
+        if (c.type === "reorderElements" && c.orderedIds.includes(tempId)) return false;
         return true;
       }),
     })),
