@@ -347,7 +347,7 @@ function InlinePowerCell({
       className="cursor-pointer interactive-hover px-2 py-0.5 rounded transition-colors"
       title="Cliquer pour modifier"
     >
-      {formatNumber(wattsToKw(element.power_w), 3)} kW
+      {formatNumber(wattsToKw(element.power_w), 3)}
     </span>
   );
 }
@@ -744,7 +744,7 @@ function ArticlePowerCell({
       className="cursor-pointer interactive-hover px-2 py-0.5 rounded transition-colors"
       title="Cliquer pour modifier"
     >
-      {formatNumber(wattsToKw(article.power_w), 3)} kW
+      {formatNumber(wattsToKw(article.power_w), 3)}
     </span>
   );
 }
@@ -1098,13 +1098,11 @@ function SortableDataRow({
   const { ks, ku } = resolveElementCoefs(element);
   const coefsLine = formatCoefsLine(ks, ku);
 
-  // Only show coefficient fields if use_coefs is enabled
-  const coefFields: Array<{ key: CoefField; label: string }> = element.use_coefs
-    ? [
-        { key: "coef_ks", label: "Ks" },
-        { key: "coef_ku", label: "Ku" },
-      ]
-    : [];
+ // Always include coefficient fields, but display differently based on use_coefs
+  const coefFields: Array<{ key: CoefField; label: string }> = [
+    { key: "coef_ks", label: "Ks" },
+    { key: "coef_ku", label: "Ku" },
+  ];
 
   return (
     <>
@@ -1343,8 +1341,8 @@ export function ElementTable({
               />
               <th style={{ width: anyElementUsesCoefs ? '6%' : '8%' }} className="px-3 py-3">Cat.</th>
               <th style={{ width: anyElementUsesCoefs ? '8%' : '10%' }} className="px-3 py-3">Repère</th>
-              <th style={{ width: anyElementUsesCoefs ? '10%' : '13%' }} className="px-3 py-3">Type</th>
-              <th style={{ width: anyElementUsesCoefs ? '30%' : '35%' }} className="px-3 py-3">Désignation</th>
+              <th style={{ width: anyElementUsesCoefs ? '12%' : '13%' }} className="px-3 py-3">Type</th>
+              <th style={{ width: anyElementUsesCoefs ? '25%' : '35%' }} className="px-3 py-3">Désignation</th>
               <th style={{ width: anyElementUsesCoefs ? '8%' : '10%' }} className="px-3 py-3 text-right">P. Unitaire (kW)</th>
               <th style={{ width: anyElementUsesCoefs ? '5%' : '6%' }} className="px-3 py-3 text-center">Qté</th>
               {anyElementUsesCoefs && (
