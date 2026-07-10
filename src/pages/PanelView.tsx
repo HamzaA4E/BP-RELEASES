@@ -868,6 +868,7 @@ export function PanelView() {
               ...data,
               repere: departForNewType.repere,
             }, insertAt),
+            { type: "reorderElements", orderedIds: newIds },
           ],
         });
         applyMutations([{ op: "setElements", elements: reordered }]);
@@ -1099,11 +1100,8 @@ export function PanelView() {
       newIds.splice(insertAt, 0, tempId);
       const reordered = reorderElementsList([...elements, element], newIds);
       const pending = [createElementPending(tempId, data, insertAt)];
-      // Only apply reorderElements for JDB context, not for insertAtIndex
-      // because createElement with order_index already handles the shifting
-      if (contextJdb) {
-        pending.push({ type: "reorderElements", orderedIds: newIds });
-      }
+      // Always add reorderElements to ensure order is preserved after save
+      pending.push({ type: "reorderElements", orderedIds: newIds });
       recordOperation({
         inverse: [{ op: "setElements", elements }],
         redo: [{ op: "setElements", elements: reordered }],
@@ -1165,11 +1163,8 @@ export function PanelView() {
     }
 
     const reordered = reorderElementsList(newElements, newIds);
-    // Only apply reorderElements for JDB context, not for insertAtIndex
-    // because createElement with order_index already handles the shifting
-    if (contextJdb) {
-      pending.push({ type: "reorderElements", orderedIds: newIds });
-    }
+    // Always add reorderElements to ensure order is preserved after save
+    pending.push({ type: "reorderElements", orderedIds: newIds });
 
     recordOperation({
       inverse: [{ op: "setElements", elements: prevElements }],
@@ -1342,10 +1337,9 @@ export function PanelView() {
       },
       insertAt,
     );
-    const reordered = [...elements, element].map((el, i) => ({
-      ...el,
-      order_index: i,
-    }));
+    const newIds = elements.map((e) => e.id);
+    newIds.splice(insertAt, 0, tempId);
+    const reordered = reorderElementsList([...elements, element], newIds);
 
     recordOperation({
       inverse: [{ op: "setElements", elements }],
@@ -1363,6 +1357,7 @@ export function PanelView() {
           coef_ks: 1,
           coef_ku: 1,
         }),
+        { type: "reorderElements", orderedIds: newIds },
       ],
     });
     applyMutations([{ op: "setElements", elements: reordered }]);

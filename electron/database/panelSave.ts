@@ -36,6 +36,9 @@ export function applyPanelChanges(
     // createArticle should come before operations that reference it
     if (a.type === 'createArticle' && b.type !== 'createArticle') return -1;
     if (b.type === 'createArticle' && a.type !== 'createArticle') return 1;
+    // reorderElements should come after all create operations
+    if (a.type === 'reorderElements' && b.type !== 'reorderElements') return 1;
+    if (b.type === 'reorderElements' && a.type !== 'reorderElements') return -1;
     return 0;
   });
 
