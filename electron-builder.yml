@@ -33,14 +33,14 @@ win:
     - target: nsis
       arch:
         - x64
-  icon: build/logo.ico
+  icon: public/logo.ico
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  installerIcon: build/logo.ico
-  uninstallerIcon: build/logo.ico
-  installerHeaderIcon: build/logo.ico
+  installerIcon: public/logo.ico
+  uninstallerIcon: public/logo.ico
+  installerHeaderIcon: public/logo.ico
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: BilPow
