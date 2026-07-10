@@ -109,13 +109,23 @@ export function exportProjectForBilpow(projectId: number): BilpowFile {
 
 function resolveImportProjectName(name: string): string {
   const db = getDatabase();
-  const existing = db
-    .prepare('SELECT id FROM projects WHERE name = ?')
-    .get(name) as { id: number } | undefined;
-  if (existing) {
-    return `${name} (importé)`;
+  
+  // Check if the base name already exists
+  const existing = db.prepare('SELECT name FROM projects WHERE name = ?').get(name);
+  if (!existing) {
+    return name;
   }
-  return name;
+
+  // Generate suffixes until we find a unique name
+  let counter = 2;
+  while (true) {
+    const newName = `${name} (${counter})`;
+    const existingWithSuffix = db.prepare('SELECT name FROM projects WHERE name = ?').get(newName);
+    if (!existingWithSuffix) {
+      return newName;
+    }
+    counter++;
+  }
 }
 
 function insertElement(
@@ -220,31 +230,9 @@ export function importProjectFromBilpow(file: BilpowFile, filePath?: string): {
 } {
   const db = getDatabase();
 
-  // Vérifier si le projet existe déjà par son original_id (si disponible)
-  const existingProjectByOriginalId = db
-    .prepare('SELECT id, name FROM projects WHERE original_id = ?')
-    .get(file.project.id) as { id: number; name: string } | undefined;
-
-  if (existingProjectByOriginalId) {
-    // Le projet existe déjà, retourner ses informations
-    return { projectId: existingProjectByOriginalId.id, projectName: existingProjectByOriginalId.name, isNew: false };
-  }
-
-  // Vérifier si le projet existe déjà par son id local (pour les projets exportés avant la migration)
-  const existingProjectById = db
-    .prepare('SELECT id, name, original_id FROM projects WHERE id = ?')
-    .get(file.project.id) as { id: number; name: string; original_id: number | null } | undefined;
-
-  if (existingProjectById) {
-    // Si le projet n'a pas d'original_id, c'est probablement le même projet
-    if (!existingProjectById.original_id) {
-      // Mettre à jour le projet avec l'original_id pour les futures imports
-      db.prepare('UPDATE projects SET original_id = ? WHERE id = ?').run(file.project.id, file.project.id);
-      return { projectId: existingProjectById.id, projectName: existingProjectById.name, isNew: false };
-    }
-  }
-
-  // Le projet n'existe pas, l'importer
+  // Toujours générer un nom unique pour l'importation
+  // Cela permet d'importer plusieurs fois le même projet (même original_id)
+  // avec des données différentes
   const projectName = resolveImportProjectName(file.project.name);
 
   const importTx = db.transaction(() => {

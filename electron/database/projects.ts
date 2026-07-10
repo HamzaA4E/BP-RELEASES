@@ -1,4 +1,5 @@
 import { getDatabase } from './db';
+import Database from 'better-sqlite3';
 import fs from 'fs';
 
 export interface ProjectRow {
@@ -64,6 +65,25 @@ export function getProjectById(id: number): ProjectRow | undefined {
     | undefined;
 }
 
+function generateUniqueName(baseName: string, db: Database.Database): string {
+  // Check if the base name already exists
+  const existing = db.prepare('SELECT name FROM projects WHERE name = ?').get(baseName);
+  if (!existing) {
+    return baseName;
+  }
+
+  // Generate suffixes until we find a unique name
+  let counter = 2;
+  while (true) {
+    const newName = `${baseName} (${counter})`;
+    const existingWithSuffix = db.prepare('SELECT name FROM projects WHERE name = ?').get(newName);
+    if (!existingWithSuffix) {
+      return newName;
+    }
+    counter++;
+  }
+}
+
 export function createProject(data: {
   name: string;
   client?: string;
@@ -74,6 +94,9 @@ export function createProject(data: {
   const db = getDatabase();
   const path = require('path');
   const os = require('os');
+
+  // Generate a unique name if the base name already exists
+  const uniqueName = generateUniqueName(data.name, db);
 
   let filePath: string;
 
@@ -96,7 +119,7 @@ export function createProject(data: {
     }
 
     // Create a unique file name based on the project name
-    const sanitizedName = data.name.replace(/[^a-zA-Z0-9]/g, '_');
+    const sanitizedName = uniqueName.replace(/[^a-zA-Z0-9]/g, '_');
     const fileName = `${sanitizedName}_${Date.now()}.bilpow`;
     filePath = path.join(folderPath, fileName);
   }
@@ -110,7 +133,7 @@ export function createProject(data: {
        VALUES (@name, @client, @description, @folder_id, @file_path)`
     )
     .run({
-      name: data.name,
+      name: uniqueName,
       client: data.client ?? null,
       description: data.description ?? null,
       folder_id: data.folder_id ?? null,
