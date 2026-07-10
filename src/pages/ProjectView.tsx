@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { formatPower } from "@/utils/calculations";
 import { exportProjectExcelById } from "@/utils/projectExcelExport";
 import { useUnsavedNavigationGuard } from "@/hooks/useUnsavedNavigationGuard";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 
 export function ProjectView() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -78,6 +79,10 @@ export function ProjectView() {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useKeyboardShortcuts({
+    onSave: () => void handleSave(),
+  });
 
   const saveField = async (field: keyof typeof editFields, value: string) => {
     try {

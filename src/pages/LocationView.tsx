@@ -94,6 +94,7 @@ export function LocationView() {
   }, [loadData]);
 
   useKeyboardShortcuts({
+    onSave: () => void handleSave(),
     onExport: () => void handleExport(),
   });
 
