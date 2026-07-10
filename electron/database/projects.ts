@@ -38,17 +38,32 @@ export function getAllProjects(): ProjectWithStatsRow[] {
     .all() as ProjectWithStatsRow[];
 
   // Clean up orphaned projects (no file_path or file doesn't exist)
-  // DISABLED: File watcher handles renames, so we keep projects even if file is temporarily missing
-  // for (const project of projects) {
-  //   if (!project.file_path || !fs.existsSync(project.file_path)) {
-  //     console.log(`[getAllProjects] Cleaning up orphaned project ${project.id} (${project.name})`);
-  //     try {
-  //       db.prepare('DELETE FROM projects WHERE id = ?').run(project.id);
-  //     } catch (err) {
-  //       console.error(`[getAllProjects] Failed to delete orphaned project ${project.id}:`, err);
-  //     }
-  //   }
-  // }
+  // Only delete projects that haven't been updated in the last 5 minutes
+  // This gives the file watcher time to update the file path after a rename
+  const fiveMinutesAgo = new Date(Date.now() - 300000).toISOString();
+  for (const project of projects) {
+    if (!project.file_path || !fs.existsSync(project.file_path)) {
+      // Check if the project was updated recently (might be in the middle of a rename)
+      console.log(`[getAllProjects] Checking orphaned project ${project.id} (${project.name}):`, {
+        file_path: project.file_path,
+        file_exists: project.file_path ? fs.existsSync(project.file_path) : false,
+        updated_at: project.updated_at,
+        fiveMinutesAgo: fiveMinutesAgo,
+        should_delete: project.updated_at && project.updated_at < fiveMinutesAgo
+      });
+      
+      if (project.updated_at && project.updated_at < fiveMinutesAgo) {
+        console.log(`[getAllProjects] Cleaning up orphaned project ${project.id} (${project.name})`);
+        try {
+          db.prepare('DELETE FROM projects WHERE id = ?').run(project.id);
+        } catch (err) {
+          console.error(`[getAllProjects] Failed to delete orphaned project ${project.id}:`, err);
+        }
+      } else {
+        console.log(`[getAllProjects] Skipping recently updated project ${project.id} (${project.name}) - might be renaming`);
+      }
+    }
+  }
 
   // Return all projects (file watcher will update paths when files are renamed)
   return projects.filter(project => {
@@ -178,7 +193,7 @@ export function updateProject(data: {
         // Only rename if the filename would actually change
         if (path.basename(existing.file_path) !== newFileName) {
           fs.renameSync(existing.file_path, newFilePath);
-          db.prepare('UPDATE projects SET file_path = ? WHERE id = ?').run(newFilePath, data.id);
+          db.prepare('UPDATE projects SET file_path = ?, updated_at = datetime(\'now\') WHERE id = ?').run(newFilePath, data.id);
           console.log('[updateProject] File renamed from:', existing.file_path, 'to:', newFilePath);
         }
       }
@@ -222,7 +237,7 @@ export function updateProject(data: {
           fs.copyFileSync(existing.file_path, newFilePath);
           fs.unlinkSync(existing.file_path);
           // Update file_path in the database
-          db.prepare('UPDATE projects SET file_path = ? WHERE id = ?').run(newFilePath, data.id);
+          db.prepare('UPDATE projects SET file_path = ?, updated_at = datetime(\'now\') WHERE id = ?').run(newFilePath, data.id);
           console.log('[updateProject] File moved successfully');
         } else {
           console.log('[updateProject] Source file does not exist:', existing.file_path);
