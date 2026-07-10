@@ -44,6 +44,7 @@ const isDev = process.env.NODE_ENV === 'development';
 let mainWindow: BrowserWindow | null = null;
 let pendingBilpowImportPath: string | null = null;
 let hasUnsavedChanges = false;
+let fileWatcher: any = null;
 
 function sanitizeFileName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '_').trim() || 'projet';
@@ -321,6 +322,84 @@ function removeSettingsLogo(kind: SettingsLogoKind): boolean {
     [fields.mime]: '',
   });
   return true;
+}
+
+async function setupFileWatcher(): Promise<void> {
+  const db = getDatabase();
+  
+  // Get all watched paths (project files and folders)
+  const projects = db.prepare('SELECT file_path FROM projects WHERE file_path IS NOT NULL').all() as Array<{ file_path: string }>;
+  const folders = db.prepare('SELECT folder_path FROM folders WHERE folder_path IS NOT NULL').all() as Array<{ folder_path: string }>;
+  
+  const watchedPaths = new Set<string>();
+  
+  // Add project file directories
+  for (const project of projects) {
+    if (project.file_path) {
+      watchedPaths.add(path.dirname(project.file_path));
+    }
+  }
+  
+  // Add folder paths
+  for (const folder of folders) {
+    if (folder.folder_path) {
+      watchedPaths.add(folder.folder_path);
+    }
+  }
+  
+  if (watchedPaths.size === 0) {
+    console.log('[FileWatcher] No paths to watch');
+    return;
+  }
+  
+  console.log('[FileWatcher] Setting up watcher for paths:', Array.from(watchedPaths));
+  
+  // Dynamic import for chokidar (ES module)
+  const chokidar = await import('chokidar');
+  
+  fileWatcher = chokidar.watch(Array.from(watchedPaths), {
+    ignored: /(^|[\/\\])\../, // ignore dotfiles
+    persistent: true,
+    ignoreInitial: true,
+  });
+  
+  fileWatcher.on('rename', (filePath: string) => {
+    console.log('[FileWatcher] File renamed:', filePath);
+    
+    // Check if this is a project file
+    const project = db.prepare('SELECT id, name FROM projects WHERE file_path = ?').get(filePath) as { id: number; name: string } | undefined;
+    if (project) {
+      // File was renamed, update the database
+      const newFileName = path.basename(filePath);
+      const sanitizedName = newFileName.replace('.bilpow', '').replace(/_/g, ' ');
+      
+      db.prepare('UPDATE projects SET name = ?, file_path = ? WHERE id = ?').run(sanitizedName, filePath, project.id);
+      console.log('[FileWatcher] Updated project name from DB:', project.id, 'to:', sanitizedName);
+      
+      // Notify the renderer
+      mainWindow?.webContents.send('file-renamed', { type: 'project', id: project.id, newName: sanitizedName });
+      return;
+    }
+    
+    // Check if this is a folder
+    const folder = db.prepare('SELECT id, name FROM folders WHERE folder_path = ?').get(filePath) as { id: number; name: string } | undefined;
+    if (folder) {
+      // Folder was renamed, update the database
+      const newFolderName = path.basename(filePath);
+      const sanitizedName = newFolderName.replace(/_/g, ' ');
+      
+      db.prepare('UPDATE folders SET name = ?, folder_path = ? WHERE id = ?').run(sanitizedName, filePath, folder.id);
+      console.log('[FileWatcher] Updated folder name from DB:', folder.id, 'to:', sanitizedName);
+      
+      // Notify the renderer
+      mainWindow?.webContents.send('file-renamed', { type: 'folder', id: folder.id, newName: sanitizedName });
+      return;
+    }
+  });
+  
+  fileWatcher.on('error', (error: Error) => {
+    console.error('[FileWatcher] Error:', error);
+  });
 }
 
 function registerIpcHandlers(): void {
@@ -916,7 +995,7 @@ ipcMain.handle('devtools:open', () => {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Base SQLite dans userData — valide en dev et en production
   // path.join(app.getPath('userData'), 'bilpow.db') — voir database/db.ts
   if (isDev) {
@@ -928,6 +1007,7 @@ app.whenReady().then(() => {
   getDatabase();
   registerIpcHandlers();
   createWindow();
+  await setupFileWatcher();
 
   if (pendingBilpowImportPath) {
     scheduleAutoImport(pendingBilpowImportPath);
@@ -948,5 +1028,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  if (fileWatcher) {
+    fileWatcher.close();
+  }
   closeDatabase();
 });

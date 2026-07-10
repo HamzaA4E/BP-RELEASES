@@ -183,6 +183,15 @@ const api = {
         ipcRenderer.removeListener('auto-import', listener);
       };
     },
+    onFileRenamed: (callback: (data: { type: 'project' | 'folder'; id: number; newName: string }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: { type: 'project' | 'folder'; id: number; newName: string }): void => {
+        callback(data);
+      };
+      ipcRenderer.on('file-renamed', listener);
+      return () => {
+        ipcRenderer.removeListener('file-renamed', listener);
+      };
+    },
   },
   menu: {
     onNewProject: (callback: () => void): (() => void) => {

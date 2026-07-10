@@ -63,6 +63,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "better-sqlite3": "^11.7.0",
+    "chokidar": "^5.0.0",
     "exceljs": "^4.4.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.468.0",

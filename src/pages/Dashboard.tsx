@@ -73,6 +73,18 @@ export function Dashboard() {
     return () => window.removeEventListener('menu-request-new-project', handleNewProject);
   }, []);
 
+  useEffect(() => {
+    const handleFileRenamed = (data: { type: 'project' | 'folder'; id: number; newName: string }) => {
+      console.log('[Dashboard] File renamed:', data);
+      // Reload projects and folders to reflect the change
+      void loadProjects();
+      void loadFolders();
+    };
+
+    const cleanup = window.bilpow.project.onFileRenamed(handleFileRenamed);
+    return cleanup;
+  }, []);
+
   useKeyboardShortcuts({
     onNewProject: () => setShowNewProject(true),
   });

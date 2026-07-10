@@ -156,6 +156,37 @@ export function updateProject(data: {
   const existing = getProjectById(data.id);
   if (!existing) throw new Error('Project not found');
 
+  // Check if name is changing and rename physical file
+  if (data.name !== undefined && data.name !== existing.name && existing.file_path) {
+    const fs = require('fs');
+    const path = require('path');
+    
+    console.log('[updateProject] Renaming project file:', {
+      projectId: data.id,
+      oldName: existing.name,
+      newName: data.name,
+      existingFilePath: existing.file_path
+    });
+    
+    try {
+      if (fs.existsSync(existing.file_path)) {
+        const dir = path.dirname(existing.file_path);
+        const sanitizedName = data.name.replace(/[^a-zA-Z0-9]/g, '_');
+        const newFileName = `${sanitizedName}.bilpow`;
+        const newFilePath = path.join(dir, newFileName);
+        
+        // Only rename if the filename would actually change
+        if (path.basename(existing.file_path) !== newFileName) {
+          fs.renameSync(existing.file_path, newFilePath);
+          db.prepare('UPDATE projects SET file_path = ? WHERE id = ?').run(newFilePath, data.id);
+          console.log('[updateProject] File renamed from:', existing.file_path, 'to:', newFilePath);
+        }
+      }
+    } catch (err) {
+      console.error('[updateProject] Failed to rename project file:', err);
+    }
+  }
+
   // Check if folder_id is changing
   const folderIdChanged = data.folder_id !== undefined && data.folder_id !== existing.folder_id;
   
