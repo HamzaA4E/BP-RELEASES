@@ -35,21 +35,24 @@ export function getAllProjects(): ProjectWithStatsRow[] {
       ORDER BY p.updated_at DESC`
     )
     .all() as ProjectWithStatsRow[];
-  
-  // Filter out projects without valid physical files
+
+  // Clean up orphaned projects (no file_path or file doesn't exist)
+  // ON DELETE CASCADE will automatically delete associated locations, panels, and elements
+  for (const project of projects) {
+    if (!project.file_path || !fs.existsSync(project.file_path)) {
+      console.log(`[getAllProjects] Cleaning up orphaned project ${project.id} (${project.name})`);
+      try {
+        db.prepare('DELETE FROM projects WHERE id = ?').run(project.id);
+      } catch (err) {
+        console.error(`[getAllProjects] Failed to delete orphaned project ${project.id}:`, err);
+      }
+    }
+  }
+
+  // Return only valid projects
   return projects.filter(project => {
-    // If project has no file_path, it's considered invalid
-    if (!project.file_path) {
-      console.log(`[getAllProjects] Filtering out project ${project.id} (${project.name}): no file_path`);
-      return false;
-    }
-    
-    // Check if the physical file exists
-    if (!fs.existsSync(project.file_path)) {
-      console.log(`[getAllProjects] Filtering out project ${project.id} (${project.name}): file does not exist at ${project.file_path}`);
-      return false;
-    }
-    
+    if (!project.file_path) return false;
+    if (!fs.existsSync(project.file_path)) return false;
     return true;
   });
 }
