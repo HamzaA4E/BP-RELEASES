@@ -193,9 +193,11 @@ export interface CreateElementInput {
   ks?: number;
   coef_ks?: number;
   coef_ku?: number;
+  use_coefs?: boolean;
   circuit?: string;
   notes?: string;
   is_multi?: boolean;
+  order_index?: number;
 }
 
 export interface UpdateElementInput {

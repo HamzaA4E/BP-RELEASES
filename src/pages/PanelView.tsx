@@ -1099,7 +1099,7 @@ export function PanelView() {
       const newIds = elements.map((e) => e.id);
       newIds.splice(insertAt, 0, tempId);
       const reordered = reorderElementsList([...elements, element], newIds);
-      const pending = [createElementPending(tempId, data)];
+      const pending = [createElementPending(tempId, data, insertAt)];
       if (contextJdb || insertAtIndex !== null) {
         pending.push({ type: "reorderElements", orderedIds: newIds });
       }

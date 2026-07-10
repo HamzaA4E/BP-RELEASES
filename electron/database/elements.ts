@@ -189,6 +189,7 @@ export function createElement(data: {
   circuit?: string;
   notes?: string;
   is_multi?: boolean;
+  order_index?: number;
 }): ElementRow {
   const db = getDatabase();
   const maxOrder = db
@@ -196,6 +197,16 @@ export function createElement(data: {
       'SELECT COALESCE(MAX(order_index), -1) as max_order FROM elements WHERE panel_id = ?'
     )
     .get(data.panel_id) as { max_order: number };
+
+  let orderIndex = data.order_index;
+  if (orderIndex === undefined) {
+    orderIndex = maxOrder.max_order + 1;
+  } else {
+    // Shift existing elements to make room for the new element
+    db.prepare(
+      'UPDATE elements SET order_index = order_index + 1 WHERE panel_id = ? AND order_index >= ?'
+    ).run(data.panel_id, orderIndex);
+  }
 
   const isJdb = data.type === 'jeu_de_barres';
   const row_kind = isJdb ? 'bar_set' : (data.row_kind ?? 'element');
@@ -242,7 +253,7 @@ export function createElement(data: {
       circuit: data.circuit ?? null,
       notes: data.notes ?? null,
       is_multi: data.is_multi ? 1 : 0,
-      order_index: maxOrder.max_order + 1,
+      order_index: orderIndex,
     });
 
   const element = getElementById(Number(result.lastInsertRowid));

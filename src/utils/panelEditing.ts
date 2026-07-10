@@ -215,6 +215,7 @@ export function buildLocalArticle(
 export function createElementPending(
   tempId: number,
   data: Parameters<typeof buildLocalElement>[2],
+  orderIndex?: number,
 ): PanelChange {
   return {
     type: "createElement",
@@ -233,6 +234,7 @@ export function createElementPending(
       use_coefs: data.use_coefs,
       notes: data.notes ?? undefined,
       is_multi: data.is_multi,
+      order_index: orderIndex,
     },
   };
 }

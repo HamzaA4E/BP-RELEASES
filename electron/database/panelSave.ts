@@ -48,7 +48,7 @@ export function applyPanelChanges(
             panel_id: panelId,
           });
           idMap.set(change.tempId, created.id);
-          console.log(`[applyPanelChanges] Created element tempId=${change.tempId} -> realId=${created.id}`);
+          console.log(`[applyPanelChanges] Created element tempId=${change.tempId} -> realId=${created.id} at order_index=${created.order_index}`);
           break;
         }
         case 'createArticle': {
