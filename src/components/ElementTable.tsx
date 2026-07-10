@@ -221,6 +221,7 @@ function InlineNumberCell({
           if (e.key === "Enter") e.currentTarget.blur();
           if (e.key === "Escape") setEditingField(null);
         }}
+        onWheel={(e) => e.currentTarget.blur()}
         className="input-field py-1 text-sm w-14 text-center font-mono"
       />
     );
@@ -328,6 +329,7 @@ function InlinePowerCell({
           if (e.key === "Enter") e.currentTarget.blur();
           if (e.key === "Escape") setEditingField(null);
         }}
+        onWheel={(e) => e.currentTarget.blur()}
         className="input-field py-1 text-sm w-24 text-right"
       />
     );
@@ -766,6 +768,7 @@ function ArticleQuantityCell({
           if (e.key === "Enter") e.currentTarget.blur();
           if (e.key === "Escape") setArticleEditing(null);
         }}
+        onWheel={(e) => e.currentTarget.blur()}
         className="input-field py-1 text-sm w-14 text-center font-mono"
       />
     );
