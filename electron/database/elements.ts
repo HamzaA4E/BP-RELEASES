@@ -221,13 +221,13 @@ export function createElement(data: {
         panel_id, type, repere, designation, type_label, emplacement,
         row_kind, bar_set_index, phase_type, jdb_category,
         power_w, quantity, distance_m,
-        ku, ks, fp, coef_ks, coef_ku, coef_fp, use_coefs,
+        ku, ks, coef_ks, coef_ku, use_coefs,
         circuit, notes, is_multi, order_index
       ) VALUES (
         @panel_id, @type, @repere, @designation, @type_label, @emplacement,
         @row_kind, @bar_set_index, @phase_type, @jdb_category,
         @power_w, @quantity, @distance_m,
-        @ku, @ks, 1, @coef_ks, @coef_ku, 1, @use_coefs,
+        @ku, @ks, @coef_ks, @coef_ku, @use_coefs,
         @circuit, @notes, @is_multi, @order_index
       )`
     )

@@ -241,6 +241,7 @@ export function duplicatePanel(id: number): PanelRow {
     name: `${source.name} (copie)`,
     description: source.description ?? undefined,
     general_breaker_ampere: source.general_breaker_ampere,
+    repere_prefix: source.repere_prefix ?? undefined,
   });
 
   if (source.coef_ks != null) {

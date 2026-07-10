@@ -1,5 +1,5 @@
 import { getDatabase } from './db';
-import { createElement, ELEMENT_INSTALLED_POWER_SQL } from './elements';
+import { createElement, getElementsByPanel, getArticlesByElement, createArticle, ELEMENT_INSTALLED_POWER_SQL } from './elements';
 
 export interface LocationRow {
   id: number;
@@ -136,28 +136,7 @@ export function duplicateLocation(id: number): LocationRow {
       });
 
     const newPanelId = Number(panelResult.lastInsertRowid);
-    const elements = db
-      .prepare('SELECT * FROM elements WHERE panel_id = ? ORDER BY order_index')
-      .all(panel.id) as Array<{
-      type: string;
-      repere: string;
-      designation: string;
-      type_label?: string;
-      emplacement?: string;
-      row_kind?: string;
-      bar_set_index?: number;
-      phase_type?: string;
-      jdb_category?: string | null;
-      power_w: number;
-      quantity: number;
-      distance_m: number;
-      ku?: number;
-      ks?: number;
-      coef_ks?: number;
-      coef_ku?: number;
-      circuit: string | null;
-      notes: string | null;
-    }>;
+    const elements = getElementsByPanel(panel.id);
 
     for (const el of elements) {
       const type_label = el.type_label || el.designation;
@@ -165,7 +144,7 @@ export function duplicateLocation(id: number): LocationRow {
         el.type === 'jeu_de_barres' || el.row_kind === 'bar_set'
           ? 'jeu_de_barres'
           : (el.type as 'eclairage' | 'prise' | 'divers');
-      createElement({
+      const newElement = createElement({
         panel_id: newPanelId,
         type: elementType,
         repere: el.repere,
@@ -186,6 +165,23 @@ export function duplicateLocation(id: number): LocationRow {
         circuit: el.circuit ?? undefined,
         notes: el.notes ?? undefined,
       });
+
+      // Copy articles for multi-depart elements
+      if (el.is_multi) {
+        const articles = getArticlesByElement(el.id);
+        for (const article of articles) {
+          createArticle({
+            element_id: newElement.id,
+            type_label: article.type_label,
+            designation: article.designation,
+            power_w: article.power_w,
+            quantity: article.quantity,
+            coef_ks: article.coef_ks,
+            coef_ku: article.coef_ku,
+            order_index: article.order_index,
+          });
+        }
+      }
     }
   }
 
