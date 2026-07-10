@@ -38,6 +38,14 @@ import type {
   PanelSavePayload,
   UploadLogoResult,
 } from '../shared/types';
+import {
+  initializeUpdater,
+  scheduleAutoUpdateCheck,
+  checkForUpdates,
+  installUpdate,
+  getCurrentVersion,
+  getGitHubConfig,
+} from './updater/updater';
 
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -898,6 +906,37 @@ ipcMain.handle('devtools:open', () => {
     wrapHandler(() => removeSettingsLogo('client'))
   );
 
+  // Update-related IPC handlers
+  ipcMain.handle('update:checkForUpdates', async () => {
+    try {
+      await checkForUpdates();
+      return { success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[update:checkForUpdates]', message);
+      return { success: false, error: message };
+    }
+  });
+
+  ipcMain.handle('update:installUpdate', () => {
+    try {
+      installUpdate();
+      return { success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[update:installUpdate]', message);
+      return { success: false, error: message };
+    }
+  });
+
+  ipcMain.handle('update:getCurrentVersion', () => {
+    return { success: true, data: getCurrentVersion() };
+  });
+
+  ipcMain.handle('update:getGitHubConfig', () => {
+    return { success: true, data: getGitHubConfig() };
+  });
+
   ipcMain.handle('app:getPlatform', () => process.platform);
   ipcMain.handle('app:getNativeTheme', () => nativeTheme.shouldUseDarkColors);
   ipcMain.handle('app:setNativeTheme', (_e, theme: 'dark' | 'light' | 'system') => {
@@ -1095,6 +1134,11 @@ app.whenReady().then(async () => {
   registerIpcHandlers();
   createWindow();
   await setupFileWatcher();
+
+  // Initialize auto-updater
+  initializeUpdater();
+  // Schedule automatic update check after 5 seconds
+  scheduleAutoUpdateCheck(5000);
 
   if (pendingBilpowImportPath) {
     scheduleAutoImport(pendingBilpowImportPath);

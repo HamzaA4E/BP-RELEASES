@@ -8,6 +8,7 @@ import { LocationView } from '@/pages/LocationView';
 import { PanelView } from '@/pages/PanelView';
 import { Favorites } from '@/pages/Favorites';
 import { SettingsPage } from '@/pages/SettingsPage';
+import { UpdateNotification } from '@/components/UpdateNotification';
 import { useAppStore } from '@/store/useAppStore';
 import { importBilpowProject } from '@/utils/projectShare';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
@@ -105,6 +106,7 @@ export default function App() {
     <HashRouter>
       <AutoImportListener />
       <MenuListener />
+      <UpdateNotification />
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Dashboard />} />

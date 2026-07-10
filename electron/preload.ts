@@ -213,6 +213,57 @@ const api = {
   devtools: {
     open: (): Promise<void> => invoke('devtools:open'),
   },
+  update: {
+    checkForUpdates: (): Promise<{ success: boolean }> => invoke('update:checkForUpdates'),
+    installUpdate: (): Promise<{ success: boolean }> => invoke('update:installUpdate'),
+    getCurrentVersion: (): Promise<string> => invoke('update:getCurrentVersion'),
+    getGitHubConfig: (): Promise<{ owner: string; repo: string }> => invoke('update:getGitHubConfig'),
+    onUpdateAvailable: (callback: (data: { version: string; releaseDate?: string; releaseNotes?: string }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: { version: string; releaseDate?: string; releaseNotes?: string }): void => {
+        callback(data);
+      };
+      ipcRenderer.on('update-available', listener);
+      return () => {
+        ipcRenderer.removeListener('update-available', listener);
+      };
+    },
+    onUpdateNotAvailable: (callback: (data: { version: string }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: { version: string }): void => {
+        callback(data);
+      };
+      ipcRenderer.on('update-not-available', listener);
+      return () => {
+        ipcRenderer.removeListener('update-not-available', listener);
+      };
+    },
+    onUpdateProgress: (callback: (data: { percent: number; transferred: number; total: number; bytesPerSecond: number; transferredFormatted: string; totalFormatted: string; speedFormatted: string }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: { percent: number; transferred: number; total: number; bytesPerSecond: number; transferredFormatted: string; totalFormatted: string; speedFormatted: string }): void => {
+        callback(data);
+      };
+      ipcRenderer.on('update-progress', listener);
+      return () => {
+        ipcRenderer.removeListener('update-progress', listener);
+      };
+    },
+    onUpdateDownloaded: (callback: (data: { version: string; releaseDate?: string; releaseNotes?: string }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: { version: string; releaseDate?: string; releaseNotes?: string }): void => {
+        callback(data);
+      };
+      ipcRenderer.on('update-downloaded', listener);
+      return () => {
+        ipcRenderer.removeListener('update-downloaded', listener);
+      };
+    },
+    onUpdateError: (callback: (data: { message: string; stack?: string }) => void): (() => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, data: { message: string; stack?: string }): void => {
+        callback(data);
+      };
+      ipcRenderer.on('update-error', listener);
+      return () => {
+        ipcRenderer.removeListener('update-error', listener);
+      };
+    },
+  },
 };
 
 export type BilPowAPI = typeof api;

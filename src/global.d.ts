@@ -129,6 +129,17 @@ export interface BilPowAPI {
   devtools: {
     open: () => Promise<void>;
   };
+  update: {
+    checkForUpdates: () => Promise<{ success: boolean }>;
+    installUpdate: () => Promise<{ success: boolean }>;
+    getCurrentVersion: () => Promise<string>;
+    getGitHubConfig: () => Promise<{ owner: string; repo: string }>;
+    onUpdateAvailable: (callback: (data: { version: string; releaseDate?: string; releaseNotes?: string }) => void) => () => void;
+    onUpdateNotAvailable: (callback: (data: { version: string }) => void) => () => void;
+    onUpdateProgress: (callback: (data: { percent: number; transferred: number; total: number; bytesPerSecond: number; transferredFormatted: string; totalFormatted: string; speedFormatted: string }) => void) => () => void;
+    onUpdateDownloaded: (callback: (data: { version: string; releaseDate?: string; releaseNotes?: string }) => void) => () => void;
+    onUpdateError: (callback: (data: { message: string; stack?: string }) => void) => () => void;
+  };
 }
 
 declare global {
