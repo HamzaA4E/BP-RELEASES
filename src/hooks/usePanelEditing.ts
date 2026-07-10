@@ -38,7 +38,7 @@ export function usePanelEditing({
     reset,
   } = usePanelEditingStore();
 
-  const { currentProject, markProjectDirty } = useAppStore();
+  const { currentProject, markProjectDirty, markProjectClean, clearNewPanelIds, clearNewLocationIds } = useAppStore();
 
   const applyMutations = useCallback(
     (mutations: Parameters<typeof applyLocalMutations>[2]) => {
@@ -174,6 +174,13 @@ export function usePanelEditing({
       await refreshElements();
       await refreshPanels();
 
+      // Clear new panel and location IDs after successful save
+      clearNewPanelIds();
+      clearNewLocationIds();
+
+      // Mark project as clean after successful save
+      markProjectClean();
+
       // Show success message after both database save and export
       toast.success("Enregistrement effectué avec succès");
     } catch (err) {
@@ -188,6 +195,9 @@ export function usePanelEditing({
     refreshElements,
     refreshPanels,
     currentProject,
+    clearNewPanelIds,
+    clearNewLocationIds,
+    markProjectClean,
   ]);
 
   const discard = useCallback(async () => {
