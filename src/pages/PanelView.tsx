@@ -867,8 +867,7 @@ export function PanelView() {
             createElementPending(tempId, {
               ...data,
               repere: departForNewType.repere,
-            }),
-            { type: "reorderElements", orderedIds: newIds },
+            }, insertAt),
           ],
         });
         applyMutations([{ op: "setElements", elements: reordered }]);
@@ -1100,7 +1099,9 @@ export function PanelView() {
       newIds.splice(insertAt, 0, tempId);
       const reordered = reorderElementsList([...elements, element], newIds);
       const pending = [createElementPending(tempId, data, insertAt)];
-      if (contextJdb || insertAtIndex !== null) {
+      // Only apply reorderElements for JDB context, not for insertAtIndex
+      // because createElement with order_index already handles the shifting
+      if (contextJdb) {
         pending.push({ type: "reorderElements", orderedIds: newIds });
       }
       recordOperation({
@@ -1159,12 +1160,14 @@ export function PanelView() {
       const element = buildLocalElement(tempId, panId, item, insertAt);
       newElements.push(element);
       newIds.splice(insertAt, 0, tempId);
-      pending.push(createElementPending(tempId, item));
+      pending.push(createElementPending(tempId, item, insertAt));
       insertAt++;
     }
 
     const reordered = reorderElementsList(newElements, newIds);
-    if (contextJdb || insertAtIndex !== null) {
+    // Only apply reorderElements for JDB context, not for insertAtIndex
+    // because createElement with order_index already handles the shifting
+    if (contextJdb) {
       pending.push({ type: "reorderElements", orderedIds: newIds });
     }
 
@@ -1625,6 +1628,7 @@ export function PanelView() {
           setEditElement(null);
           setContextJdb(null);
           setDepartForNewType(null);
+          setInsertAtIndex(null);
         }}
         onSave={handleSaveElement}
         onSaveMultiple={handleSaveMultiple}
