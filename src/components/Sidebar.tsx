@@ -19,6 +19,7 @@ export function Sidebar() {
   const location = useLocation();
   const {
     projects,
+    folders,
     selection,
     setSelection,
     sidebarExpanded,
@@ -95,6 +96,19 @@ export function Sidebar() {
     };
     void loadAll();
   }, [projects, sidebarExpanded, loadTreeForProject]);
+
+  useEffect(() => {
+    const loadFolders = async () => {
+      try {
+        const data = await window.bilpow.folders.getAll();
+        const { setFolders } = useAppStore.getState();
+        setFolders(data);
+      } catch {
+        /* ignore */
+      }
+    };
+    void loadFolders();
+  }, []);
 
   const handleProjectClick = async (projectId: number) => {
     const key = `project-${projectId}`;
@@ -294,87 +308,112 @@ export function Sidebar() {
           </p>
         </div>
 
-        {projects.map((project) => {
-          const isExpanded = sidebarExpanded[`project-${project.id}`];
-          const isActive =
-            selection.projectId === project.id && selection.type === "project";
-          const tree = treeData[project.id];
+        {/* Display folders with their projects */}
+        {folders.map((folder) => {
+          const folderProjects = projects.filter(p => p.folder_id === folder.id);
+          if (folderProjects.length === 0) return null;
+
+          const isExpanded = sidebarExpanded[`folder-${folder.id}`];
 
           return (
-            <div key={project.id}>
+            <div key={folder.id}>
               <div
                 className={`flex items-center px-3 py-1.5 cursor-pointer text-sm ${
-                  isActive
-                    ? "bg-accent text-white"
+                  isExpanded
+                    ? "bg-primary-light text-white"
                     : "text-blue-100 hover:bg-primary-light"
                 }`}
-                onClick={() => void handleProjectClick(project.id)}
-                onContextMenu={(e) =>
-                  handleContextMenu(e, "project", project.id, project.name)
-                }
+                onClick={() => setSidebarExpanded(`folder-${folder.id}`, !isExpanded)}
               >
                 <span className="mr-1 text-xs">{isExpanded ? "▼" : "▶"}</span>
-                <span className="truncate flex-1">📁 {project.name}</span>
+                <span className="truncate flex-1">📂 {folder.name}</span>
               </div>
 
               {isExpanded &&
-                tree?.locations.map((loc) => {
-                  const locActive =
-                    selection.locationId === loc.id &&
-                    selection.type === "location";
-                  const locExpanded = sidebarExpanded[`location-${loc.id}`];
+                folderProjects.map((project) => {
+                  const projectExpanded = sidebarExpanded[`project-${project.id}`];
+                  const isActive =
+                    selection.projectId === project.id && selection.type === "project";
+                  const tree = treeData[project.id];
 
                   return (
-                    <div key={loc.id}>
+                    <div key={project.id}>
                       <div
                         className={`flex items-center pl-6 pr-3 py-1.5 cursor-pointer text-sm ${
-                          locActive
-                            ? "bg-accent/80 text-white"
+                          isActive
+                            ? "bg-accent text-white"
                             : "text-blue-200 hover:bg-primary-light"
                         }`}
-                        onClick={() =>
-                          void handleLocationClick(project.id, loc.id)
-                        }
+                        onClick={() => void handleProjectClick(project.id)}
                         onContextMenu={(e) =>
-                          handleContextMenu(e, "location", loc.id, loc.name)
+                          handleContextMenu(e, "project", project.id, project.name)
                         }
                       >
-                        <span className="mr-1 text-xs">
-                          {locExpanded ? "▼" : "▶"}
-                        </span>
-                        <span className="truncate flex-1">📍 {loc.name}</span>
+                        <span className="mr-1 text-xs">{projectExpanded ? "▼" : "▶"}</span>
+                        <span className="truncate flex-1">📁 {project.name}</span>
                       </div>
 
-                      {locExpanded &&
-                        loc.panels.map((panel) => {
-                          const panelActive =
-                            selection.panelId === panel.id &&
-                            selection.type === "panel";
+                      {projectExpanded &&
+                        tree?.locations.map((loc) => {
+                          const locActive =
+                            selection.locationId === loc.id &&
+                            selection.type === "location";
+                          const locExpanded = sidebarExpanded[`location-${loc.id}`];
+
                           return (
-                            <div
-                              key={panel.id}
-                              className={`pl-10 pr-3 py-1.5 cursor-pointer text-sm truncate ${
-                                panelActive
-                                  ? "bg-accent/60 text-white font-medium"
-                                  : "text-blue-300 hover:bg-primary-light hover:text-white"
-                              }`}
-                              onClick={() =>
-                                void handlePanelClick(
-                                  project.id,
-                                  loc.id,
-                                  panel.id,
-                                )
-                              }
-                              onContextMenu={(e) =>
-                                handleContextMenu(
-                                  e,
-                                  "panel",
-                                  panel.id,
-                                  panel.name,
-                                )
-                              }
-                            >
-                              ⚡ {panel.name}
+                            <div key={loc.id}>
+                              <div
+                                className={`flex items-center pl-10 pr-3 py-1.5 cursor-pointer text-sm ${
+                                  locActive
+                                    ? "bg-accent/80 text-white"
+                                    : "text-blue-300 hover:bg-primary-light"
+                                }`}
+                                onClick={() =>
+                                  void handleLocationClick(project.id, loc.id)
+                                }
+                                onContextMenu={(e) =>
+                                  handleContextMenu(e, "location", loc.id, loc.name)
+                                }
+                              >
+                                <span className="mr-1 text-xs">
+                                  {locExpanded ? "▼" : "▶"}
+                                </span>
+                                <span className="truncate flex-1">📍 {loc.name}</span>
+                              </div>
+
+                              {locExpanded &&
+                                loc.panels.map((panel) => {
+                                  const panelActive =
+                                    selection.panelId === panel.id &&
+                                    selection.type === "panel";
+                                  return (
+                                    <div
+                                      key={panel.id}
+                                      className={`pl-14 pr-3 py-1.5 cursor-pointer text-sm truncate ${
+                                        panelActive
+                                          ? "bg-accent/60 text-white font-medium"
+                                          : "text-blue-400 hover:bg-primary-light hover:text-white"
+                                      }`}
+                                      onClick={() =>
+                                        void handlePanelClick(
+                                          project.id,
+                                          loc.id,
+                                          panel.id,
+                                        )
+                                      }
+                                      onContextMenu={(e) =>
+                                        handleContextMenu(
+                                          e,
+                                          "panel",
+                                          panel.id,
+                                          panel.name,
+                                        )
+                                      }
+                                    >
+                                      ⚡ {panel.name}
+                                    </div>
+                                  );
+                                })}
                             </div>
                           );
                         })}
@@ -384,6 +423,113 @@ export function Sidebar() {
             </div>
           );
         })}
+
+        {/* Display projects without folder */}
+        {(() => {
+          const rootProjects = projects.filter(p => !p.folder_id);
+          if (rootProjects.length === 0) return null;
+
+          return (
+            <div>
+              <div className="mt-4 px-3">
+                <p className="text-xs text-blue-300 uppercase tracking-wider font-semibold mb-2">
+                  Sans dossier
+                </p>
+              </div>
+
+              {rootProjects.map((project) => {
+                const isExpanded = sidebarExpanded[`project-${project.id}`];
+                const isActive =
+                  selection.projectId === project.id && selection.type === "project";
+                const tree = treeData[project.id];
+
+                return (
+                  <div key={project.id}>
+                    <div
+                      className={`flex items-center px-3 py-1.5 cursor-pointer text-sm ${
+                        isActive
+                          ? "bg-accent text-white"
+                          : "text-blue-100 hover:bg-primary-light"
+                      }`}
+                      onClick={() => void handleProjectClick(project.id)}
+                      onContextMenu={(e) =>
+                        handleContextMenu(e, "project", project.id, project.name)
+                      }
+                    >
+                      <span className="mr-1 text-xs">{isExpanded ? "▼" : "▶"}</span>
+                      <span className="truncate flex-1">📁 {project.name}</span>
+                    </div>
+
+                    {isExpanded &&
+                      tree?.locations.map((loc) => {
+                        const locActive =
+                          selection.locationId === loc.id &&
+                          selection.type === "location";
+                        const locExpanded = sidebarExpanded[`location-${loc.id}`];
+
+                        return (
+                          <div key={loc.id}>
+                            <div
+                              className={`flex items-center pl-6 pr-3 py-1.5 cursor-pointer text-sm ${
+                                locActive
+                                  ? "bg-accent/80 text-white"
+                                  : "text-blue-200 hover:bg-primary-light"
+                              }`}
+                              onClick={() =>
+                                void handleLocationClick(project.id, loc.id)
+                              }
+                              onContextMenu={(e) =>
+                                handleContextMenu(e, "location", loc.id, loc.name)
+                              }
+                            >
+                              <span className="mr-1 text-xs">
+                                {locExpanded ? "▼" : "▶"}
+                              </span>
+                              <span className="truncate flex-1">📍 {loc.name}</span>
+                            </div>
+
+                            {locExpanded &&
+                              loc.panels.map((panel) => {
+                                const panelActive =
+                                  selection.panelId === panel.id &&
+                                  selection.type === "panel";
+                                return (
+                                  <div
+                                    key={panel.id}
+                                    className={`pl-10 pr-3 py-1.5 cursor-pointer text-sm truncate ${
+                                      panelActive
+                                        ? "bg-accent/60 text-white font-medium"
+                                        : "text-blue-300 hover:bg-primary-light hover:text-white"
+                                    }`}
+                                    onClick={() =>
+                                      void handlePanelClick(
+                                        project.id,
+                                        loc.id,
+                                        panel.id,
+                                      )
+                                    }
+                                    onContextMenu={(e) =>
+                                      handleContextMenu(
+                                        e,
+                                        "panel",
+                                        panel.id,
+                                        panel.name,
+                                      )
+                                    }
+                                  >
+                                    ⚡ {panel.name}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        );
+                      })}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
       </nav>
 
       <div className="border-t border-primary-light px-3 py-3 flex-shrink-0 space-y-2">

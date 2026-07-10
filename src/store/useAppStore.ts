@@ -10,11 +10,13 @@ import type {
   AppSelection,
   CompanySettings,
   UpdateCompanySettingsInput,
+  Folder,
 } from '@/types';
 
 interface AppState {
   darkMode: boolean;
   projects: ProjectWithStats[];
+  folders: Folder[];
   currentProject: Project | null;
   locations: LocationWithStats[];
   panels: PanelWithStats[];
@@ -30,6 +32,7 @@ interface AppState {
 
   setDarkMode: (value: boolean) => void;
   setProjects: (projects: ProjectWithStats[]) => void;
+  setFolders: (folders: Folder[]) => void;
   setCurrentProject: (project: Project | null) => void;
   setLocations: (locations: LocationWithStats[]) => void;
   setPanels: (panels: PanelWithStats[]) => void;
@@ -61,6 +64,7 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       darkMode: false,
       projects: [],
+      folders: [],
       currentProject: null,
       locations: [],
       panels: [],
@@ -80,6 +84,7 @@ export const useAppStore = create<AppState>()(
         set({ darkMode: value });
       },
       setProjects: (projects) => set({ projects }),
+      setFolders: (folders) => set({ folders }),
       setCurrentProject: (project) => set({ currentProject: project }),
       setLocations: (locations) => set({ locations }),
       setPanels: (panels) => set({ panels }),

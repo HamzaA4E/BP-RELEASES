@@ -16,6 +16,8 @@ export function Dashboard() {
   const {
     projects,
     setProjects,
+    folders,
+    setFolders,
     searchQuery,
     setSearchQuery,
     setSelection,
@@ -23,7 +25,6 @@ export function Dashboard() {
   } = useAppStore();
   const { guardedNavigate } = useUnsavedNavigationGuard();
   const [loading, setLoading] = useState(true);
-  const [folders, setFolders] = useState<Folder[]>([]);
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   const [showNewProject, setShowNewProject] = useState(false);
   const [showNewFolder, setShowNewFolder] = useState(false);
