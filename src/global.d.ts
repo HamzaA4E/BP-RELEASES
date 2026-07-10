@@ -39,6 +39,7 @@ export interface BilPowAPI {
     create: (data: CreateProjectInput) => Promise<Project>;
     update: (data: UpdateProjectInput) => Promise<Project>;
     delete: (id: number) => Promise<boolean>;
+    showSaveDialog: (defaultName: string) => Promise<{ canceled: boolean; filePath: string | null }>;
   };
   locations: {
     getByProject: (projectId: number) => Promise<LocationWithStats[]>;

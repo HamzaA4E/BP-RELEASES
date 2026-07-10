@@ -20,7 +20,6 @@ export function Dashboard() {
     setSearchQuery,
     setSelection,
     setCurrentProject,
-    markProjectClean,
   } = useAppStore();
   const { guardedNavigate } = useUnsavedNavigationGuard();
   const [loading, setLoading] = useState(true);
@@ -114,10 +113,21 @@ export function Dashboard() {
       return;
     }
     try {
+      // Open save dialog to choose file location
+      const sanitizedName = newName.trim().replace(/[^a-zA-Z0-9]/g, '_');
+      const defaultName = `${sanitizedName}.bilpow`;
+      const { canceled, filePath } = await window.bilpow.projects.showSaveDialog(defaultName);
+
+      if (canceled || !filePath) {
+        toast.error("Veuillez choisir un emplacement pour le projet");
+        return;
+      }
+
       const project = await window.bilpow.projects.create({
         name: newName.trim(),
         client: newClient.trim() || undefined,
         folder_id: selectedFolder?.id,
+        file_path: filePath,
       });
       await loadProjects();
       setShowNewProject(false);

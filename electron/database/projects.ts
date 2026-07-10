@@ -69,18 +69,52 @@ export function createProject(data: {
   client?: string;
   description?: string;
   folder_id?: number | null;
+  file_path?: string;
 }): ProjectRow {
   const db = getDatabase();
+  const path = require('path');
+  const os = require('os');
+
+  let filePath: string;
+
+  if (data.file_path) {
+    // Use the provided file path from dialog
+    filePath = data.file_path;
+  } else {
+    // Determine the folder path for the new project file
+    let folderPath: string;
+    if (data.folder_id !== null && data.folder_id !== undefined) {
+      const folder = db.prepare('SELECT folder_path FROM folders WHERE id = ?').get(data.folder_id) as { folder_path: string | null } | undefined;
+      folderPath = folder?.folder_path || path.join(os.homedir(), 'Documents');
+    } else {
+      folderPath = path.join(os.homedir(), 'Documents');
+    }
+
+    // Ensure the folder exists
+    if (!fs.existsSync(folderPath)) {
+      fs.mkdirSync(folderPath, { recursive: true });
+    }
+
+    // Create a unique file name based on the project name
+    const sanitizedName = data.name.replace(/[^a-zA-Z0-9]/g, '_');
+    const fileName = `${sanitizedName}_${Date.now()}.bilpow`;
+    filePath = path.join(folderPath, fileName);
+  }
+
+  // Create an empty file
+  fs.writeFileSync(filePath, '{}');
+
   const result = db
     .prepare(
-      `INSERT INTO projects (name, client, description, folder_id)
-       VALUES (@name, @client, @description, @folder_id)`
+      `INSERT INTO projects (name, client, description, folder_id, file_path)
+       VALUES (@name, @client, @description, @folder_id, @file_path)`
     )
     .run({
       name: data.name,
       client: data.client ?? null,
       description: data.description ?? null,
       folder_id: data.folder_id ?? null,
+      file_path: filePath,
     });
 
   const project = getProjectById(Number(result.lastInsertRowid));

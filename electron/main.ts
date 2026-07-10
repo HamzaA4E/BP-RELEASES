@@ -571,6 +571,15 @@ ipcMain.handle('devtools:open', () => {
     return { canceled, filePath: filePath || null };
   });
 
+  ipcMain.handle('projects:showSaveDialog', async (_e, defaultName: string) => {
+    const { filePath, canceled } = await dialog.showSaveDialog({
+      title: 'Enregistrer le nouveau projet',
+      defaultPath: defaultName,
+      filters: [{ name: 'Projet BilPow', extensions: ['bilpow'] }],
+    });
+    return { canceled, filePath: filePath || null };
+  });
+
   ipcMain.handle('folders:showFolderDialog', async (_e, defaultName: string) => {
     try {
       const { filePaths, canceled } = await dialog.showOpenDialog({

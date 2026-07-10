@@ -66,6 +66,8 @@ const api = {
     update: (data: UpdateProjectInput): Promise<Project> =>
       invoke('projects:update', data),
     delete: (id: number): Promise<boolean> => invoke('projects:delete', id),
+    showSaveDialog: (defaultName: string): Promise<{ canceled: boolean; filePath: string | null }> =>
+      ipcRenderer.invoke('projects:showSaveDialog', defaultName) as Promise<{ canceled: boolean; filePath: string | null }>,
   },
   locations: {
     getByProject: (projectId: number): Promise<LocationWithStats[]> =>

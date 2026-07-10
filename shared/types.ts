@@ -139,6 +139,7 @@ export interface CreateProjectInput {
   client?: string;
   description?: string;
   folder_id?: number | null;
+  file_path?: string;
 }
 
 export interface UpdateProjectInput {

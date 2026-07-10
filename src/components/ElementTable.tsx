@@ -979,28 +979,32 @@ function SortableMultiDepartRow({
               onCommit={(v) => void onArticleUpdate(article.id, "quantity", v)}
             />
           </td>
-          {element.use_coefs && (
-            <>
-              <td className="px-3 py-2 text-sm text-center">
-                <ArticleCoefCell
-                  article={article}
-                  field="coef_ks"
-                  articleEditing={articleEditing}
-                  setArticleEditing={setArticleEditing}
-                  onCommit={(v) => void onArticleUpdate(article.id, "coef_ks", v)}
-                />
-              </td>
-              <td className="px-3 py-2 text-sm text-center">
-                <ArticleCoefCell
-                  article={article}
-                  field="coef_ku"
-                  articleEditing={articleEditing}
-                  setArticleEditing={setArticleEditing}
-                  onCommit={(v) => void onArticleUpdate(article.id, "coef_ku", v)}
-                />
-              </td>
-            </>
-          )}
+          <td className="px-3 py-2 text-sm text-center">
+            {element.use_coefs ? (
+              <ArticleCoefCell
+                article={article}
+                field="coef_ks"
+                articleEditing={articleEditing}
+                setArticleEditing={setArticleEditing}
+                onCommit={(v) => void onArticleUpdate(article.id, "coef_ks", v)}
+              />
+            ) : (
+              <span className="text-gray-400 font-mono text-sm">1.00</span>
+            )}
+          </td>
+          <td className="px-3 py-2 text-sm text-center">
+            {element.use_coefs ? (
+              <ArticleCoefCell
+                article={article}
+                field="coef_ku"
+                articleEditing={articleEditing}
+                setArticleEditing={setArticleEditing}
+                onCommit={(v) => void onArticleUpdate(article.id, "coef_ku", v)}
+              />
+            ) : (
+              <span className="text-gray-400 font-mono text-sm">1.00</span>
+            )}
+          </td>
           {idx === 0 ? (
             <td
               rowSpan={rowCount}
@@ -1184,30 +1188,31 @@ function SortableDataRow({
             }}
           />
         </td>
-        {element.use_coefs && coefFields.map((c) => (
+        {coefFields.map((c) => (
           <td key={c.key} className="px-2 py-2 text-sm text-center">
-            <InlineNumberCell
-              elementId={element.id}
-              field={c.key}
-              value={element[c.key]}
-              editingField={editingField}
-              setEditingField={setEditingField}
-              min={0}
-              max={1}
-              step={0.05}
-              format={(v) =>
-                c.key === "coef_ku" ? formatKuDisplay(v) : v.toFixed(2)
-              }
-              title={coefsLine}
-              onCommit={(v) => {
-                const clamped = Math.min(1, Math.max(0, v));
-                void onFieldUpdate(element.id, c.key, clamped);
-              }}
-            />
+            {element.use_coefs ? (
+              <InlineNumberCell
+                elementId={element.id}
+                field={c.key}
+                value={element[c.key]}
+                editingField={editingField}
+                setEditingField={setEditingField}
+                min={0}
+                max={1}
+                step={0.05}
+                format={(v) =>
+                  c.key === "coef_ku" ? formatKuDisplay(v) : v.toFixed(2)
+                }
+                title={coefsLine}
+                onCommit={(v) => {
+                  const clamped = Math.min(1, Math.max(0, v));
+                  void onFieldUpdate(element.id, c.key, clamped);
+                }}
+              />
+            ) : (
+              <span className="text-gray-400 font-mono text-sm">1.00</span>
+            )}
           </td>
-        ))}
-        {!element.use_coefs && coefFields.map((c) => (
-          <td key={c.key} className="px-2 py-2 text-sm text-center" />
         ))}
         <td className="px-3 py-2 text-sm text-right font-medium">
           {formatNumber(wattsToKw(totalPower), 3)}
