@@ -50,14 +50,6 @@ let fileWatcher: any = null;
 let filePathMap = new Map<string, { type: 'project' | 'folder'; id: number; name: string }>();
 let idMap = new Map<number, { type: 'project' | 'folder'; path: string; name: string }>();
 
-function reloadFileWatcher(): void {
-  console.log('[reloadFileWatcher] Reloading file watcher...');
-  if (fileWatcher) {
-    fileWatcher.close();
-  }
-  setupFileWatcher();
-}
-
 function sanitizeFileName(name: string): string {
   return name.replace(/[<>:"/\\|?*]/g, '_').trim() || 'projet';
 }
@@ -337,129 +329,164 @@ function removeSettingsLogo(kind: SettingsLogoKind): boolean {
 }
 
 async function setupFileWatcher(): Promise<void> {
-  const db = getDatabase();
-  
-  // Get all watched paths (project files and folders)
-  const projects = db.prepare('SELECT id, file_path, name FROM projects WHERE file_path IS NOT NULL').all() as Array<{ id: number; file_path: string; name: string }>;
-  const folders = db.prepare('SELECT id, folder_path, name FROM folders WHERE folder_path IS NOT NULL').all() as Array<{ id: number; folder_path: string; name: string }>;
-  
-  const watchedDirectories = new Set<string>();
-  
-  // Add project file directories
-  for (const project of projects) {
-    if (project.file_path) {
-      watchedDirectories.add(path.dirname(project.file_path));
-    }
-  }
-  
-  // Add folder paths
-  for (const folder of folders) {
-    if (folder.folder_path) {
-      watchedDirectories.add(folder.folder_path);
-    }
-  }
-  
-  if (watchedDirectories.size === 0) {
-    console.log('[FileWatcher] No directories to watch');
-    return;
-  }
-  
-  console.log('[FileWatcher] Setting up watcher for directories:', Array.from(watchedDirectories));
-  
-  // Clear and reinitialize the global maps with current paths
-  filePathMap.clear();
-  idMap.clear();
-  
-  for (const project of projects) {
-    if (project.file_path) {
-      filePathMap.set(project.file_path, { type: 'project', id: project.id, name: project.name });
-      idMap.set(project.id, { type: 'project', path: project.file_path, name: project.name });
-    }
-  }
-  for (const folder of folders) {
-    if (folder.folder_path) {
-      filePathMap.set(folder.folder_path, { type: 'folder', id: folder.id, name: folder.name });
-      idMap.set(folder.id, { type: 'folder', path: folder.folder_path, name: folder.name });
-    }
-  }
-  
-  // Use native fs.watch instead of chokidar
-  const watchers: fs.FSWatcher[] = [];
-  
-  for (const dir of watchedDirectories) {
-    try {
-      // Check if directory exists before watching
-      if (!fs.existsSync(dir)) {
-        console.log('[FileWatcher] Skipping non-existent directory:', dir);
-        continue;
+  try {
+    const db = getDatabase();
+    
+    // Get all watched paths (project files and folders)
+    const projects = db.prepare('SELECT id, file_path, name FROM projects WHERE file_path IS NOT NULL').all() as Array<{ id: number; file_path: string; name: string }>;
+    const folders = db.prepare('SELECT id, folder_path, name FROM folders WHERE folder_path IS NOT NULL').all() as Array<{ id: number; folder_path: string; name: string }>;
+    
+    const watchedDirectories = new Set<string>();
+    
+    // Add project file directories
+    for (const project of projects) {
+      if (project.file_path) {
+        watchedDirectories.add(path.dirname(project.file_path));
       }
-      
-      const watcher = fs.watch(dir, { persistent: true }, (eventType, filename) => {
-        if (!filename) return;
+    }
+    
+    // Add folder paths
+    for (const folder of folders) {
+      if (folder.folder_path) {
+        watchedDirectories.add(folder.folder_path);
+      }
+    }
+    
+    if (watchedDirectories.size === 0) {
+      console.log('[FileWatcher] No directories to watch');
+      return;
+    }
+    
+    console.log('[FileWatcher] Setting up watcher for directories:', Array.from(watchedDirectories));
+    
+    // Clear and reinitialize the global maps with current paths
+    filePathMap.clear();
+    idMap.clear();
+    
+    for (const project of projects) {
+      if (project.file_path) {
+        filePathMap.set(project.file_path, { type: 'project', id: project.id, name: project.name });
+        idMap.set(project.id, { type: 'project', path: project.file_path, name: project.name });
+      }
+    }
+    for (const folder of folders) {
+      if (folder.folder_path) {
+        filePathMap.set(folder.folder_path, { type: 'folder', id: folder.id, name: folder.name });
+        idMap.set(folder.id, { type: 'folder', path: folder.folder_path, name: folder.name });
+      }
+    }
+    
+    // Use native fs.watch instead of chokidar
+    const watchers: fs.FSWatcher[] = [];
+    
+    for (const dir of watchedDirectories) {
+      try {
+        // Check if directory exists before watching
+        if (!fs.existsSync(dir)) {
+          console.log('[FileWatcher] Skipping non-existent directory:', dir);
+          continue;
+        }
         
-        const fullPath = path.join(dir, filename);
-        
-        console.log('[FileWatcher] Event detected:', { eventType, filename, fullPath, dir });
-        
-        if (eventType === 'rename') {
-          // Check if this is a tracked file that was deleted/renamed
-          const tracked = filePathMap.get(fullPath);
-          if (tracked) {
-            console.log('[FileWatcher] Tracked file renamed/deleted:', tracked.id, tracked.name);
-          }
+        const watcher = fs.watch(dir, { persistent: true }, (eventType, filename) => {
+          if (!filename) return;
           
-          // Check if this is a new .bilpow file that might be a rename
-          if (filename.endsWith('.bilpow')) {
-            console.log('[FileWatcher] New .bilpow file detected, checking for rename:', fullPath);
-            setTimeout(() => {
-              console.log('[FileWatcher] Checking for missing files in directory:', dir);
-              // Check all projects/folders in this directory to see if any are missing
-              for (const [id, info] of idMap.entries()) {
-                if (path.dirname(info.path) === dir && !fs.existsSync(info.path)) {
-                  console.log('[FileWatcher] Missing file found:', id, info.path);
-                  // This file was deleted, check if the new file is the renamed version
-                  if (fs.existsSync(fullPath)) {
-                    // Update the path in the database
-                    const newFileName = path.basename(fullPath);
-                    const sanitizedName = newFileName.replace('.bilpow', '').replace(/_/g, ' ');
-                    
-                    console.log('[FileWatcher] Updating path in DB:', id, 'from', info.path, 'to', fullPath);
-                    
-                    if (info.type === 'project') {
-                      db.prepare('UPDATE projects SET name = ?, file_path = ?, updated_at = datetime(\'now\') WHERE id = ?').run(sanitizedName, fullPath, id);
-                      filePathMap.delete(info.path);
-                      filePathMap.set(fullPath, { type: 'project', id, name: sanitizedName });
-                      idMap.set(id, { type: 'project', path: fullPath, name: sanitizedName });
-                      mainWindow?.webContents.send('file-renamed', { type: 'project', id, newName: sanitizedName });
-                    } else if (info.type === 'folder') {
+          const fullPath = path.join(dir, filename);
+          
+          console.log('[FileWatcher] Event detected:', { eventType, filename, fullPath, dir });
+          
+          if (eventType === 'rename') {
+            // Check if this is a tracked file that was deleted/renamed
+            const tracked = filePathMap.get(fullPath);
+            if (tracked) {
+              console.log('[FileWatcher] Tracked file renamed/deleted:', tracked.id, tracked.name);
+            }
+            
+            // Check if this is a new .bilpow file that might be a rename
+            if (filename.endsWith('.bilpow')) {
+              console.log('[FileWatcher] New .bilpow file detected, checking for rename:', fullPath);
+              setTimeout(() => {
+                console.log('[FileWatcher] Checking for missing files in directory:', dir);
+                // Check all projects/folders in this directory to see if any are missing
+                for (const [id, info] of idMap.entries()) {
+                  if (path.dirname(info.path) === dir && !fs.existsSync(info.path)) {
+                    console.log('[FileWatcher] Missing file found:', id, info.path);
+                    // This file was deleted, check if the new file is the renamed version
+                    if (fs.existsSync(fullPath)) {
+                      // Update the path in the database
+                      const newFileName = path.basename(fullPath);
+                      const sanitizedName = newFileName.replace('.bilpow', '').replace(/_/g, ' ');
+                      
+                      console.log('[FileWatcher] Updating path in DB:', id, 'from', info.path, 'to', fullPath);
+                      
+                      if (info.type === 'project') {
+                        db.prepare('UPDATE projects SET name = ?, file_path = ?, updated_at = datetime(\'now\') WHERE id = ?').run(sanitizedName, fullPath, id);
+                        filePathMap.delete(info.path);
+                        filePathMap.set(fullPath, { type: 'project', id, name: sanitizedName });
+                        idMap.set(id, { type: 'project', path: fullPath, name: sanitizedName });
+                        mainWindow?.webContents.send('file-renamed', { type: 'project', id, newName: sanitizedName });
+                      } else if (info.type === 'folder') {
+                        db.prepare('UPDATE folders SET name = ?, folder_path = ? WHERE id = ?').run(sanitizedName, fullPath, id);
+                        filePathMap.delete(info.path);
+                        filePathMap.set(fullPath, { type: 'folder', id, name: sanitizedName });
+                        idMap.set(id, { type: 'folder', path: fullPath, name: sanitizedName });
+                        mainWindow?.webContents.send('file-renamed', { type: 'folder', id, newName: sanitizedName });
+                      }
+                      
+                      console.log('[FileWatcher] Successfully updated:', id, sanitizedName);
+                      break;
+                    } else {
+                      console.log('[FileWatcher] New file does not exist:', fullPath);
+                    }
+                  }
+                }
+              }, 500);
+            }
+            
+            // Check if this is a directory that might be a renamed folder
+            if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+              console.log('[FileWatcher] New directory detected, checking for rename:', fullPath);
+              setTimeout(() => {
+                console.log('[FileWatcher] Checking for missing folders in directory:', dir);
+                // Check all folders in this directory to see if any are missing
+                for (const [id, info] of idMap.entries()) {
+                  if (info.type === 'folder' && path.dirname(info.path) === dir && !fs.existsSync(info.path)) {
+                    console.log('[FileWatcher] Missing folder found:', id, info.path);
+                    // This folder was deleted, check if the new directory is the renamed version
+                    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory()) {
+                      // Update the path in the database
+                      const newFolderName = path.basename(fullPath);
+                      const sanitizedName = newFolderName.replace(/_/g, ' ');
+                      
+                      console.log('[FileWatcher] Updating folder path in DB:', id, 'from', info.path, 'to', fullPath);
+                      
                       db.prepare('UPDATE folders SET name = ?, folder_path = ? WHERE id = ?').run(sanitizedName, fullPath, id);
                       filePathMap.delete(info.path);
                       filePathMap.set(fullPath, { type: 'folder', id, name: sanitizedName });
                       idMap.set(id, { type: 'folder', path: fullPath, name: sanitizedName });
                       mainWindow?.webContents.send('file-renamed', { type: 'folder', id, newName: sanitizedName });
+                      
+                      console.log('[FileWatcher] Successfully updated folder:', id, sanitizedName);
+                      break;
                     }
-                    
-                    console.log('[FileWatcher] Successfully updated:', id, sanitizedName);
-                    break;
-                  } else {
-                    console.log('[FileWatcher] New file does not exist:', fullPath);
                   }
                 }
-              }
-            }, 500);
+              }, 500);
+            }
           }
-        }
-      });
-      
-      watchers.push(watcher);
-      console.log('[FileWatcher] Watching directory:', dir);
-    } catch (err) {
-      console.error('[FileWatcher] Failed to watch directory:', dir, err);
+        });
+        
+        watchers.push(watcher);
+        console.log('[FileWatcher] Watching directory:', dir);
+      } catch (err) {
+        console.error('[FileWatcher] Failed to watch directory:', dir, err);
+      }
     }
+    
+    // Store watchers for cleanup
+    (fileWatcher as any) = { close: () => watchers.forEach(w => w.close()) };
+  } catch (err) {
+    console.error('[FileWatcher] Failed to setup file watcher:', err);
   }
-  
-  // Store watchers for cleanup
-  (fileWatcher as any) = { close: () => watchers.forEach(w => w.close()) };
 }
 
 function registerIpcHandlers(): void {
@@ -490,14 +517,7 @@ function registerIpcHandlers(): void {
         client?: string;
         description?: string;
       }
-    ) => wrapHandler(() => {
-      const result = projectsDb.updateProject(data);
-      // Reload file watcher if name changed to update the maps
-      if (data.name !== undefined) {
-        reloadFileWatcher();
-      }
-      return result;
-    })
+    ) => wrapHandler(() => projectsDb.updateProject(data))
   );
   ipcMain.handle('projects:delete', (_e, id: number) =>
     wrapHandler(() => {

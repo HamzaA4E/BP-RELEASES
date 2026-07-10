@@ -84,7 +84,7 @@ export function updateFolder(data: {
         // Only rename if the folder name would actually change
         if (path.basename(existing.folder_path) !== sanitizedName) {
           fs.renameSync(existing.folder_path, newFolderPath);
-          db.prepare('UPDATE folders SET folder_path = ? WHERE id = ?').run(newFolderPath, data.id);
+          db.prepare('UPDATE folders SET folder_path = ?, updated_at = datetime(\'now\') WHERE id = ?').run(newFolderPath, data.id);
           console.log('[updateFolder] Folder renamed from:', existing.folder_path, 'to:', newFolderPath);
           
           // Update file paths of all projects in this folder
@@ -95,7 +95,7 @@ export function updateFolder(data: {
               const newProjectPath = path.join(newFolderPath, fileName);
               if (project.file_path !== newProjectPath) {
                 fs.renameSync(project.file_path, newProjectPath);
-                db.prepare('UPDATE projects SET file_path = ? WHERE id = ?').run(newProjectPath, project.id);
+                db.prepare('UPDATE projects SET file_path = ?, updated_at = datetime(\'now\') WHERE id = ?').run(newProjectPath, project.id);
                 console.log('[updateFolder] Updated project file path:', project.id, 'to:', newProjectPath);
               }
             }

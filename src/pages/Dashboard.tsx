@@ -76,15 +76,18 @@ export function Dashboard() {
   useEffect(() => {
     const handleFileRenamed = (data: { type: 'project' | 'folder'; id: number; newName: string }) => {
       console.log('[Dashboard] File renamed event received:', data);
+      console.log('[Dashboard] Reloading projects and folders due to file rename');
       // Reload projects and folders to reflect the change
       void loadProjects();
       void loadFolders();
     };
 
+    console.log('[Dashboard] Setting up file-renamed listener');
     const cleanup = window.bilpow.project.onFileRenamed(handleFileRenamed);
     
     // Fallback: poll for changes every 10 seconds (reduced frequency for performance)
     const interval = setInterval(() => {
+      console.log('[Dashboard] Polling for changes');
       void loadProjects();
       void loadFolders();
     }, 10000);
