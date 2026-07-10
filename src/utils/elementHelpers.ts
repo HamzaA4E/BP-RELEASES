@@ -418,11 +418,13 @@ export type ElementTableRow =
  * Builds table rows with subtotals per Jeu de Barres section.
  * @param elements - Array of elements to process
  * @param articlesByElement - Optional map of articles by element ID for multi-depart calculations
+ * @param collapsedJdbIds - Set of JDB IDs that should be collapsed (elements hidden)
  * @returns Array of table rows including JDB headers, elements, and subtotals
  */
 export function buildElementTableRows(
   elements: Element[],
-  articlesByElement: Record<number, Article[]> = {}
+  articlesByElement: Record<number, Article[]> = {},
+  collapsedJdbIds: Set<number> = new Set()
 ): ElementTableRow[] {
   const rows: ElementTableRow[] = [];
   let currentJdb: Element | null = null;
@@ -448,8 +450,17 @@ export function buildElementTableRows(
       currentJdb = element;
       rows.push({ kind: 'jdb', element });
     } else {
-      if (currentJdb) groupElements.push(element);
-      rows.push({ kind: 'element', element });
+      if (currentJdb) {
+        // Skip elements if the current JDB is collapsed
+        if (collapsedJdbIds.has(currentJdb.id)) {
+          groupElements.push(element);
+        } else {
+          groupElements.push(element);
+          rows.push({ kind: 'element', element });
+        }
+      } else {
+        rows.push({ kind: 'element', element });
+      }
     }
   }
   

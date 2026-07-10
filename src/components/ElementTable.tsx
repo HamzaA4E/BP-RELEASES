@@ -359,6 +359,8 @@ function JeuDeBarresRow({
   editingField,
   setEditingField,
   visibleColumnCount,
+  isCollapsed,
+  onToggleCollapse,
 }: {
   element: Element;
   onDelete: (id: number) => void;
@@ -369,6 +371,8 @@ function JeuDeBarresRow({
     v: { id: number; field: EditableField | CoefField } | null,
   ) => void;
   visibleColumnCount: number;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
 }) {
   const {
     attributes,
@@ -401,6 +405,14 @@ function JeuDeBarresRow({
       <td colSpan={visibleColumnCount - 2} className="p-0">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-gradient-to-r from-[#1E3A5F] to-[#2a4f7a] border-y border-[#162d4a] overflow-hidden">
           <div className="flex items-center gap-2 min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-sm hover:bg-white/25 transition-colors"
+              title={isCollapsed ? "Déplier cette section" : "Replier cette section"}
+            >
+              {isCollapsed ? "▶" : "▼"}
+            </button>
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-white/15 text-sm">
               ⚡
             </span>
@@ -1262,6 +1274,7 @@ export function ElementTable({
   const [articleEditing, setArticleEditing] =
     useState<ArticleEditingState>(null);
   const [hoveredElementId, setHoveredElementId] = useState<number | null>(null);
+  const [collapsedJdbIds, setCollapsedJdbIds] = useState<Set<number>>(new Set());
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -1280,8 +1293,20 @@ export function ElementTable({
     onReorder(reordered.map((e) => e.id));
   };
 
+  const toggleJdbCollapse = (jdbId: number) => {
+    setCollapsedJdbIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(jdbId)) {
+        next.delete(jdbId);
+      } else {
+        next.add(jdbId);
+      }
+      return next;
+    });
+  };
+
   const totalPower = panelTotalPower(elements, articlesByElement);
-  const tableRows = buildElementTableRows(elements, articlesByElement);
+  const tableRows = buildElementTableRows(elements, articlesByElement, collapsedJdbIds);
   
   // Check if any element has use_coefs enabled to show/hide coefficient columns in header
   const anyElementUsesCoefs = elements.some(el => el.use_coefs);
@@ -1351,6 +1376,8 @@ export function ElementTable({
                       editingField={editingField}
                       setEditingField={setEditingField}
                       visibleColumnCount={visibleColumnCount}
+                      isCollapsed={collapsedJdbIds.has(row.element.id)}
+                      onToggleCollapse={() => toggleJdbCollapse(row.element.id)}
                     />
                   );
                 }
