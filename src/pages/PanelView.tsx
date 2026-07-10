@@ -175,6 +175,7 @@ export function PanelView() {
   const [contextJdb, setContextJdb] = useState<Element | null>(null);
   const [deleteElementId, setDeleteElementId] = useState<number | null>(null);
   const [pendingReperePrefix, setPendingReperePrefix] = useState<{ action: 'add' | 'remove', value: string | null } | null>(null);
+  const [insertAtIndex, setInsertAtIndex] = useState<number | null>(null);
   
   // Use a ref to keep elements up-to-date for callbacks that need current state
   const elementsRef = useRef(elements);
@@ -1088,7 +1089,9 @@ export function PanelView() {
         );
         return;
       }
-      const insertAt = contextJdb
+      const insertAt = insertAtIndex !== null
+        ? insertAtIndex
+        : contextJdb
         ? getInsertIndexAfterJdbSection(elements, contextJdb.id)
         : elements.length;
       const tempId = nextTempId();
@@ -1097,7 +1100,7 @@ export function PanelView() {
       newIds.splice(insertAt, 0, tempId);
       const reordered = reorderElementsList([...elements, element], newIds);
       const pending = [createElementPending(tempId, data)];
-      if (contextJdb) {
+      if (contextJdb || insertAtIndex !== null) {
         pending.push({ type: "reorderElements", orderedIds: newIds });
       }
       recordOperation({
@@ -1109,6 +1112,7 @@ export function PanelView() {
       toast.success("Élément ajouté");
     }
     setContextJdb(null);
+    setInsertAtIndex(null);
   };
 
   const handleSaveMultiple = async (items: ElementSavePayload[]) => {
@@ -1175,6 +1179,12 @@ export function PanelView() {
   const handleAddElementUnderJdb = (jdb: Element) => {
     setEditElement(null);
     setContextJdb(jdb);
+    setShowAddElement(true);
+  };
+
+  const handleInsertAt = (index: number) => {
+    setEditElement(null);
+    setInsertAtIndex(index + 1);
     setShowAddElement(true);
   };
 
@@ -1572,6 +1582,7 @@ export function PanelView() {
           onDelete={setDeleteElementId}
           onAddElementUnderJdb={handleAddElementUnderJdb}
           onReorder={handleReorder}
+          onInsertAt={handleInsertAt}
           onFieldUpdate={handleFieldUpdate}
           onArticleUpdate={handleArticleUpdate}
           onArticleDelete={handleArticleDelete}

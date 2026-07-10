@@ -40,8 +40,6 @@ import {
   displayArticleDesignation,
 } from "@/utils/multiDepartHelpers";
 
-/** drag + + + Cat + Repère + Type + Désignation + Puiss + Qté + Ks + Ku + P.totale + Actions */
-const TOTAL_COLUMN_COUNT = 12;
 
 function AddTypeButton({
   onClick,
@@ -88,6 +86,7 @@ interface ElementTableProps {
   onDelete: (id: number) => void;
   onAddElementUnderJdb: (jdb: Element) => void;
   onReorder: (orderedIds: number[]) => void;
+  onInsertAt: (index: number) => void;
   onFieldUpdate: (
     id: number,
     field:
@@ -796,6 +795,7 @@ function SortableMultiDepartRow({
   articles,
   onAddTypeToDepart,
   onDelete,
+  onInsertAt,
   onFieldUpdate,
   onArticleUpdate,
   onArticleDelete,
@@ -805,11 +805,13 @@ function SortableMultiDepartRow({
   setArticleEditing,
   hoveredElementId,
   setHoveredElementId,
+  elementIndex,
 }: {
   element: Element;
   articles: Article[];
   onAddTypeToDepart: (el: Element) => void;
   onDelete: (id: number) => void;
+  onInsertAt: (index: number) => void;
   onFieldUpdate: ElementTableProps["onFieldUpdate"];
   onArticleUpdate: ElementTableProps["onArticleUpdate"];
   onArticleDelete: (articleId: number, elementId: number) => Promise<void>;
@@ -821,6 +823,7 @@ function SortableMultiDepartRow({
   setArticleEditing: (v: ArticleEditingState) => void;
   hoveredElementId: number | null;
   setHoveredElementId: (id: number | null) => void;
+  elementIndex: number;
 }) {
   const {
     attributes,
@@ -855,6 +858,7 @@ function SortableMultiDepartRow({
             order_index: 0,
           },
         ];
+  const totalDepartPower = articles.reduce((sum, a) => sum + calcArticlePower(a), 0);
 
   const groupBorder = "border-l-2 border-l-blue-200 dark:border-l-blue-800";
   const isGroupHovered = hoveredElementId === element.id;
@@ -984,22 +988,37 @@ function SortableMultiDepartRow({
               </td>
             </>
           )}
-          <td className="px-3 py-2 text-sm text-right font-medium">
-            {formatNumber(wattsToKw(calcArticlePower(article)), 3)}
-          </td>
+          {idx === 0 ? (
+            <td
+              rowSpan={rowCount}
+              className={`px-3 py-2 text-sm text-right font-medium ${rowSpanHoverClass}`}
+            >
+              {formatNumber(wattsToKw(totalDepartPower), 3)}
+            </td>
+          ) : null}
           {idx === 0 && (
             <td
               rowSpan={rowCount}
               className={`px-3 py-2 align-middle ${rowSpanHoverClass}`}
             >
-              <button
-                type="button"
-                onClick={() => onDelete(element.id)}
-                className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                title="Supprimer le départ"
-              >
-                🗑️
-              </button>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => onInsertAt(elementIndex)}
+                  className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+                  title="Insérer un départ ici"
+                >
+                  ➕
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(element.id)}
+                  className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                  title="Supprimer le départ"
+                >
+                  🗑️
+                </button>
+              </div>
             </td>
           )}
         </tr>
@@ -1013,16 +1032,19 @@ function SortableDataRow({
   onEdit,
   onAddTypeToDepart,
   onDelete,
+  onInsertAt,
   onFieldUpdate,
   editingField,
   setEditingField,
   hoveredElementId,
   setHoveredElementId,
+  elementIndex,
 }: {
   element: Element;
   onEdit: (el: Element) => void;
   onAddTypeToDepart: (el: Element) => void;
   onDelete: (id: number) => void;
+  onInsertAt: (index: number) => void;
   onFieldUpdate: ElementTableProps["onFieldUpdate"];
   editingField: { id: number; field: EditableField | CoefField } | null;
   setEditingField: (
@@ -1030,6 +1052,7 @@ function SortableDataRow({
   ) => void;
   hoveredElementId: number | null;
   setHoveredElementId: (id: number | null) => void;
+  elementIndex: number;
 }) {
   const {
     attributes,
@@ -1180,6 +1203,14 @@ function SortableDataRow({
           <div className="flex gap-1">
             <button
               type="button"
+              onClick={() => onInsertAt(elementIndex)}
+              className="p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded transition-colors"
+              title="Insérer un départ ici"
+            >
+              ➕
+            </button>
+            <button
+              type="button"
               onClick={() => onEdit(element)}
               className="p-1 text-accent interactive-hover rounded transition-colors"
               title="Modifier"
@@ -1219,6 +1250,7 @@ export function ElementTable({
   onDelete,
   onAddElementUnderJdb,
   onReorder,
+  onInsertAt,
   onFieldUpdate,
   onArticleUpdate,
   onArticleDelete,
@@ -1342,6 +1374,7 @@ export function ElementTable({
                       articles={articlesByElement[row.element.id] ?? []}
                       onAddTypeToDepart={onAddTypeToDepart}
                       onDelete={onDelete}
+                      onInsertAt={onInsertAt}
                       onFieldUpdate={onFieldUpdate}
                       onArticleUpdate={onArticleUpdate}
                       onArticleDelete={onArticleDelete}
@@ -1351,6 +1384,7 @@ export function ElementTable({
                       setArticleEditing={setArticleEditing}
                       hoveredElementId={hoveredElementId}
                       setHoveredElementId={setHoveredElementId}
+                      elementIndex={idx}
                     />
                   );
                 }
@@ -1361,11 +1395,13 @@ export function ElementTable({
                     onEdit={onEdit}
                     onAddTypeToDepart={onAddTypeToDepart}
                     onDelete={onDelete}
+                    onInsertAt={onInsertAt}
                     onFieldUpdate={onFieldUpdate}
                     editingField={editingField}
                     setEditingField={setEditingField}
                     hoveredElementId={hoveredElementId}
                     setHoveredElementId={setHoveredElementId}
+                    elementIndex={idx}
                   />
                 );
               })}
