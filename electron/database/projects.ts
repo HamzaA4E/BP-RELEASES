@@ -38,22 +38,22 @@ export function getAllProjects(): ProjectWithStatsRow[] {
     .all() as ProjectWithStatsRow[];
 
   // Clean up orphaned projects (no file_path or file doesn't exist)
-  // ON DELETE CASCADE will automatically delete associated locations, panels, and elements
-  for (const project of projects) {
-    if (!project.file_path || !fs.existsSync(project.file_path)) {
-      console.log(`[getAllProjects] Cleaning up orphaned project ${project.id} (${project.name})`);
-      try {
-        db.prepare('DELETE FROM projects WHERE id = ?').run(project.id);
-      } catch (err) {
-        console.error(`[getAllProjects] Failed to delete orphaned project ${project.id}:`, err);
-      }
-    }
-  }
+  // DISABLED: File watcher handles renames, so we keep projects even if file is temporarily missing
+  // for (const project of projects) {
+  //   if (!project.file_path || !fs.existsSync(project.file_path)) {
+  //     console.log(`[getAllProjects] Cleaning up orphaned project ${project.id} (${project.name})`);
+  //     try {
+  //       db.prepare('DELETE FROM projects WHERE id = ?').run(project.id);
+  //     } catch (err) {
+  //       console.error(`[getAllProjects] Failed to delete orphaned project ${project.id}:`, err);
+  //     }
+  //   }
+  // }
 
-  // Return only valid projects
+  // Return all projects (file watcher will update paths when files are renamed)
   return projects.filter(project => {
     if (!project.file_path) return false;
-    if (!fs.existsSync(project.file_path)) return false;
+    // Don't filter by file existence - file watcher handles this
     return true;
   });
 }

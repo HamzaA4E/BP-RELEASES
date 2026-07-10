@@ -75,14 +75,24 @@ export function Dashboard() {
 
   useEffect(() => {
     const handleFileRenamed = (data: { type: 'project' | 'folder'; id: number; newName: string }) => {
-      console.log('[Dashboard] File renamed:', data);
+      console.log('[Dashboard] File renamed event received:', data);
       // Reload projects and folders to reflect the change
       void loadProjects();
       void loadFolders();
     };
 
     const cleanup = window.bilpow.project.onFileRenamed(handleFileRenamed);
-    return cleanup;
+    
+    // Fallback: poll for changes every 10 seconds (reduced frequency for performance)
+    const interval = setInterval(() => {
+      void loadProjects();
+      void loadFolders();
+    }, 10000);
+    
+    return () => {
+      cleanup();
+      clearInterval(interval);
+    };
   }, []);
 
   useKeyboardShortcuts({
