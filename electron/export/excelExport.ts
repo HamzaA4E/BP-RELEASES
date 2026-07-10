@@ -926,9 +926,9 @@ function createPanelSheet(
   const optimalWidths = calculateOptimalColumnWidths(COL_COUNT_DYNAMIC, orientation);
   
   // Adjust designation column width based on maximum designation length
-  // Each character is approximately 0.09 Excel units at 10pt font
-  const designationMinWidth = 15; // Minimum width for designation column
-  const designationCalculatedWidth = Math.max(designationMinWidth, maxDesignationLength * 0.9);
+  // Each character is approximately 1.2 Excel units at 10pt font with wrap text
+  const designationMinWidth = 20; // Minimum width for designation column
+  const designationCalculatedWidth = Math.max(designationMinWidth, maxDesignationLength * 1.5);
   optimalWidths[COL_DYNAMIC.DESIGNATION - 1] = designationCalculatedWidth;
   
   sheet.columns = optimalWidths.map(width => ({ width }));

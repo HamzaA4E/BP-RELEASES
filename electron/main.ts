@@ -818,7 +818,20 @@ ipcMain.handle('devtools:open', () => {
       }
 
       const raw = fs.readFileSync(filePath, 'utf-8');
-      const parsed: unknown = JSON.parse(raw);
+      
+      if (!raw || raw.trim().length === 0) {
+        return { success: false, error: 'Fichier vide ou corrompu' };
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (parseError) {
+        return { 
+          success: false, 
+          error: 'Fichier JSON invalide — impossible de lire le fichier.' 
+        };
+      }
 
       if (!isBilpowFile(parsed)) {
         return {
@@ -851,7 +864,20 @@ ipcMain.handle('devtools:open', () => {
       }
 
       const raw = fs.readFileSync(filePath, 'utf-8');
-      const parsed: unknown = JSON.parse(raw);
+      
+      if (!raw || raw.trim().length === 0) {
+        return { success: false, error: 'Fichier vide ou corrompu' };
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(raw);
+      } catch (parseError) {
+        return { 
+          success: false, 
+          error: 'Fichier JSON invalide — impossible de lire le fichier.' 
+        };
+      }
 
       if (!isBilpowFile(parsed)) {
         return {
