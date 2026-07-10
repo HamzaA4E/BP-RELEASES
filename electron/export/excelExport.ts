@@ -475,9 +475,9 @@ function writeMultiDepartExcelRows(
     
     if (showCoefs) {
       row.getCell(colMapping.KS).value = ks;
-      if (showKu) {
-        row.getCell(colMapping.KU).value = ku;
-      }
+    }
+    if (showKu) {
+      row.getCell(colMapping.KU).value = ku;
     }
 
     const ksCol = showCoefs ? colLetter(colMapping.KS) : '1';
@@ -544,15 +544,9 @@ interface PanelSheetResult {
 }
 
 function hasNonUnitaryKu(elements: ElementRow[]): boolean {
-  // Check if any element has use_coefs enabled
-  const anyUseCoefs = elements.some(el => !isJeuDeBarresRow(el) && el.use_coefs !== 0);
-  if (!anyUseCoefs) return false;
-  
+  // Check if any element has Ku different from 1, regardless of use_coefs
   for (const el of elements) {
     if (isJeuDeBarresRow(el)) continue;
-    
-    // Si use_coefs est 0 (false), ignorer les coefficients
-    if (el.use_coefs === 0) continue;
     
     if (el.is_multi) {
       const articles = getArticlesByElement(el.id);
@@ -612,8 +606,10 @@ function createPanelSheet(
 
   // Check if any element uses coefficients to show/hide Ks/Ku columns
   const showCoefs = anyElementUsesCoefs(data.elements);
-  const showKu = showCoefs && hasNonUnitaryKu(data.elements);
-  const COL_COUNT_DYNAMIC = showCoefs ? (showKu ? 8 : 7) : 6;
+  const showKu = hasNonUnitaryKu(data.elements);
+  // Show Ku column if Ku ≠ 1, regardless of use_coefs
+  // Show Ks column only if use_coefs is enabled
+  const COL_COUNT_DYNAMIC = showKu ? 8 : (showCoefs ? 7 : 6);
 
   const { headerRow, svgSkipped } = addCompanyHeader(
     sheet,
@@ -632,12 +628,12 @@ function createPanelSheet(
     POWER: 4,
     QTY: 5,
     KS: showCoefs ? 6 : 0,
-    KU: showKu ? 7 : 0,
-    TOTAL: showCoefs ? (showKu ? 8 : 7) : 6,
+    KU: showKu ? (showCoefs ? 7 : 6) : 0,
+    TOTAL: showKu ? 8 : (showCoefs ? 7 : 6),
   } as const;
 
-  const headers = showCoefs
-    ? (showKu
+  const headers = showKu
+    ? (showCoefs
         ? [
             'Repère',
             'Type',
@@ -654,18 +650,29 @@ function createPanelSheet(
             'Désignation',
             'P. Unitaire (kW)',
             'Qté',
-            'Ks',
+            'Ku',
             'P. totale (kW)',
           ]
       )
-    : [
-        'Repère',
-        'Type',
-        'Désignation',
-        'P. Unitaire (kW)',
-        'Qté',
-        'P. totale (kW)',
-      ];
+    : (showCoefs
+        ? [
+            'Repère',
+            'Type',
+            'Désignation',
+            'P. Unitaire (kW)',
+            'Qté',
+            'Ks',
+            'P. totale (kW)',
+          ]
+        : [
+            'Repère',
+            'Type',
+            'Désignation',
+            'P. Unitaire (kW)',
+            'Qté',
+            'P. totale (kW)',
+          ]
+      );
 
   const headerRowObj = sheet.getRow(headerRow);
 
@@ -783,9 +790,9 @@ function createPanelSheet(
     row.getCell(COL_DYNAMIC.QTY).value = el.quantity;
     if (showCoefs) {
       row.getCell(COL_DYNAMIC.KS).value = ks;
-      if (showKu) {
-        row.getCell(COL_DYNAMIC.KU).value = ku;
-      }
+    }
+    if (showKu) {
+      row.getCell(COL_DYNAMIC.KU).value = ku;
     }
 
     const ksCol = showCoefs ? colLetter(COL_DYNAMIC.KS) : '1';
