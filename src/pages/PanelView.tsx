@@ -74,17 +74,26 @@ function KsGlobalPanel({
   ks: number;
   onKsChange: (ks: number) => void;
 }) {
-  const [localKs, setLocalKs] = useState(ks);
+  const [localKs, setLocalKs] = useState<string>(String(ks));
+  const [error, setError] = useState<string>("");
 
   useEffect(() => {
-    setLocalKs(ks);
+    setLocalKs(String(ks));
+    setError("");
   }, [ks]);
 
-  const corrected = totalPowerW * localKs;
+  const corrected = totalPowerW * (parseFloat(localKs) || 0);
 
   const commitKs = () => {
-    const clamped = Math.min(1, Math.max(0, localKs));
-    setLocalKs(clamped);
+    const numValue = parseFloat(localKs);
+    if (localKs.trim() === "" || Number.isNaN(numValue)) {
+      setError("Veuillez remplir le champ");
+      setLocalKs(String(ks));
+      return;
+    }
+    const clamped = Math.min(1, Math.max(0, numValue));
+    setLocalKs(String(clamped));
+    setError("");
     if (clamped !== ks) {
       onKsChange(clamped);
     }
@@ -106,14 +115,15 @@ function KsGlobalPanel({
             max={1}
             step={0.01}
             value={localKs}
-            onChange={(e) =>
-              setLocalKs(
-                Math.min(1, Math.max(0, parseFloat(e.target.value) || 0)),
-              )
-            }
+            onChange={(e) => {
+              setLocalKs(e.target.value);
+              setError("");
+            }}
             onBlur={commitKs}
-            className="input-field w-24 text-center font-mono"
+            onWheel={(e) => e.currentTarget.blur()}
+            className={`input-field w-24 text-center font-mono ${error ? "border-red-500" : ""}`}
           />
+          {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600 dark:text-gray-400">

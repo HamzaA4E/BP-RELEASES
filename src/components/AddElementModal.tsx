@@ -703,6 +703,7 @@ export function AddElementModal({
                         value === "" ? 0 : Math.round(Number(value) * 1000),
                     }));
                   }}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className={`input-field ${errors.power_w ? "border-red-500" : ""}`}
                 />
                 {errors.power_w && (
@@ -727,6 +728,7 @@ export function AddElementModal({
                       quantity: value === "" ? 0 : Number(value),
                     }));
                   }}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className={`input-field ${errors.quantity ? "border-red-500" : ""}`}
                 />
               </div>

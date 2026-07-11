@@ -197,6 +197,7 @@ function SortableArticleCard({
                     errors: {},
                   })
                 }
+                onWheel={(e) => e.currentTarget.blur()}
                 className={`input-field text-sm w-24 ${
                   article.errors.power_w ? 'border-red-500' : ''
                 }`}
@@ -231,6 +232,7 @@ function SortableArticleCard({
                       errors: {},
                     })
                   }
+                  onWheel={(e) => e.currentTarget.blur()}
                   className={`input-field text-sm w-14 text-center ${
                     article.errors.quantity ? 'border-red-500' : ''
                   }`}
@@ -656,6 +658,7 @@ export function MultiDepartModal({
                         coef_ks: Math.min(1, Math.max(0, parseFloat(e.target.value) || 0)),
                       }))
                     }
+                    onWheel={(e) => e.currentTarget.blur()}
                     className="input-field w-full"
                   />
                 </div>
@@ -673,6 +676,7 @@ export function MultiDepartModal({
                         coef_ku: Math.min(1, Math.max(0, parseFloat(e.target.value) || 0)),
                       }))
                     }
+                    onWheel={(e) => e.currentTarget.blur()}
                     className="input-field w-full"
                   />
                 </div>

@@ -196,6 +196,7 @@ export function Favorites() {
                       e.target.value === "" ? "" : Number(e.target.value),
                     )
                   }
+                  onWheel={(e) => e.currentTarget.blur()}
                   className="input-field"
                 />
               </div>
@@ -289,6 +290,7 @@ export function Favorites() {
                               e.target.value === "" ? "" : Number(e.target.value)
                             )
                           }
+                          onWheel={(e) => e.currentTarget.blur()}
                           className="input-field text-sm"
                         />
                       </div>

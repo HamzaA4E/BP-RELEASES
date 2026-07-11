@@ -547,6 +547,7 @@ function ArticleCoefCell({
           if (e.key === "Enter") e.currentTarget.blur();
           if (e.key === "Escape") setArticleEditing(null);
         }}
+        onWheel={(e) => e.currentTarget.blur()}
         className="input-field py-1 text-sm w-14 text-center"
       />
     );
@@ -727,6 +728,7 @@ function ArticlePowerCell({
           if (e.key === "Enter") e.currentTarget.blur();
           if (e.key === "Escape") setArticleEditing(null);
         }}
+        onWheel={(e) => e.currentTarget.blur()}
         className="input-field py-1 text-sm w-24 text-right"
       />
     );
