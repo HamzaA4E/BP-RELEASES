@@ -51,12 +51,10 @@ async function openLocationInFileManager(itemType: 'project' | 'folder', itemId:
 
     if (itemType === 'project') {
       // For projects: select the file in the file manager
-      if (platform === 'win32') {
-        // Windows: use explorer.exe /select to highlight the file
-        await execAsync(`explorer.exe /select,"${targetPath}"`);
-      } else if (platform === 'darwin') {
-        // macOS: use open -R to reveal the file in Finder
-        await execAsync(`open -R "${targetPath}"`);
+      if (platform === 'win32' || platform === 'darwin') {
+        // Windows & macOS: use Electron's native shell.showItemInFolder
+        // This is more robust than exec commands and handles special characters better
+        shell.showItemInFolder(targetPath);
       } else {
         // Linux: try to open the parent directory and select the file
         // Most Linux file managers don't support file selection, so we open the parent directory
@@ -65,10 +63,9 @@ async function openLocationInFileManager(itemType: 'project' | 'folder', itemId:
       }
     } else {
       // For folders: open the directory directly
-      if (platform === 'win32') {
-        await execAsync(`explorer.exe "${targetPath}"`);
-      } else if (platform === 'darwin') {
-        await execAsync(`open "${targetPath}"`);
+      if (platform === 'win32' || platform === 'darwin') {
+        // Use Electron's native shell.openPath for folders
+        shell.openPath(targetPath);
       } else {
         await execAsync(`xdg-open "${targetPath}"`);
       }
