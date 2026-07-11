@@ -1,5 +1,7 @@
 import { autoUpdater, UpdateInfo } from 'electron-updater';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow, app } from 'electron';
+import * as fs from 'fs';
+import * as path from 'path';
 
 // Update progress information interface
 export interface UpdateProgressInfo {
@@ -9,13 +11,35 @@ export interface UpdateProgressInfo {
   bytesPerSecond: number;
 }
 
-// Logger for update events
+// Log file path for debugging
+const logFilePath = path.join(app.getPath('userData'), 'updater-debug.log');
+
+// Logger for update events (console + file)
 function logUpdate(message: string, ...args: any[]): void {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] [AutoUpdater] ${message} ${args.length > 0 ? JSON.stringify(args, null, 2) : ''}\n`;
+
+  // Log to console
   console.log(`[AutoUpdater] ${message}`, ...args);
+
+  // Log to file for debugging in production
+  try {
+    fs.appendFileSync(logFilePath, logMessage, 'utf-8');
+  } catch (error) {
+    console.error('Failed to write to log file:', error);
+  }
 }
 
 // Configure autoUpdater
 function configureAutoUpdater(): void {
+  // Log current version
+  logUpdate('Current version:', autoUpdater.currentVersion.version);
+
+  // Log feed URL and configuration
+  logUpdate('Feed URL:', autoUpdater.getFeedURL());
+  logUpdate('Auto download enabled:', autoUpdater.autoDownload);
+  logUpdate('Auto install on quit:', autoUpdater.autoInstallOnAppQuit);
+
   // Enable automatic download of updates
   autoUpdater.autoDownload = true;
 
@@ -37,6 +61,11 @@ function sendUpdateEventToRenderer(event: string, data?: any): void {
 
 // Initialize autoUpdater event listeners
 function initializeEventListeners(): void {
+  // When checking for updates
+  autoUpdater.on('checking-for-update', () => {
+    logUpdate('Checking for updates...');
+  });
+
   // When an update is available
   autoUpdater.on('update-available', (info: UpdateInfo) => {
     logUpdate('Update available:', info);
@@ -86,7 +115,7 @@ function initializeEventListeners(): void {
 
   // When an error occurs
   autoUpdater.on('error', (error: Error) => {
-    logUpdate('Update error:', error.message);
+    logUpdate('Update error:', error.message, error.stack);
     sendUpdateEventToRenderer('update-error', {
       message: error.message,
       stack: error.stack,
@@ -107,10 +136,20 @@ function formatBytes(bytes: number): string {
 export async function checkForUpdates(): Promise<void> {
   try {
     logUpdate('Checking for updates...');
-    await autoUpdater.checkForUpdates();
+    const result = await autoUpdater.checkForUpdates();
+    logUpdate('Check result:', result);
+    if (result) {
+      logUpdate('Update check details:', {
+        versionInfo: result.updateInfo,
+        downloadPromise: result.downloadPromise ? 'pending' : 'none',
+      });
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     logUpdate('Error checking for updates:', message);
+    if (error instanceof Error && error.stack) {
+      logUpdate('Error stack:', error.stack);
+    }
     sendUpdateEventToRenderer('update-error', { message });
   }
 }
