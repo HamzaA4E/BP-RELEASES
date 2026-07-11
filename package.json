@@ -1,17 +1,11 @@
 {
   "name": "bilpow",
-  "version": "2.0.2",
+  "version": "2.0.5",
   "description": "Bilan de Puissance - Gestion des bilans de puissance pour tableaux électriques",
   "main": "dist-electron/electron/main.js",
   "author": "BilPow",
   "license": "MIT",
-  "build": {
-    "publish": {
-      "provider": "github",
-      "owner": "HamzaA4E",
-      "repo": "BP"
-    }
-  },
+  
   "scripts": {
     "dev": "npm run build:electron && concurrently -n vite,ts,electron -c blue,yellow,green \"vite\" \"npm run watch:electron\" \"wait-on http://localhost:5173 && cross-env NODE_ENV=development electron .\"",
     "watch:electron": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",

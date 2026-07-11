@@ -24,7 +24,7 @@ asar: true
 publish:
   provider: github
   owner: HamzaA4E
-  repo: BP
+  repo: BP-RELEASES
   # Optional: Set to true to publish draft releases
   # releaseType: draft
 
