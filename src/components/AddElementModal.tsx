@@ -153,6 +153,8 @@ export function AddElementModal({
   const [showCoefs, setShowCoefs] = useState(false);
   const [powerInput, setPowerInput] = useState("");
   const [quantityInput, setQuantityInput] = useState("1");
+  const [coefKsInput, setCoefKsInput] = useState("");
+  const [coefKuInput, setCoefKuInput] = useState("");
 
   const isEdit = Boolean(editElement);
   const isAddTypeMode = Boolean(addTypeToDepart);
@@ -214,6 +216,8 @@ export function AddElementModal({
       });
       setPowerInput(String(wattsToKw(editElement.power_w)));
       setQuantityInput(String(editElement.quantity));
+      setCoefKsInput(String(editElement.coef_ks));
+      setCoefKuInput(String(editElement.coef_ku));
     } else if (addTypeToDepart) {
       const type = addTypeToDepart.type as ElementFormType;
       const phase_type = addTypeToDepart.phase_type ?? "mono";
@@ -232,15 +236,23 @@ export function AddElementModal({
       });
       setPowerInput("1");
       setQuantityInput("1");
+      setCoefKsInput(String(addTypeToDepart.coef_ks));
+      setCoefKuInput(String(addTypeToDepart.coef_ku));
     } else if (contextJdb) {
       const defaultType = defaultElementTypeForJdb(contextJdb);
-      setFormData(buildDefaultForm(defaultType, existingElements, contextJdb, reperePrefix, addTypeToDepart));
+      const defaultForm = buildDefaultForm(defaultType, existingElements, contextJdb, reperePrefix, addTypeToDepart);
+      setFormData(defaultForm);
       setPowerInput("1");
       setQuantityInput("1");
+      setCoefKsInput(String(defaultForm.coef_ks));
+      setCoefKuInput(String(defaultForm.coef_ku));
     } else {
-      setFormData(buildDefaultForm("eclairage", existingElements, null, reperePrefix, addTypeToDepart));
+      const defaultForm = buildDefaultForm("eclairage", existingElements, null, reperePrefix, addTypeToDepart);
+      setFormData(defaultForm);
       setPowerInput("1");
       setQuantityInput("1");
+      setCoefKsInput(String(defaultForm.coef_ks));
+      setCoefKuInput(String(defaultForm.coef_ku));
     }
     setErrors({});
     setDuplicateCount(1);
@@ -311,6 +323,13 @@ export function AddElementModal({
     }
     if (formData.quantity < 1)
       newErrors.quantity = "La quantité doit être au moins 1";
+    
+    // Validate coefficients when use_coefs is enabled
+    if (formData.use_coefs) {
+      if (coefKsInput === "" || coefKuInput === "") {
+        newErrors.coefs = "Les coefficients de calcul doivent être remplis";
+      }
+    }
 
     if (formData.repere.trim()) {
       const formCategory = departCategoryOf({
@@ -753,6 +772,9 @@ export function AddElementModal({
                       {formData.use_coefs ? "Activé" : "Désactivé"}
                     </span>
                   </div>
+                  {errors.coefs && (
+                    <p className="text-red-500 text-xs mb-3">{errors.coefs}</p>
+                  )}
                   <div className={`grid grid-cols-2 gap-3 transition-opacity ${!formData.use_coefs ? "opacity-50 pointer-events-none" : ""}`}>
                     {(
                       [
@@ -783,19 +805,29 @@ export function AddElementModal({
                           step={coef.step}
                           min={coef.min}
                           max={coef.max}
-                          value={formData[coef.key]}
-                          onChange={(e) =>
-                            setFormData((p) => ({
-                              ...p,
-                              [coef.key]: Math.min(
-                                coef.max,
-                                Math.max(
-                                  coef.min,
-                                  parseFloat(e.target.value) || 0,
+                          value={coef.key === "coef_ks" ? coefKsInput : coefKuInput}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (coef.key === "coef_ks") {
+                              setCoefKsInput(value);
+                            } else {
+                              setCoefKuInput(value);
+                            }
+                            // Only update formData if value is not empty
+                            if (value !== "") {
+                              setFormData((p) => ({
+                                ...p,
+                                [coef.key]: Math.min(
+                                  coef.max,
+                                  Math.max(
+                                    coef.min,
+                                    parseFloat(value) || 0,
+                                  ),
                                 ),
-                              ),
-                            }))
-                          }
+                              }));
+                            }
+                          }}
+                          onWheel={(e) => e.currentTarget.blur()}
                           className="mt-1 w-full border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-2 text-sm text-center font-mono bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
                         />
                       </label>
