@@ -1,5 +1,5 @@
 import { autoUpdater, UpdateInfo } from 'electron-updater';
-import { BrowserWindow, app } from 'electron';
+import { BrowserWindow, app, dialog } from 'electron';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -13,6 +13,9 @@ export interface UpdateProgressInfo {
 
 // Log file path for debugging
 const logFilePath = path.join(app.getPath('userData'), 'updater-debug.log');
+
+// Flag to prevent duplicate update dialogs
+let updateDialogVisible = false;
 
 // Logger for update events (console + file)
 function logUpdate(message: string, ...args: any[]): void {
@@ -106,11 +109,67 @@ function initializeEventListeners(): void {
   // When update is downloaded
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
     logUpdate('Update downloaded:', info);
+    
+    // Keep existing IPC event so renderer continues receiving update events
     sendUpdateEventToRenderer('update-downloaded', {
       version: info.version,
       releaseDate: info.releaseDate,
       releaseNotes: info.releaseNotes,
     });
+
+    // Prevent duplicate dialogs - ignore if dialog is already visible
+    if (updateDialogVisible) {
+      logUpdate('Update dialog already visible, skipping duplicate dialog');
+      return;
+    }
+
+    // Log successful download
+    logUpdate('Update downloaded successfully.');
+
+    // Set flag to prevent duplicate dialogs
+    updateDialogVisible = true;
+
+    // Show native dialog to user
+    // This follows Electron best practices for update installation
+    const windows = BrowserWindow.getAllWindows();
+    const focusedWindow = windows.find(w => w.isFocused()) || windows[0];
+
+    if (focusedWindow && !focusedWindow.isDestroyed()) {
+      dialog.showMessageBox(focusedWindow, {
+        type: 'info',
+        title: 'BilPow Update',
+        message: 'A new version of BilPow has been downloaded.',
+        detail: 'Restart BilPow now to complete the installation.',
+        buttons: ['Restart now', 'Later'],
+        defaultId: 0, // "Restart now" is default
+        cancelId: 1,  // "Later" is cancel button
+      }).then((result) => {
+        // Reset flag after dialog closes
+        updateDialogVisible = false;
+
+        if (result.response === 0) {
+          // User chose "Restart now"
+          logUpdate('User accepted update installation.');
+          
+          // Wait 500ms before restarting to allow UI to clean up
+          setTimeout(() => {
+            // Reuse the existing installUpdate() function
+            installUpdate();
+          }, 500);
+        } else {
+          // User chose "Later"
+          logUpdate('User postponed installation.');
+        }
+      }).catch((error) => {
+        // Reset flag on error
+        updateDialogVisible = false;
+        logUpdate('Error showing update dialog:', error.message);
+      });
+    } else {
+      // No window available, reset flag
+      updateDialogVisible = false;
+      logUpdate('No window available to show update dialog');
+    }
   });
 
   // When an error occurs
@@ -155,10 +214,11 @@ export async function checkForUpdates(): Promise<void> {
 }
 
 // Install update and quit
-export function installUpdate(): void {
+// Parameters: isSilent (default false), forceRestart (default true)
+export function installUpdate(isSilent: boolean = false, forceRestart: boolean = true): void {
   try {
     logUpdate('Installing update and quitting...');
-    autoUpdater.quitAndInstall();
+    autoUpdater.quitAndInstall(isSilent, forceRestart);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     logUpdate('Error installing update:', message);
