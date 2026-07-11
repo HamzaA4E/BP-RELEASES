@@ -56,3 +56,9 @@ linux:
     - AppImage
   icon: build/icon.png
   category: Engineering
+
+  directories:
+  output: release
+  buildResources: build
+
+artifactName: "${productName}-Setup-${version}.${ext}"
