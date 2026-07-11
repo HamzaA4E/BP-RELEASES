@@ -104,6 +104,7 @@ export interface BilPowAPI {
   };
   shell: {
     openPath: (filePath: string) => Promise<string>;
+    openLocation: (itemType: 'project' | 'folder', itemId: number) => Promise<{ success: boolean; error?: string }>;
   };
   project: {
     export: (projectId: number) => Promise<ProjectExportResult>;

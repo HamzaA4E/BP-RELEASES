@@ -164,6 +164,8 @@ const api = {
   shell: {
     openPath: (filePath: string): Promise<string> =>
       invoke('shell:openPath', filePath),
+    openLocation: (itemType: 'project' | 'folder', itemId: number): Promise<{ success: boolean; error?: string }> =>
+      ipcRenderer.invoke('shell:openLocation', itemType, itemId) as Promise<{ success: boolean; error?: string }>,
   },
   project: {
     export: (projectId: number): Promise<ProjectExportResult> =>

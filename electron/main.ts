@@ -9,6 +9,79 @@ import {
 } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+/**
+ * Cross-platform function to open a file or folder in the system's file manager.
+ * For projects: opens the parent directory and selects the .bilpow file if it exists.
+ * For folders: opens the folder directly.
+ */
+async function openLocationInFileManager(itemType: 'project' | 'folder', itemId: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const db = getDatabase();
+    let targetPath: string | null = null;
+
+    if (itemType === 'project') {
+      const project = db.prepare('SELECT file_path FROM projects WHERE id = ?').get(itemId) as { file_path: string | null } | undefined;
+      if (!project?.file_path) {
+        return { success: false, error: 'Ce projet n\'a pas de chemin de fichier associé.' };
+      }
+      targetPath = project.file_path;
+    } else if (itemType === 'folder') {
+      const folder = db.prepare('SELECT folder_path FROM folders WHERE id = ?').get(itemId) as { folder_path: string | null } | undefined;
+      if (!folder?.folder_path) {
+        return { success: false, error: 'Ce dossier n\'a pas de chemin associé.' };
+      }
+      targetPath = folder.folder_path;
+    }
+
+    if (!targetPath) {
+      return { success: false, error: 'Chemin introuvable.' };
+    }
+
+    // Check if the path exists
+    if (!fs.existsSync(targetPath)) {
+      return { success: false, error: 'L\'emplacement sélectionné n\'existe plus.' };
+    }
+
+    const platform = process.platform;
+
+    if (itemType === 'project') {
+      // For projects: select the file in the file manager
+      if (platform === 'win32') {
+        // Windows: use explorer.exe /select to highlight the file
+        await execAsync(`explorer.exe /select,"${targetPath}"`);
+      } else if (platform === 'darwin') {
+        // macOS: use open -R to reveal the file in Finder
+        await execAsync(`open -R "${targetPath}"`);
+      } else {
+        // Linux: try to open the parent directory and select the file
+        // Most Linux file managers don't support file selection, so we open the parent directory
+        const parentDir = path.dirname(targetPath);
+        await execAsync(`xdg-open "${parentDir}"`);
+      }
+    } else {
+      // For folders: open the directory directly
+      if (platform === 'win32') {
+        await execAsync(`explorer.exe "${targetPath}"`);
+      } else if (platform === 'darwin') {
+        await execAsync(`open "${targetPath}"`);
+      } else {
+        await execAsync(`xdg-open "${targetPath}"`);
+      }
+    }
+
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Erreur inconnue';
+    console.error('[openLocationInFileManager]', message);
+    return { success: false, error: message };
+  }
+}
+
 import { getDatabase, getDatabasePath, closeDatabase } from './database/db';
 import * as projectsDb from './database/projects';
 import * as locationsDb from './database/locations';
@@ -941,6 +1014,10 @@ ipcMain.handle('devtools:open', () => {
   ipcMain.handle('shell:openPath', (_e, filePath: string) =>
     wrapAsyncHandler(() => shell.openPath(filePath))
   );
+
+  ipcMain.handle('shell:openLocation', async (_e, itemType: 'project' | 'folder', itemId: number) => {
+    return await openLocationInFileManager(itemType, itemId);
+  });
 
   ipcMain.handle('project:export', async (_e, projectId: number) => {
     try {

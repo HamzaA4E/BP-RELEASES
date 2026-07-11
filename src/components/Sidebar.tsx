@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
+import { ExternalLink } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { exportProjectExcelById } from "@/utils/projectExcelExport";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -9,7 +10,7 @@ import { useUnsavedNavigationGuard } from "@/hooks/useUnsavedNavigationGuard";
 interface ContextMenuState {
   x: number;
   y: number;
-  type: "project" | "location" | "panel";
+  type: "project" | "location" | "panel" | "folder";
   id: number;
   name: string;
 }
@@ -156,7 +157,7 @@ export function Sidebar() {
 
   const handleContextMenu = (
     e: React.MouseEvent,
-    type: "project" | "location" | "panel",
+    type: "project" | "location" | "panel" | "folder",
     id: number,
     name: string,
   ) => {
@@ -260,6 +261,19 @@ export function Sidebar() {
     }
   };
 
+  const handleOpenLocation = async (itemType: 'project' | 'folder', itemId: number) => {
+    try {
+      const result = await window.bilpow.shell.openLocation(itemType, itemId);
+      if (!result.success) {
+        toast.error(result.error || "Erreur lors de l'ouverture de l'emplacement");
+      }
+      setContextMenu(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'ouverture de l'emplacement");
+      setContextMenu(null);
+    }
+  };
+
   return (
     <aside className="w-sidebar flex-shrink-0 bg-primary flex flex-col h-full">
       <div className="px-4 py-4 border-b border-primary-light">
@@ -324,6 +338,9 @@ export function Sidebar() {
                     : "text-blue-100 hover:bg-primary-light"
                 }`}
                 onClick={() => setSidebarExpanded(`folder-${folder.id}`, !isExpanded)}
+                onContextMenu={(e) =>
+                  handleContextMenu(e, "folder", folder.id, folder.name)
+                }
               >
                 <span className="mr-1 text-xs">{isExpanded ? "▼" : "▶"}</span>
                 <span className="truncate flex-1">📂 {folder.name}</span>
@@ -533,7 +550,7 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-primary-light px-3 py-3 flex-shrink-0 space-y-2">
-        <button
+        {/* <button
           type="button"
           onClick={async () => {
             try {
@@ -546,7 +563,7 @@ export function Sidebar() {
         >
           <span>🔧</span>
           Console Dev
-        </button>
+        </button> */}
         
         <button
           type="button"
@@ -586,6 +603,16 @@ export function Sidebar() {
             >
               ✏️ Renommer
             </button>
+            {(contextMenu.type === "project" || contextMenu.type === "folder") && (
+              <button
+                type="button"
+                className="menu-item-hover block whitespace-nowrap px-3 py-2 text-left text-sm text-gray-700 dark:text-gray-100"
+                onClick={() => void handleOpenLocation(contextMenu.type as 'project' | 'folder', contextMenu.id)}
+              >
+                <ExternalLink className="w-4 h-4 inline mr-2" />
+                Ouvrir l'emplacement
+              </button>
+            )}
             {contextMenu.type === "project" && (
               <button
                 type="button"

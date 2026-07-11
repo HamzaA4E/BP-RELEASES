@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { Download, Loader2, FolderPlus, ArrowLeft, MoreVertical, Folder as FolderIcon, Edit2, Trash2 } from "lucide-react";
+import { Download, Loader2, FolderPlus, ArrowLeft, MoreVertical, Folder as FolderIcon, Edit2, Trash2, ExternalLink } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { FolderDeleteDialog } from "@/components/FolderDeleteDialog";
@@ -264,29 +264,6 @@ export function Dashboard() {
     }
   };
 
-  const handleSetFolderPath = async (folderId: number) => {
-    try {
-      const folder = folders.find(f => f.id === folderId);
-      if (!folder) return;
-
-      const { filePath, canceled } = await window.bilpow.folders.showFolderDialog(folder.name);
-      
-      if (canceled || !filePath) {
-        toast.error("Veuillez choisir un emplacement pour le dossier");
-        return;
-      }
-      
-      await window.bilpow.folders.update({
-        id: folderId,
-        folder_path: filePath,
-      });
-      await loadFolders();
-      toast.success("Emplacement du dossier mis à jour");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erreur");
-    }
-  };
-
   const handleMoveToFolder = async (folderId: number | null) => {
     if (projectToMove === null) return;
     try {
@@ -325,6 +302,28 @@ export function Dashboard() {
       toast.error(err instanceof Error ? err.message : "Erreur d'import");
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleOpenProjectLocation = async (projectId: number) => {
+    try {
+      const result = await window.bilpow.shell.openLocation('project', projectId);
+      if (!result.success) {
+        toast.error(result.error || "Erreur lors de l'ouverture de l'emplacement");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'ouverture de l'emplacement");
+    }
+  };
+
+  const handleOpenFolderLocation = async (folderId: number) => {
+    try {
+      const result = await window.bilpow.shell.openLocation('folder', folderId);
+      if (!result.success) {
+        toast.error(result.error || "Erreur lors de l'ouverture de l'emplacement");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'ouverture de l'emplacement");
     }
   };
 
@@ -456,18 +455,18 @@ export function Dashboard() {
                                     <Edit2 className="w-4 h-4" />
                                     Renommer
                                   </button>
-                                  {/* <button
+                                  <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
+                                      void handleOpenFolderLocation(folder.id);
                                       setFolderMenuId(null);
-                                      void handleSetFolderPath(folder.id);
                                     }}
                                     className="w-full text-left px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                                   >
-                                    <FolderIcon className="w-4 h-4" />
-                                    Définir l'emplacement
-                                  </button> */}
+                                    <ExternalLink className="w-4 h-4" />
+                                    Ouvrir l'emplacement
+                                  </button>
                                   <button
                                     type="button"
                                     onClick={(e) => {
@@ -548,6 +547,15 @@ export function Dashboard() {
                     onClick={() => void openProject(project.id)}
                     className="btn-primary flex-1 min-w-[80px] text-xs py-1.5"
                   >
+                    Ouvrir
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleOpenProjectLocation(project.id)}
+                    className="btn-outline flex-1 min-w-[80px] text-xs py-1.5"
+                    title="Ouvrir l'emplacement"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
                     Ouvrir
                   </button>
                   <button
