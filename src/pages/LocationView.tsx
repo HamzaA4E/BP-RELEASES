@@ -28,6 +28,7 @@ export function LocationView() {
   const panelInputRef = useRef<HTMLInputElement>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [panelToDelete, setPanelToDelete] = useState<{ id: number; name: string } | null>(null);
+  const [showDeleteLocationConfirm, setShowDeleteLocationConfirm] = useState(false);
 
   useEffect(() => {
     if (showAddPanel && panelInputRef.current) {
@@ -179,16 +180,19 @@ export function LocationView() {
     );
   };
 
-  const handleDeleteLocation = async () => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'emplacement "${locationName}" ?\n\nCette action supprimera également tous les tableaux contenus dans cet emplacement.`)) {
-      return;
-    }
+  const handleDeleteLocation = () => {
+    setShowDeleteLocationConfirm(true);
+  };
+
+  const confirmDeleteLocation = async () => {
     try {
       await window.bilpow.locations.delete(lId);
       toast.success("Emplacement supprimé");
       navigate(`/project/${pId}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    } finally {
+      setShowDeleteLocationConfirm(false);
     }
   };
 
@@ -472,6 +476,42 @@ export function LocationView() {
                 <button
                   type="button"
                   onClick={() => void confirmDeletePanel()}
+                  className="btn-danger"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showDeleteLocationConfirm && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => setShowDeleteLocationConfirm(false)}
+          >
+            <div
+              className="card p-6 w-full max-w-sm mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="font-semibold text-lg mb-2">Confirmer la suppression</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                Êtes-vous sûr de vouloir supprimer l'emplacement "{locationName}" ?
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-6">
+                Cette action supprimera également tous les tableaux contenus dans cet emplacement.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteLocationConfirm(false)}
+                  className="btn-secondary"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmDeleteLocation()}
                   className="btn-danger"
                 >
                   Supprimer
