@@ -541,43 +541,39 @@ export function Dashboard() {
                   <p className="text-xs text-gray-400 mb-4">
                     Créé le {formatDate(project.created_at)}
                   </p>
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <div className="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
                   <button
                     type="button"
                     onClick={() => void openProject(project.id)}
-                    className="btn-primary flex-1 text-xs py-2"
+                    className="flex-1 btn-primary text-sm py-2"
                   >
-                    Ouvrir le projet
+                    Ouvrir
                   </button>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => void handleOpenProjectLocation(project.id)}
-                      className="p-2 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                      title="Ouvrir l'emplacement du fichier"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProjectToMove(project.id);
-                        setShowMoveToFolder(true);
-                      }}
-                      className="p-2 text-gray-500 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                      title="Déplacer le projet"
-                    >
-                      <FolderIcon className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteId(project.id)}
-                      className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                      title="Supprimer le projet"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProjectToMove(project.id);
+                      setShowMoveToFolder(true);
+                    }}
+                    className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm flex items-center gap-2"
+                  >
+                    <FolderIcon className="w-4 h-4" />
+                    <span className="hidden sm:inline">Déplacer</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleOpenProjectLocation(project.id)}
+                    className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-sm"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteId(project.id)}
+                    className="px-3 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-sm"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
               );
