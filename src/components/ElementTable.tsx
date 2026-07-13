@@ -1312,6 +1312,34 @@ export function ElementTable({
           return;
         }
       }
+
+      // Si on insère en première position (overIndex = 0), vérifier que les éléments suivants sont compatibles
+      if (overIndex === 0) {
+        // Trouver le prochain JDB après la position d'insertion
+        let nextJdbIndex = -1;
+        for (let i = 1; i < elements.length; i++) {
+          const el = elements[i];
+          if (el && isJeuDeBarres(el)) {
+            nextJdbIndex = i;
+            break;
+          }
+        }
+
+        // Vérifier tous les éléments entre le JDB inséré et le prochain JDB
+        const elementsToCheck = nextJdbIndex > 0 
+          ? elements.slice(1, nextJdbIndex)
+          : elements.slice(1);
+
+        for (const el of elementsToCheck) {
+          if (!isJeuDeBarres(el) && !isTypeAllowedUnderJdb(el.type, activeElement)) {
+            const typeLabel = el.type === 'eclairage' ? 'éclairage' : 
+                             el.type === 'prise' ? 'prise de courant' : 'divers';
+            const categoryLabel = jdbCategoryLabel(activeElement.jdb_category);
+            toast.error(`Impossible d'insérer ce jeu de barres ${categoryLabel} ici car il contiendrait des éléments de type ${typeLabel} incompatibles.`);
+            return;
+          }
+        }
+      }
     }
 
     // Si on déplace un départ (pas un JDB), vérifier la compatibilité avec le JDB cible
