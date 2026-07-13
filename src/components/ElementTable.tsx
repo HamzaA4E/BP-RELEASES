@@ -1,4 +1,5 @@
 import { useState } from "react";
+import toast from "react-hot-toast";
 import {
   DndContext,
   closestCenter,
@@ -35,6 +36,8 @@ import {
   jdbCategoryLabel,
   buildElementTableRows,
   reorderElementsWithJdbSections,
+  isJeuDeBarres,
+  getJeuDeBarresForElement,
 } from "@/utils/elementHelpers";
 import {
   displayArticleTypeLabel,
@@ -1288,6 +1291,26 @@ export function ElementTable({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
+
+    const activeElement = elements.find((e) => e.id === active.id);
+    
+    // Si on déplace un JDB, vérifier qu'on ne l'insère pas au milieu d'éléments sans JDB parent
+    if (activeElement && isJeuDeBarres(activeElement)) {
+      const overIndex = elements.findIndex((e) => e.id === over.id);
+      
+      // Vérifier si l'élément au-dessus de la position d'insertion est un JDB
+      const elementAbove = overIndex > 0 ? elements[overIndex - 1] : null;
+      
+      // Si l'élément au-dessus n'est pas un JDB et n'est pas null (début de liste),
+      // alors on essaie d'insérer au milieu d'éléments sans JDB parent
+      if (elementAbove && !isJeuDeBarres(elementAbove)) {
+        const jdbAbove = getJeuDeBarresForElement(elements, elementAbove.id);
+        if (!jdbAbove) {
+          toast.error("Impossible d'insérer un jeu de barres au milieu d'éléments sans section. Insérez-le après un autre jeu de barres ou à la fin.");
+          return;
+        }
+      }
+    }
 
     const oldIndex = elements.findIndex((e) => e.id === active.id);
     const newIndex = elements.findIndex((e) => e.id === over.id);
