@@ -40,6 +40,8 @@ import {
   getJeuDeBarresForElement,
   getActiveJeuDeBarres,
   isTypeAllowedUnderJdb,
+  findElementByRepereAndCategory,
+  departCategoryOf,
 } from "@/utils/elementHelpers";
 import {
   displayArticleTypeLabel,
@@ -1374,6 +1376,20 @@ export function ElementTable({
             const typeLabel = activeElement.type === 'eclairage' ? 'éclairage' : 
                              activeElement.type === 'prise' ? 'prise de courant' : 'divers';
             toast.error(`Impossible d'insérer un départ de ${typeLabel} dans un jeu de barres ${categoryLabel}. Les types ne sont pas compatibles.`);
+            return;
+          }
+
+          // Vérifier si un élément avec le même repère existe déjà dans cette section JDB
+          const existingElement = findElementByRepereAndCategory(
+            elements,
+            activeElement.repere,
+            departCategoryOf(activeElement),
+            activeElement.id,
+            targetJdb
+          );
+
+          if (existingElement) {
+            toast.error(`Un élément avec le repère "${activeElement.repere}" existe déjà dans cette section. Duplication non autorisée.`);
             return;
           }
         }
