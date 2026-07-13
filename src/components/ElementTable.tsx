@@ -1298,18 +1298,24 @@ export function ElementTable({
     
     // Si on déplace un JDB, vérifier qu'on ne l'insère pas au milieu d'éléments sans JDB parent
     if (activeElement && isJeuDeBarres(activeElement)) {
+      const overElement = elements.find((e) => e.id === over.id);
       const overIndex = elements.findIndex((e) => e.id === over.id);
       
-      // Vérifier si l'élément au-dessus de la position d'insertion est un JDB
-      const elementAbove = overIndex > 0 ? elements[overIndex - 1] : null;
-      
-      // Si l'élément au-dessus n'est pas un JDB et n'est pas null (début de liste),
-      // alors on essaie d'insérer au milieu d'éléments sans JDB parent
-      if (elementAbove && !isJeuDeBarres(elementAbove)) {
-        const jdbAbove = getJeuDeBarresForElement(elements, elementAbove.id);
-        if (!jdbAbove) {
-          toast.error("Impossible d'insérer un jeu de barres au milieu d'éléments sans section. Insérez-le après un autre jeu de barres ou à la fin.");
-          return;
+      // Si on dépose sur un autre JDB, c'est autorisé (réordonnement entre JDB)
+      if (overElement && isJeuDeBarres(overElement)) {
+        // Autorisé - on peut réordonner les JDB entre eux
+      } else {
+        // Sinon, vérifier si l'élément au-dessus de la position d'insertion est un JDB
+        const elementAbove = overIndex > 0 ? elements[overIndex - 1] : null;
+        
+        // Si l'élément au-dessus n'est pas un JDB et n'est pas null (début de liste),
+        // alors on essaie d'insérer au milieu d'éléments sans JDB parent
+        if (elementAbove && !isJeuDeBarres(elementAbove)) {
+          const jdbAbove = getJeuDeBarresForElement(elements, elementAbove.id);
+          if (!jdbAbove) {
+            toast.error("Impossible d'insérer un jeu de barres au milieu d'éléments sans section. Insérez-le après un autre jeu de barres ou à la fin.");
+            return;
+          }
         }
       }
 
