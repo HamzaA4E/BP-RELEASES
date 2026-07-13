@@ -204,11 +204,11 @@ export function findElementByRepereAndCategory(
 ): Element | undefined {
   const normalizedRepere = normalizeRepere(repere);
   if (!normalizedRepere) return undefined;
-  
+
   const scopedElements = contextJdb
     ? getElementsInJdbSection(elements, contextJdb.id)
-    : elements;
-  
+    : getElementsOutsideJdbSections(elements);
+
   return scopedElements.find(
     (e) =>
       !isJeuDeBarres(e) &&
@@ -308,6 +308,31 @@ export function getElementsInJdbSection(
     sectionElements.push(el);
   }
   return sectionElements;
+}
+
+/**
+ * Returns all elements that are NOT inside any JDB section.
+ * @param elements - Array of elements
+ * @returns Array of elements outside JDB sections
+ */
+export function getElementsOutsideJdbSections(elements: Element[]): Element[] {
+  // Mark elements that are inside JDB sections
+  const inJdbSection = new Set<number>();
+
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i]!;
+    if (isJeuDeBarres(el)) {
+      // Mark all elements after this JDB until the next JDB
+      for (let j = i + 1; j < elements.length; j++) {
+        const nextEl = elements[j]!;
+        if (isJeuDeBarres(nextEl)) break;
+        inJdbSection.add(nextEl.id);
+      }
+    }
+  }
+
+  // Return elements NOT in any JDB section
+  return elements.filter((el) => !inJdbSection.has(el.id));
 }
 
 /**

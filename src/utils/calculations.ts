@@ -12,7 +12,7 @@ import {
   articlesTotalPower,
   calcArticlePower,
 } from "../../shared/powerCalculations";
-import { getElementsInJdbSection } from "@/utils/elementHelpers";
+import { getElementsInJdbSection, getElementsOutsideJdbSections } from "@/utils/elementHelpers";
 
 export {
   calcPuissanceTotale,
@@ -103,7 +103,7 @@ export function getNextRepere(
   const fullPrefix = reperePrefix ? `${reperePrefix}${typePrefix}` : typePrefix;
   const scopedElements = contextJdb
     ? getElementsInJdbSection(existingElements, contextJdb.id)
-    : existingElements;
+    : getElementsOutsideJdbSections(existingElements);
 
   let maxNum = 0;
 

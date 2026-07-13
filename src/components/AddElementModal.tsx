@@ -174,7 +174,7 @@ export function AddElementModal({
       ? getJeuDeBarresForElement(existingElements, editElement.id)
       : addTypeToDepart
         ? getJeuDeBarresForElement(existingElements, addTypeToDepart.id)
-        : getActiveJeuDeBarres(existingElements, insertIndex));
+        : null); // Don't auto-detect JDB when adding outside sections
   const typeNotAllowed =
     activeJdb != null && !isTypeAllowedUnderJdb(formData.type, activeJdb);
 
