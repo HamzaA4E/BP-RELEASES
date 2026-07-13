@@ -331,6 +331,26 @@ export function getInsertIndexAfterJdbSection(
 }
 
 /**
+ * Returns the insertion index for an element outside any JDB section.
+ * This ensures the element is not associated with any JDB by position.
+ * The element is inserted BEFORE the first JDB to avoid association.
+ * @param elements - Array of elements
+ * @returns The insertion index before the first JDB (or at the end if no JDB)
+ */
+export function getInsertIndexOutsideJdbSections(
+  elements: Element[]
+): number {
+  // Find the first JDB in the array
+  const firstJdbIndex = elements.findIndex((e) => isJeuDeBarres(e));
+
+  // If no JDB found, insert at the end
+  if (firstJdbIndex < 0) return elements.length;
+
+  // Insert before the first JDB to ensure it's not associated with any JDB
+  return firstJdbIndex;
+}
+
+/**
  * Returns the default element type for a given JDB category.
  * @param jdb - The JDB element
  * @returns The default element type (prise or eclairage)

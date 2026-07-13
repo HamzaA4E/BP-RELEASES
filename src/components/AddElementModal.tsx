@@ -14,6 +14,7 @@ import {
   jeuDeBarresTitle,
   jdbCategoryLabel,
   getActiveJeuDeBarres,
+  getInsertIndexOutsideJdbSections,
   getJeuDeBarresForElement,
   isTypeAllowedUnderJdb,
   defaultElementTypeForJdb,
@@ -164,7 +165,9 @@ export function AddElementModal({
         0,
         existingElements.findIndex((e) => e.id === addTypeToDepart.id) + 1,
       )
-    : existingElements.length;
+    : contextJdb || editElement
+    ? existingElements.length
+    : getInsertIndexOutsideJdbSections(existingElements);
   const activeJdb =
     contextJdb ??
     (editElement

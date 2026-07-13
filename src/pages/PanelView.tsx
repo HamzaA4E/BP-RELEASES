@@ -17,6 +17,7 @@ import {
   normalizeElement,
   isJeuDeBarres,
   getInsertIndexAfterJdbSection,
+  getInsertIndexOutsideJdbSections,
   getJeuDeBarresForElement,
   getElementsInJdbSection,
   departCategoryOf,
@@ -875,7 +876,7 @@ export function PanelView() {
         ? insertAtIndex
         : contextJdb
         ? getInsertIndexAfterJdbSection(elements, contextJdb.id)
-        : elements.length;
+        : getInsertIndexOutsideJdbSections(elements);
       const tempId = nextTempId();
       const element = buildLocalElement(tempId, panId, data, insertAt);
       const newIds = elements.map((e) => e.id);
@@ -929,7 +930,7 @@ export function PanelView() {
       ? insertAtIndex
       : contextJdb
       ? getInsertIndexAfterJdbSection(elements, contextJdb.id)
-      : elements.length;
+      : getInsertIndexOutsideJdbSections(elements);
     const prevElements = elements;
     const newElements = [...elements];
     const newIds = elements.map((e) => e.id);
