@@ -38,6 +38,8 @@ import {
   reorderElementsWithJdbSections,
   isJeuDeBarres,
   getJeuDeBarresForElement,
+  getActiveJeuDeBarres,
+  isTypeAllowedUnderJdb,
 } from "@/utils/elementHelpers";
 import {
   displayArticleTypeLabel,
@@ -1308,6 +1310,38 @@ export function ElementTable({
         if (!jdbAbove) {
           toast.error("Impossible d'insérer un jeu de barres au milieu d'éléments sans section. Insérez-le après un autre jeu de barres ou à la fin.");
           return;
+        }
+      }
+    }
+
+    // Si on déplace un départ (pas un JDB), vérifier la compatibilité avec le JDB cible
+    if (activeElement && !isJeuDeBarres(activeElement)) {
+      const overElement = elements.find((e) => e.id === over.id);
+      
+      if (overElement) {
+        let targetJdb: Element | null = null;
+        
+        // Si on dépose sur un JDB, utiliser ce JDB comme cible
+        if (isJeuDeBarres(overElement)) {
+          targetJdb = overElement;
+        } else {
+          // Sinon, trouver le JDB parent de l'élément sur lequel on dépose
+          // Utiliser l'index exact de l'élément over pour trouver son JDB parent
+          const overIndex = elements.findIndex((e) => e.id === over.id);
+          targetJdb = getActiveJeuDeBarres(elements, overIndex);
+        }
+        
+        // Si on a un JDB cible, vérifier la compatibilité
+        if (targetJdb) {
+          const categoryLabel = jdbCategoryLabel(targetJdb.jdb_category);
+          const isAllowed = isTypeAllowedUnderJdb(activeElement.type, targetJdb);
+          
+          if (!isAllowed) {
+            const typeLabel = activeElement.type === 'eclairage' ? 'éclairage' : 
+                             activeElement.type === 'prise' ? 'prise de courant' : 'divers';
+            toast.error(`Impossible d'insérer un départ de ${typeLabel} dans un jeu de barres ${categoryLabel}. Les types ne sont pas compatibles.`);
+            return;
+          }
         }
       }
     }
