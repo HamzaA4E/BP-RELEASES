@@ -42,6 +42,7 @@ import {
   isTypeAllowedUnderJdb,
   findElementByRepereAndCategory,
   departCategoryOf,
+  findJdbSectionForElement,
 } from "@/utils/elementHelpers";
 import {
   displayArticleTypeLabel,
@@ -488,7 +489,7 @@ function SubtotalRow({
   anyElementUsesCoefs: boolean;
 }) {
   return (
-    <tr className="bg-blue-50/80 dark:bg-blue-900/15">
+    <tr className="bg-blue-50/80 dark:bg-blue-900/15 pointer-events-none">
       <td />
       <td />
       <td
@@ -501,8 +502,11 @@ function SubtotalRow({
       <td className="px-2 py-2 text-right whitespace-nowrap">
         <button
           type="button"
-          onClick={() => onAddElement(jdb)}
-          className="inline-flex items-center gap-1 px-2 py-1 bg-[#1E3A5F]/10 hover:bg-[#1E3A5F]/20 text-[#1E3A5F] dark:text-blue-300 text-xs font-medium rounded transition-colors whitespace-nowrap"
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddElement(jdb);
+          }}
+          className="inline-flex items-center gap-1 px-2 py-1 bg-[#1E3A5F]/10 hover:bg-[#1E3A5F]/20 text-[#1E3A5F] dark:text-blue-300 text-xs font-medium rounded transition-colors whitespace-nowrap pointer-events-auto"
           title="Ajouter un élément dans cette section"
         >
           <span className="text-xs leading-none">+</span>
@@ -1297,55 +1301,29 @@ export function ElementTable({
     if (!over || active.id === over.id) return;
 
     const activeElement = elements.find((e) => e.id === active.id);
+    const overElement = elements.find((e) => e.id === over.id);
     
-    // Si on déplace un JDB, vérifier qu'on ne l'insère pas au milieu d'éléments sans JDB parent
-    if (activeElement && isJeuDeBarres(activeElement)) {
-      const overElement = elements.find((e) => e.id === over.id);
+    console.log('Drag end:', { activeId: active.id, overId: over.id, activeElement, overElement });
+    
+    // Si on déplace un JDB sur un autre JDB, autoriser directement le réordonnement
+    if (activeElement && isJeuDeBarres(activeElement) && overElement && isJeuDeBarres(overElement)) {
+      console.log('JDB to JDB move - allowed');
+      // Réordonnement entre JDB autorisé sans vérifications
+    }
+    // Si on déplace un JDB sur un élément normal, vérifier qu'on ne l'insère pas au milieu d'éléments sans JDB parent
+    else if (activeElement && isJeuDeBarres(activeElement)) {
       const overIndex = elements.findIndex((e) => e.id === over.id);
+      const elementAbove = overIndex > 0 ? elements[overIndex - 1] : null;
       
-      // Si on dépose sur un autre JDB, c'est autorisé (réordonnement entre JDB)
-      if (overElement && isJeuDeBarres(overElement)) {
-        // Autorisé - on peut réordonner les JDB entre eux
-      } else {
-        // Sinon, vérifier si l'élément au-dessus de la position d'insertion est un JDB
-        const elementAbove = overIndex > 0 ? elements[overIndex - 1] : null;
-        
-        // Si l'élément au-dessus n'est pas un JDB et n'est pas null (début de liste),
-        // alors on essaie d'insérer au milieu d'éléments sans JDB parent
-        if (elementAbove && !isJeuDeBarres(elementAbove)) {
-          const jdbAbove = getJeuDeBarresForElement(elements, elementAbove.id);
-          if (!jdbAbove) {
-            toast.error("Impossible d'insérer un jeu de barres au milieu d'éléments sans section. Insérez-le après un autre jeu de barres ou à la fin.");
-            return;
-          }
-        }
-      }
-
-      // Si on insère en première position (overIndex = 0), vérifier que les éléments suivants sont compatibles
-      if (overIndex === 0) {
-        // Trouver le prochain JDB après la position d'insertion
-        let nextJdbIndex = -1;
-        for (let i = 1; i < elements.length; i++) {
-          const el = elements[i];
-          if (el && isJeuDeBarres(el)) {
-            nextJdbIndex = i;
-            break;
-          }
-        }
-
-        // Vérifier tous les éléments entre le JDB inséré et le prochain JDB
-        const elementsToCheck = nextJdbIndex > 0 
-          ? elements.slice(1, nextJdbIndex)
-          : elements.slice(1);
-
-        for (const el of elementsToCheck) {
-          if (!isJeuDeBarres(el) && !isTypeAllowedUnderJdb(el.type, activeElement)) {
-            const typeLabel = el.type === 'eclairage' ? 'éclairage' : 
-                             el.type === 'prise' ? 'prise de courant' : 'divers';
-            const categoryLabel = jdbCategoryLabel(activeElement.jdb_category);
-            toast.error(`Impossible d'insérer ce jeu de barres ${categoryLabel} ici car il contiendrait des éléments de type ${typeLabel} incompatibles.`);
-            return;
-          }
+      console.log('JDB to element move:', { overIndex, elementAbove });
+      
+      // Si l'élément au-dessus n'est pas un JDB et n'est pas null (début de liste),
+      // alors on essaie d'insérer au milieu d'éléments sans JDB parent
+      if (elementAbove && !isJeuDeBarres(elementAbove)) {
+        const jdbAbove = getJeuDeBarresForElement(elements, elementAbove.id);
+        if (!jdbAbove) {
+          toast.error("Impossible d'insérer un jeu de barres au milieu d'éléments sans section. Insérez-le après un autre jeu de barres ou à la fin.");
+          return;
         }
       }
     }
@@ -1399,9 +1377,46 @@ export function ElementTable({
     const oldIndex = elements.findIndex((e) => e.id === active.id);
     const newIndex = elements.findIndex((e) => e.id === over.id);
     
+    console.log('Move indices:', { oldIndex, newIndex });
+    
+    // Si on déplace un JDB sur un autre JDB, on doit déplacer toute la section
+    if (activeElement && isJeuDeBarres(activeElement) && overElement && isJeuDeBarres(overElement)) {
+      // Trouver les sections des deux JDB
+      const activeSection = findJdbSectionForElement(elements, activeElement.id);
+      const overSection = findJdbSectionForElement(elements, overElement.id);
+      
+      if (activeSection && overSection) {
+        // Construire la nouvelle liste d'IDs en déplaçant toute la section active
+        const allIds = elements.map((e: Element) => e.id);
+        const activeSectionIds = [activeSection.jdb.id, ...activeSection.elements.map((e: Element) => e.id)];
+        
+        // Retirer la section active de sa position actuelle
+        const filteredIds = allIds.filter(id => !activeSectionIds.includes(id));
+        
+        // Trouver où insérer la section active (avant ou après la section cible)
+        const insertIndex = newIndex > oldIndex 
+          ? filteredIds.indexOf(overSection.jdb.id) + 1  // Insérer après si on va vers le bas
+          : filteredIds.indexOf(overSection.jdb.id);     // Insérer avant si on va vers le haut
+        
+        // Insérer la section active à la nouvelle position
+        const newIds = [
+          ...filteredIds.slice(0, insertIndex),
+          ...activeSectionIds,
+          ...filteredIds.slice(insertIndex)
+        ];
+        
+        const reordered = reorderElementsWithJdbSections(elements, newIds);
+        console.log('Reordered elements (JDB section move):', reordered.map(e => ({ id: e.id, type: e.type, designation: e.designation })));
+        onReorder(reordered.map((e) => e.id));
+        return;
+      }
+    }
+    
     // Move the element using arrayMove, then apply JDB-aware reordering
     const movedIds = arrayMove(elements.map((e) => e.id), oldIndex, newIndex);
     const reordered = reorderElementsWithJdbSections(elements, movedIds);
+    
+    console.log('Reordered elements (regular move):', reordered.map(e => ({ id: e.id, type: e.type, designation: e.designation })));
     
     onReorder(reordered.map((e) => e.id));
   };
