@@ -645,6 +645,7 @@ export function reorderElementsWithJdbSections(elements: Element[], orderedIds: 
   const idToElement = new Map(elements.map(e => [e.id, e]));
   const result: Element[] = [];
   const processedIds = new Set<number>();
+  const movedElements = new Set<number>(orderedIds); // Elements that are being explicitly moved
 
   for (const id of orderedIds) {
     if (processedIds.has(id)) continue;
@@ -657,21 +658,30 @@ export function reorderElementsWithJdbSections(elements: Element[], orderedIds: 
       const section = sections.find(s => s.jdb.id === id);
       if (section) {
         result.push(section.jdb);
-        result.push(...section.elements);
+        // Only add elements that are not being moved individually
+        const sectionElementsToAdd = section.elements.filter(e => !movedElements.has(e.id));
+        result.push(...sectionElementsToAdd);
         processedIds.add(id);
-        section.elements.forEach(e => processedIds.add(e.id));
+        sectionElementsToAdd.forEach(e => processedIds.add(e.id));
       }
     } else {
       // This is a regular element
       const section = sections.find(s => s.elements.some(e => e.id === id));
       if (section) {
         // Element belongs to a JDB section
-        // Only add it if the JDB hasn't been added yet
+        // Only add the JDB if it hasn't been added yet AND the element is not being moved out
         if (!processedIds.has(section.jdb.id)) {
           result.push(section.jdb);
-          result.push(...section.elements);
+          // Add all elements except those being moved individually
+          const sectionElementsToAdd = section.elements.filter(e => !movedElements.has(e.id));
+          result.push(...sectionElementsToAdd);
           processedIds.add(section.jdb.id);
-          section.elements.forEach(e => processedIds.add(e.id));
+          sectionElementsToAdd.forEach(e => processedIds.add(e.id));
+        }
+        // Add the moved element at its new position
+        if (!processedIds.has(id)) {
+          result.push(element);
+          processedIds.add(id);
         }
       } else {
         // Element is not in any JDB section (top-level element)
