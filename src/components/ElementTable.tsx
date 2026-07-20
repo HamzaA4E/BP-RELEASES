@@ -496,7 +496,7 @@ function SubtotalRow({
       >
         {label}
       </td>
-      <td colSpan={anyElementUsesCoefs ? 6 : 4} />
+      <td colSpan={anyElementUsesCoefs ? 7 : 5} />
       <td className="px-2 py-2 text-right whitespace-nowrap">
         <button
           type="button"
@@ -510,6 +510,9 @@ function SubtotalRow({
           <span className="text-xs leading-none">+</span>
           Ajouter
         </button>
+      </td>
+      <td className="px-3 py-2 text-sm text-right font-bold italic text-primary dark:text-white whitespace-nowrap">
+        {formatNumber(wattsToKw(totalPower), 3)} kW
       </td>
       <td className="px-3 py-2 text-sm text-right font-bold italic text-primary dark:text-white whitespace-nowrap">
         {formatNumber(wattsToKw(totalPower), 3)} kW
@@ -949,6 +952,18 @@ function SortableMultiDepartRow({
               </td>
             </>
           )}
+          <td className="px-3 py-2 text-sm max-w-[180px]">
+            <ArticleDesignationCell
+              article={article}
+              articleEditing={articleEditing}
+              setArticleEditing={setArticleEditing}
+              onCommit={(v) =>
+                void onArticleUpdate(article.id, "designation", v)
+              }
+              canDelete={articles.length > 1}
+              onDelete={() => void onArticleDelete(article.id, element.id)}
+            />
+          </td>
           <td
             className="px-3 py-2 text-sm max-w-[140px]"
             title={displayArticleTypeLabel(article, element, idx === 0)}
@@ -964,16 +979,12 @@ function SortableMultiDepartRow({
               }
             />
           </td>
-          <td className="px-3 py-2 text-sm max-w-[180px]">
-            <ArticleDesignationCell
+          <td className="px-3 py-2 text-sm text-center">
+            <ArticleQuantityCell
               article={article}
               articleEditing={articleEditing}
               setArticleEditing={setArticleEditing}
-              onCommit={(v) =>
-                void onArticleUpdate(article.id, "designation", v)
-              }
-              canDelete={articles.length > 1}
-              onDelete={() => void onArticleDelete(article.id, element.id)}
+              onCommit={(v) => void onArticleUpdate(article.id, "quantity", v)}
             />
           </td>
           <td className="px-3 py-2 text-sm text-right">
@@ -982,14 +993,6 @@ function SortableMultiDepartRow({
               articleEditing={articleEditing}
               setArticleEditing={setArticleEditing}
               onCommit={(v) => void onArticleUpdate(article.id, "power_w", v)}
-            />
-          </td>
-          <td className="px-3 py-2 text-sm text-center">
-            <ArticleQuantityCell
-              article={article}
-              articleEditing={articleEditing}
-              setArticleEditing={setArticleEditing}
-              onCommit={(v) => void onArticleUpdate(article.id, "quantity", v)}
             />
           </td>
           {anyElementUsesCoefs && (
@@ -1014,6 +1017,14 @@ function SortableMultiDepartRow({
               />
             </td>
           )}
+          {idx === 0 ? (
+            <td
+              rowSpan={rowCount}
+              className={`px-3 py-2 text-sm text-right font-medium ${rowSpanHoverClass}`}
+            >
+              {formatNumber(wattsToKw(totalDepartPower), 3)}
+            </td>
+          ) : null}
           {idx === 0 ? (
             <td
               rowSpan={rowCount}
@@ -1151,17 +1162,6 @@ function SortableDataRow({
             onCommit={(v) => void onFieldUpdate(element.id, "repere", v)}
           />
         </td>
-        <td className="px-3 py-2 text-sm max-w-[140px]" title={typeLabel}>
-          <InlineTextCell
-            elementId={element.id}
-            field="type_label"
-            value={typeLabel}
-            editingField={editingField}
-            setEditingField={setEditingField}
-            onCommit={(v) => void onFieldUpdate(element.id, "type_label", v)}
-            className="truncate block"
-          />
-        </td>
         <td
           className={`px-3 py-2 text-sm max-w-[140px] ${isDivers ? "italic text-gray-500" : ""}`}
         >
@@ -1174,12 +1174,15 @@ function SortableDataRow({
             onCommit={(v) => void onFieldUpdate(element.id, "emplacement", v)}
           />
         </td>
-        <td className="px-3 py-2 text-sm text-right">
-          <InlinePowerCell
-            element={element}
+        <td className="px-3 py-2 text-sm max-w-[140px]" title={typeLabel}>
+          <InlineTextCell
+            elementId={element.id}
+            field="type_label"
+            value={typeLabel}
             editingField={editingField}
             setEditingField={setEditingField}
-            onCommit={(v) => void onFieldUpdate(element.id, "power_w", v)}
+            onCommit={(v) => void onFieldUpdate(element.id, "type_label", v)}
+            className="truncate block"
           />
         </td>
         <td className="px-3 py-2 text-sm text-center">
@@ -1195,6 +1198,14 @@ function SortableDataRow({
               const q = Math.max(1, Math.round(v));
               void onFieldUpdate(element.id, "quantity", q);
             }}
+          />
+        </td>
+        <td className="px-3 py-2 text-sm text-right">
+          <InlinePowerCell
+            element={element}
+            editingField={editingField}
+            setEditingField={setEditingField}
+            onCommit={(v) => void onFieldUpdate(element.id, "power_w", v)}
           />
         </td>
         {anyElementUsesCoefs && coefFields.map((c) => (
@@ -1219,6 +1230,9 @@ function SortableDataRow({
             />
           </td>
         ))}
+        <td className="px-3 py-2 text-sm text-right font-medium">
+          {formatNumber(wattsToKw(totalPower), 3)}
+        </td>
         <td className="px-3 py-2 text-sm text-right font-medium">
           {formatNumber(wattsToKw(totalPower), 3)}
         </td>
@@ -1255,7 +1269,7 @@ function SortableDataRow({
         <td />
         <td />
         <td
-          colSpan={coefFields.length + 6}
+          colSpan={coefFields.length + 7}
           className="px-3 py-0.5 text-xs text-gray-400 italic"
         >
           {coefsLine}
@@ -1441,9 +1455,9 @@ export function ElementTable({
   // Check if any element has use_coefs enabled to show/hide coefficient columns in header
   const anyElementUsesCoefs = elements.some(el => el.use_coefs);
   // Calculate dynamic column count based on coefficient visibility
-  // Base columns: drag + add + cat + repere + type + designation + power + qty + total + actions = 10
+  // Base columns: drag + add + cat + repere + designation + type + qty + power + total + utile + actions = 11
   // Plus 2 coefficient columns if visible
-  const visibleColumnCount = anyElementUsesCoefs ? 12 : 10;
+  const visibleColumnCount = anyElementUsesCoefs ? 13 : 11;
 
   return (
     <div className="w-full rounded-xl border border-gray-200 dark:border-gray-700">
@@ -1463,10 +1477,10 @@ export function ElementTable({
               />
               <th style={{ width: anyElementUsesCoefs ? '6%' : '8%' }} className="px-3 py-3">Cat.</th>
               <th style={{ width: anyElementUsesCoefs ? '8%' : '10%' }} className="px-3 py-3">Repère</th>
-              <th style={{ width: anyElementUsesCoefs ? '12%' : '13%' }} className="px-3 py-3">Type</th>
               <th style={{ width: anyElementUsesCoefs ? '25%' : '35%' }} className="px-3 py-3">Désignation</th>
-              <th style={{ width: anyElementUsesCoefs ? '8%' : '10%' }} className="px-3 py-3 text-right">P. Unitaire (kW)</th>
+              <th style={{ width: anyElementUsesCoefs ? '12%' : '13%' }} className="px-3 py-3">Type</th>
               <th style={{ width: anyElementUsesCoefs ? '5%' : '6%' }} className="px-3 py-3 text-center">Qté</th>
+              <th style={{ width: anyElementUsesCoefs ? '8%' : '10%' }} className="px-3 py-3 text-right">P. Unitaire (kW)</th>
               {anyElementUsesCoefs && (
                 <>
                   <th
@@ -1486,6 +1500,7 @@ export function ElementTable({
                 </>
               )}
               <th style={{ width: anyElementUsesCoefs ? '9%' : '10%' }} className="px-3 py-3 text-right">P. totale (kW)</th>
+              <th style={{ width: anyElementUsesCoefs ? '9%' : '10%' }} className="px-3 py-3 text-right">P. utile (kW)</th>
               <th style={{ width: anyElementUsesCoefs ? '10%' : '12%' }} className="px-4 py-3 text-center">Actions</th>
             </tr>
           </thead>
@@ -1579,10 +1594,13 @@ export function ElementTable({
             {elements.length > 0 && (
               <tr className="bg-blue-50 dark:bg-blue-900/20 font-bold">
                 <td
-                  colSpan={anyElementUsesCoefs ? 10 : 8}
+                  colSpan={anyElementUsesCoefs ? 11 : 9}
                   className="px-3 py-3 text-sm text-right text-primary dark:text-accent-light"
                 >
                   TOTAL
+                </td>
+                <td className="px-3 py-3 text-sm text-right text-primary dark:text-white">
+                  {formatNumber(wattsToKw(totalPower), 3)} kW
                 </td>
                 <td className="px-3 py-3 text-sm text-right text-primary dark:text-white">
                   {formatNumber(wattsToKw(totalPower), 3)} kW
