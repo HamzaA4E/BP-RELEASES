@@ -133,6 +133,14 @@ export function updatePanel(data: {
   const existing = getPanelById(data.id);
   if (!existing) throw new Error('Panel not found');
 
+  // Check name uniqueness within the location if name is being changed
+  if (data.name !== undefined && data.name !== existing.name) {
+    const duplicate = db.prepare('SELECT id FROM panels WHERE name = ? AND location_id = ? AND id != ?').get(data.name, existing.location_id, data.id);
+    if (duplicate) {
+      throw new Error('Un tableau avec ce nom existe déjà dans cet emplacement');
+    }
+  }
+
   const cols = db.pragma('table_info(panels)') as Array<{ name: string }>;
   const hasCoefKs = cols.some((c) => c.name === 'coef_ks');
   const hasReperePrefix = cols.some((c) => c.name === 'repere_prefix');

@@ -63,6 +63,14 @@ export function updateFolder(data: {
     throw new Error('Folder name cannot be empty');
   }
 
+  // Check name uniqueness if name is being changed
+  if (data.name !== undefined && data.name !== existing.name) {
+    const duplicate = db.prepare('SELECT id FROM folders WHERE name = ? AND id != ?').get(data.name, data.id);
+    if (duplicate) {
+      throw new Error('Un dossier avec ce nom existe déjà');
+    }
+  }
+
   // Check if name is changing and rename physical folder
   if (data.name !== undefined && data.name !== existing.name && existing.folder_path) {
     const fs = require('fs');

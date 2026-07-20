@@ -171,6 +171,14 @@ export function updateProject(data: {
   const existing = getProjectById(data.id);
   if (!existing) throw new Error('Project not found');
 
+  // Check name uniqueness if name is being changed
+  if (data.name !== undefined && data.name !== existing.name) {
+    const duplicate = db.prepare('SELECT id FROM projects WHERE name = ? AND id != ?').get(data.name, data.id);
+    if (duplicate) {
+      throw new Error('Un projet avec ce nom existe déjà');
+    }
+  }
+
   // Check if name is changing and rename physical file
   if (data.name !== undefined && data.name !== existing.name && existing.file_path) {
     const fs = require('fs');

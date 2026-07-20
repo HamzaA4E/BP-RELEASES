@@ -380,6 +380,13 @@ export function PanelView() {
       data: { repere: newRepere },
     }));
 
+    // Try to save to database first to validate uniqueness
+    if (savedUpdates.length > 0) {
+      for (const { id, newRepere } of savedUpdates) {
+        await window.bilpow.elements.update({ id, repere: newRepere });
+      }
+    }
+
     if (tempUpdates.length > 0) {
       const currentPending = getPendingChanges();
       const updatedPending = currentPending.map((change: PanelChange) => {
@@ -404,12 +411,6 @@ export function PanelView() {
     });
 
     applyMutations(redoMutations);
-
-    if (savedUpdates.length > 0) {
-      for (const { id, newRepere } of savedUpdates) {
-        await window.bilpow.elements.update({ id, repere: newRepere });
-      }
-    }
   };
 
   const savePanelName = async (name: string) => {
@@ -987,6 +988,33 @@ export function PanelView() {
     const el = elements.find((e) => e.id === id);
     if (!el) return;
     const oldValue = el[field];
+
+    // For repere field, check uniqueness locally for temporary elements
+    if (field === "repere" && id < 0) {
+      const trimmedValue = (value as string).trim();
+      const duplicate = elements.find(
+        (e) => e.id !== id && e.repere.trim() === trimmedValue && e.panel_id === el.panel_id
+      );
+      if (duplicate) {
+        toast.error("Un départ avec ce repère existe déjà dans ce tableau");
+        return;
+      }
+    }
+
+    // For saved elements, try to update database first to validate
+    if (id > 0) {
+      try {
+        if (field === "repere") {
+          await window.bilpow.elements.update({ id, repere: value as string });
+        } else {
+          await window.bilpow.elements.update({ id, [field]: value });
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erreur");
+        return;
+      }
+    }
+
     recordOperation({
       inverse: [{ op: "patchElement", id, patch: { [field]: oldValue } }],
       redo: [{ op: "patchElement", id, patch: { [field]: value } }],

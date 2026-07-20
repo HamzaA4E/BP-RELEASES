@@ -70,6 +70,14 @@ export function updateLocation(data: { id: number; name?: string }): LocationRow
   const existing = getLocationById(data.id);
   if (!existing) throw new Error('Location not found');
 
+  // Check name uniqueness within the project if name is being changed
+  if (data.name !== undefined && data.name !== existing.name) {
+    const duplicate = db.prepare('SELECT id FROM locations WHERE name = ? AND project_id = ? AND id != ?').get(data.name, existing.project_id, data.id);
+    if (duplicate) {
+      throw new Error('Un emplacement avec ce nom existe déjà dans ce projet');
+    }
+  }
+
   if (data.name !== undefined) {
     db.prepare('UPDATE locations SET name = ? WHERE id = ?').run(data.name, data.id);
   }

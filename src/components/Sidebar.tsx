@@ -185,6 +185,14 @@ export function Sidebar() {
           id: renaming.id,
           name: renaming.value,
         });
+      } else if (renaming.type === "folder") {
+        await window.bilpow.folders.update({
+          id: renaming.id,
+          name: renaming.value,
+        });
+        const all = await window.bilpow.folders.getAll();
+        const { setFolders } = useAppStore.getState();
+        setFolders(all);
       }
       toast.success("Renommé avec succès");
       if (selection.projectId) await loadTreeForProject(selection.projectId);
