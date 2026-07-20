@@ -176,19 +176,19 @@ function calculateOptimalColumnWidths(colCount: number, orientation: 'portrait' 
 
   // Distribute widths based on column importance
 
-  // Order: Cat | Repère | Désignation | Type | Qté | P. Unitaire | Ks | Ku | P. totale | P. utile
+  // Order: Repère | Désignation | Type | Qté | P. Unitaire | Ks | Ku | P. totale | P. utile
 
-  if (colCount === 10) {
+  if (colCount === 9) {
 
-    return [excelWidth * 0.8, excelWidth * 1.0, excelWidth * 1.5, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 0.8, excelWidth * 0.4, excelWidth * 0.4, excelWidth * 0.8, excelWidth * 0.8];
-
-  } else if (colCount === 9) {
-
-    return [excelWidth * 0.8, excelWidth * 1.0, excelWidth * 1.5, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 0.8, excelWidth * 0.4, excelWidth * 0.8, excelWidth * 0.8];
+    return [excelWidth * 1.2, excelWidth * 2.0, excelWidth * 1.2, excelWidth * 0.6, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 0.5, excelWidth * 1.0, excelWidth * 1.0];
 
   } else if (colCount === 8) {
 
-    return [excelWidth * 0.8, excelWidth * 1.0, excelWidth * 1.5, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 0.8, excelWidth * 0.8, excelWidth * 0.8];
+    return [excelWidth * 1.2, excelWidth * 2.0, excelWidth * 1.2, excelWidth * 0.6, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 1.0, excelWidth * 1.0];
+
+  } else if (colCount === 7) {
+
+    return [excelWidth * 1.2, excelWidth * 2.0, excelWidth * 1.2, excelWidth * 0.6, excelWidth * 1.0, excelWidth * 1.0, excelWidth * 1.0];
 
   }
 
@@ -822,7 +822,7 @@ function writeMultiDepartExcelRows(
 
   articles: ArticleRow[],
 
-  colMapping: { CAT: number; REPERE: number; DESIGNATION: number; TYPE: number; QTY: number; POWER: number; KS: number; KU: number; TOTAL: number; UTILE: number },
+  colMapping: { REPERE: number; DESIGNATION: number; TYPE: number; QTY: number; POWER: number; KS: number; KU: number; TOTAL: number; UTILE: number },
 
   colCount: number,
 
@@ -850,8 +850,6 @@ function writeMultiDepartExcelRows(
 
   const rowColor = departIndex % 2 === 0 ? ALT_ROW_COLOR : DATA_ROW_COLOR;
 
-  const categoryLabel = departCategoryOf(el);
-
 
 
   for (const article of articles) {
@@ -864,19 +862,15 @@ function writeMultiDepartExcelRows(
 
 
 
-    // Only set category and repère for the first article in the multi depart
+    // Only set repère for the first article in the multi depart
 
     if (isFirstArticle) {
-
-      row.getCell(colMapping.CAT).value = categoryLabel;
 
       row.getCell(colMapping.REPERE).value = toCellValue(el.repere);
 
       isFirstArticle = false;
 
     } else {
-
-      row.getCell(colMapping.CAT).value = '';
 
       row.getCell(colMapping.REPERE).value = '';
 
@@ -944,14 +938,7 @@ function writeMultiDepartExcelRows(
 
     };
 
-    // P.UTILE = P.TOTALE for each line in multi-depart
-
-    row.getCell(colMapping.UTILE).value = {
-
-      formula: totalFormula,
-
-    };
-
+    // P.UTILE will be set after all rows are written (sum of TOTAL for all lines)
     powerRows.push(rowNum);
 
 
@@ -976,7 +963,20 @@ function writeMultiDepartExcelRows(
 
   }
 
-
+  // Set P.UTILE on first row as sum of TOTAL for all lines in this multi-depart
+  // and merge the cell across all rows
+  if (powerRows.length > 0) {
+    const firstRow = powerRows[0]!;
+    const lastRow = powerRows[powerRows.length - 1]!;
+    const utileFormula = `SUM(${colLetter(colMapping.TOTAL)}${firstRow}:${colLetter(colMapping.TOTAL)}${lastRow})`;
+    sheet.getCell(firstRow, colMapping.UTILE).value = {
+      formula: utileFormula,
+    };
+    // Merge UTILE cells across all rows
+    if (powerRows.length > 1) {
+      safeMergeCells(sheet, firstRow, colMapping.UTILE, lastRow, colMapping.UTILE);
+    }
+  }
 
   return { endRow: rowNum, powerRows };
 
@@ -994,21 +994,27 @@ function writeSubtotalRow(
 
   sumFormula: string,
 
-  colMapping: { CAT: number; REPERE: number; DESIGNATION: number; TYPE: number; QTY: number; POWER: number; KS: number; KU: number; TOTAL: number; UTILE: number },
+  colMapping: { REPERE: number; DESIGNATION: number; TYPE: number; QTY: number; POWER: number; KS: number; KU: number; TOTAL: number; UTILE: number },
 
   colCount: number
 
 ): void {
 
-  safeMergeCells(sheet, rowNum, colMapping.CAT, rowNum, colMapping.TOTAL - 1);
+  safeMergeCells(sheet, rowNum, colMapping.REPERE, rowNum, colMapping.TOTAL - 1);
 
-  const labelCell = sheet.getCell(rowNum, colMapping.CAT);
+  const labelCell = sheet.getCell(rowNum, colMapping.REPERE);
 
   labelCell.value = toCellString(label);
 
   labelCell.font = { bold: true, italic: true, size: 10 };
 
   labelCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+  labelCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: SUBTOTAL_ROW_COLOR },
+  };
 
 
 
@@ -1030,25 +1036,16 @@ function writeSubtotalRow(
 
   totalCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
-
-
+  // Apply same color to UTILE cell
   const utileCell = sheet.getCell(rowNum, colMapping.UTILE);
-
-  utileCell.value = { formula: sumFormula };
-
-  utileCell.font = { bold: true, italic: true, size: 10 };
-
   utileCell.fill = {
-
     type: 'pattern',
-
     pattern: 'solid',
-
     fgColor: { argb: SUBTOTAL_ROW_COLOR },
-
   };
 
-  utileCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  // Merge TOTAL and UTILE columns together
+  safeMergeCells(sheet, rowNum, colMapping.TOTAL, rowNum, colMapping.UTILE);
 
 
 
@@ -1216,11 +1213,11 @@ function createPanelSheet(
 
   // Show Ks column only if use_coefs is enabled
 
-  // Base columns: Cat + Repère + Désignation + Type + Qté + P. Unitaire + P. totale + P. utile = 8
+  // Base columns: Repère + Désignation + Type + Qté + P. Unitaire + P. totale + P. utile = 7
 
   // Plus 2 coefficient columns if visible
 
-  const COL_COUNT_DYNAMIC = showKu ? 10 : (showCoefs ? 9 : 8);
+  const COL_COUNT_DYNAMIC = showKu ? 9 : (showCoefs ? 8 : 7);
 
 
 
@@ -1246,25 +1243,23 @@ function createPanelSheet(
 
   const COL_DYNAMIC = {
 
-    CAT: 1,
+    REPERE: 1,
 
-    REPERE: 2,
+    DESIGNATION: 2,
 
-    DESIGNATION: 3,
+    TYPE: 3,
 
-    TYPE: 4,
+    QTY: 4,
 
-    QTY: 5,
+    POWER: 5,
 
-    POWER: 6,
+    KS: showCoefs ? 6 : 0,
 
-    KS: showCoefs ? 7 : 0,
+    KU: showKu ? (showCoefs ? 7 : 6) : 0,
 
-    KU: showKu ? (showCoefs ? 8 : 7) : 0,
+    TOTAL: showKu ? 8 : (showCoefs ? 7 : 6),
 
-    TOTAL: showKu ? 9 : (showCoefs ? 8 : 7),
-
-    UTILE: showKu ? 10 : (showCoefs ? 9 : 8),
+    UTILE: showKu ? 9 : (showCoefs ? 8 : 7),
 
   } as const;
 
@@ -1436,8 +1431,6 @@ function createPanelSheet(
 
     if (currentRepereGroupKey && currentRepereStartRow > 0 && endRow > currentRepereStartRow) {
 
-      safeMergeCells(sheet, currentRepereStartRow, COL_DYNAMIC.CAT, endRow, COL_DYNAMIC.CAT);
-
       safeMergeCells(sheet, currentRepereStartRow, COL_DYNAMIC.REPERE, endRow, COL_DYNAMIC.REPERE);
 
     }
@@ -1560,17 +1553,11 @@ function createPanelSheet(
 
     const row = sheet.getRow(rowNum);
 
-
-
-    const categoryLabel = departCategoryOf(el);
-
     const typeValue = el.type_label || '';
 
     const designation = el.emplacement?.trim() || '';
 
 
-
-    row.getCell(COL_DYNAMIC.CAT).value = categoryLabel;
 
     row.getCell(COL_DYNAMIC.REPERE).value = el.repere;
 
@@ -1694,13 +1681,13 @@ function createPanelSheet(
 
   const mergeEndCol = COL_DYNAMIC.TOTAL - 1;
 
-  safeMergeCells(sheet, totalRowNum, COL_DYNAMIC.CAT, totalRowNum, mergeEndCol);
+  safeMergeCells(sheet, totalRowNum, COL_DYNAMIC.REPERE, totalRowNum, mergeEndCol);
 
-  totalRow.getCell(COL_DYNAMIC.CAT).value = 'TOTAL';
+  totalRow.getCell(COL_DYNAMIC.REPERE).value = 'TOTAL';
 
-  totalRow.getCell(COL_DYNAMIC.CAT).font = { bold: true };
+  totalRow.getCell(COL_DYNAMIC.REPERE).font = { bold: true };
 
-  totalRow.getCell(COL_DYNAMIC.CAT).fill = {
+  totalRow.getCell(COL_DYNAMIC.REPERE).fill = {
 
     type: 'pattern',
 
@@ -1732,23 +1719,10 @@ function createPanelSheet(
 
   };
 
-  totalRow.getCell(COL_DYNAMIC.UTILE).value = { formula: powerSumFormula };
+  // Merge TOTAL and UTILE columns together
+  safeMergeCells(sheet, totalRowNum, COL_DYNAMIC.TOTAL, totalRowNum, COL_DYNAMIC.UTILE);
 
-  totalRow.getCell(COL_DYNAMIC.UTILE).numFmt = '0.000';
-
-  totalRow.getCell(COL_DYNAMIC.UTILE).font = { bold: true };
-
-  totalRow.getCell(COL_DYNAMIC.UTILE).fill = {
-
-    type: 'pattern',
-
-    pattern: 'solid',
-
-    fgColor: { argb: TOTAL_ROW_COLOR },
-
-  };
-
-  applyBorder(totalRow.getCell(COL_DYNAMIC.CAT));
+  applyBorder(totalRow.getCell(COL_DYNAMIC.REPERE));
 
   applyBorder(totalRow.getCell(COL_DYNAMIC.TOTAL));
 
@@ -1770,9 +1744,9 @@ function createPanelSheet(
 
   const writeSummaryLabel = (row: number, text: string, bgColor?: string): void => {
 
-    safeMergeCells(sheet, row, COL_DYNAMIC.CAT, row, mergeEndCol);
+    safeMergeCells(sheet, row, COL_DYNAMIC.REPERE, row, mergeEndCol);
 
-    const labelCell = sheet.getCell(row, COL_DYNAMIC.CAT);
+    const labelCell = sheet.getCell(row, COL_DYNAMIC.REPERE);
 
     labelCell.value = text;
 
@@ -1796,6 +1770,23 @@ function createPanelSheet(
 
     applyBorder(labelCell);
 
+    // Also apply border to all cells in the merged range
+    for (let c = COL_DYNAMIC.REPERE; c <= mergeEndCol; c++) {
+      applyBorder(sheet.getCell(row, c));
+    }
+
+    // Fill cells between mergeEndCol and valueCol with same background color
+    if (bgColor) {
+      for (let c = mergeEndCol + 1; c < valueCol; c++) {
+        const cell = sheet.getCell(row, c);
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: bgColor },
+        };
+        applyBorder(cell);
+      }
+    }
   };
 
 
