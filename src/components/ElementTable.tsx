@@ -1396,10 +1396,12 @@ export function ElementTable({
         // Retirer la section active de sa position actuelle
         const filteredIds = allIds.filter(id => !activeSectionIds.includes(id));
         
-        // Trouver où insérer la section active (avant ou après la section cible)
-        const insertIndex = newIndex > oldIndex 
-          ? filteredIds.indexOf(overSection.jdb.id) + 1  // Insérer après si on va vers le bas
-          : filteredIds.indexOf(overSection.jdb.id);     // Insérer avant si on va vers le haut
+        // Trouver la position de fin de la section cible (après tous ses éléments)
+        const overSectionIds = [overSection.jdb.id, ...overSection.elements.map((e: Element) => e.id)];
+        const overSectionEndIndexInFiltered = filteredIds.findIndex(id => id === overSectionIds[overSectionIds.length - 1]);
+        
+        // Insérer toujours après la section cible pour un comportement cohérent
+        const insertIndex = overSectionEndIndexInFiltered + 1;
         
         // Insérer la section active à la nouvelle position
         const newIds = [
