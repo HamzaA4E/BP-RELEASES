@@ -1017,14 +1017,9 @@ function SortableMultiDepartRow({
               />
             </td>
           )}
-          {idx === 0 ? (
-            <td
-              rowSpan={rowCount}
-              className={`px-3 py-2 text-sm text-right font-medium ${rowSpanHoverClass}`}
-            >
-              {formatNumber(wattsToKw(totalDepartPower), 3)}
-            </td>
-          ) : null}
+          <td className="px-3 py-2 text-sm text-right font-medium">
+            {formatNumber(wattsToKw(calcArticlePower(article)), 3)}
+          </td>
           {idx === 0 ? (
             <td
               rowSpan={rowCount}
