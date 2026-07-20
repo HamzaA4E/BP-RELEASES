@@ -483,6 +483,7 @@ function writeMultiDepartExcelRows(
   }
 
   // Set P.UTILE on first row as sum of TOTAL for all lines in this multi-depart
+  // and merge the cell across all rows
   if (powerRows.length > 0) {
     const firstRow = powerRows[0]!;
     const lastRow = powerRows[powerRows.length - 1]!;
@@ -490,9 +491,9 @@ function writeMultiDepartExcelRows(
     sheet.getCell(firstRow, colMapping.UTILE).value = {
       formula: utileFormula,
     };
-    // Leave UTILE cells empty for other rows
-    for (let i = 1; i < powerRows.length; i++) {
-      sheet.getCell(powerRows[i]!, colMapping.UTILE).value = '';
+    // Merge UTILE cells across all rows
+    if (powerRows.length > 1) {
+      safeMergeCells(sheet, firstRow, colMapping.UTILE, lastRow, colMapping.UTILE);
     }
   }
 
