@@ -1795,7 +1795,10 @@ function createPanelSheet(
 
   writeSummaryLabel(ksGlobalRow, 'Ks global :', TOTAL_ROW_COLOR);
 
-  const ksGlobalCell = sheet.getCell(ksGlobalRow, valueCol);
+  // Merge value cells from TOTAL to UTILE (F to G)
+  safeMergeCells(sheet, ksGlobalRow, COL_DYNAMIC.TOTAL, ksGlobalRow, COL_DYNAMIC.UTILE);
+
+  const ksGlobalCell = sheet.getCell(ksGlobalRow, COL_DYNAMIC.TOTAL);
 
   ksGlobalCell.value = data.ksGlobal ?? 1;
 
@@ -1829,17 +1832,26 @@ function createPanelSheet(
 
   applyBorder(ksGlobalCell);
 
+  // Apply same style to UTILE cell
+  const ksGlobalUtileCell = sheet.getCell(ksGlobalRow, COL_DYNAMIC.UTILE);
+  ksGlobalUtileCell.fill = ksGlobalCell.fill;
+  ksGlobalUtileCell.border = ksGlobalCell.border;
+  applyBorder(ksGlobalUtileCell);
+
 
 
   // Puissance globale = puissance installée × Ks global
 
   writeSummaryLabel(puissanceGlobaleRow, 'Puissance globale :', TOTAL_ROW_COLOR);
 
-  const ksGlobalCellAddress = `${colLetter(valueCol)}${ksGlobalRow}`;
+  const ksGlobalCellAddress = `${colLetter(COL_DYNAMIC.TOTAL)}${ksGlobalRow}`;
 
-  const puissanceGlobaleCell = `${colLetter(valueCol)}${puissanceGlobaleRow}`;
+  const puissanceGlobaleCell = `${colLetter(COL_DYNAMIC.TOTAL)}${puissanceGlobaleRow}`;
 
-  const puissanceGlobaleValueCell = sheet.getCell(puissanceGlobaleRow, valueCol);
+  // Merge value cells from TOTAL to UTILE (F to G)
+  safeMergeCells(sheet, puissanceGlobaleRow, COL_DYNAMIC.TOTAL, puissanceGlobaleRow, COL_DYNAMIC.UTILE);
+
+  const puissanceGlobaleValueCell = sheet.getCell(puissanceGlobaleRow, COL_DYNAMIC.TOTAL);
 
   puissanceGlobaleValueCell.value = {
 
@@ -1865,15 +1877,23 @@ function createPanelSheet(
 
   applyBorder(puissanceGlobaleValueCell);
 
+  // Apply same style to UTILE cell
+  const puissanceGlobaleUtileCell = sheet.getCell(puissanceGlobaleRow, COL_DYNAMIC.UTILE);
+  puissanceGlobaleUtileCell.fill = puissanceGlobaleValueCell.fill;
+  applyBorder(puissanceGlobaleUtileCell);
+
 
 
   // Intensité de calcul basée sur la puissance globale
 
   writeSummaryLabel(intensiteRow, 'Intensité de calcul :', TOTAL_ROW_COLOR);
 
-  const currentCellAddress = `${colLetter(valueCol)}${intensiteRow}`;
+  const currentCellAddress = `${colLetter(COL_DYNAMIC.TOTAL)}${intensiteRow}`;
 
-  const intensiteValueCell = sheet.getCell(intensiteRow, valueCol);
+  // Merge value cells from TOTAL to UTILE (F to G)
+  safeMergeCells(sheet, intensiteRow, COL_DYNAMIC.TOTAL, intensiteRow, COL_DYNAMIC.UTILE);
+
+  const intensiteValueCell = sheet.getCell(intensiteRow, COL_DYNAMIC.TOTAL);
 
   intensiteValueCell.value = {
 
@@ -1898,6 +1918,11 @@ function createPanelSheet(
   intensiteValueCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
   applyBorder(intensiteValueCell);
+
+  // Apply same style to UTILE cell
+  const intensiteUtileCell = sheet.getCell(intensiteRow, COL_DYNAMIC.UTILE);
+  intensiteUtileCell.fill = intensiteValueCell.fill;
+  applyBorder(intensiteUtileCell);
 
   // Calculate optimal column widths for A4 (orientation already calculated above)
 
