@@ -554,8 +554,8 @@ function hasNonUnitaryKu(elements: ElementRow[]): boolean {
         if ((article.coef_ku ?? 1) !== 1) return true;
       }
     } else {
-      const resolvedCoefs = resolveElementCoefs(elementRowToPowerInput(el));
-      if (resolvedCoefs.ku !== 1) return true;
+      // Check stored coef_ku directly, not through resolveElementCoefs which respects use_coefs
+      if ((el.coef_ku ?? 1) !== 1) return true;
     }
   }
   return false;
