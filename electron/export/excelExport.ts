@@ -19,29 +19,9 @@ import type {
 import type { ElementRow } from '../database/elements';
 import {
   excelCurrentFormula,
-  resolveElementCoefs,
   wattsToKw,
-  type PowerElementInput,
 } from '../../shared/powerCalculations';
 
-/**
- * Convert ElementRow to PowerElementInput for power calculations.
- * Converts use_coefs from number (database) to boolean (calculation).
- */
-function elementRowToPowerInput(el: ElementRow): PowerElementInput {
-  return {
-    type: el.type,
-    power_w: el.power_w,
-    quantity: el.quantity,
-    coef_ks: el.coef_ks,
-    coef_ku: el.coef_ku,
-    ks: el.ks,
-    ku: el.ku,
-    row_kind: el.row_kind,
-    is_multi: el.is_multi,
-    use_coefs: el.use_coefs !== 0,
-  };
-}
 
 const PRIMARY_COLOR = 'FF1E3A5F';
 const ALT_ROW_COLOR = 'FFF0F4F8'; // Légèrement plus visible pour une meilleure lisibilité
@@ -102,15 +82,18 @@ function determineOptimalOrientation(colCount: number): 'portrait' | 'landscape'
 function calculateOptimalColumnWidths(colCount: number, orientation: 'portrait' | 'landscape'): number[] {
   const usableWidth = orientation === 'portrait' ? 7.27 : 10.69;
   const baseWidth = usableWidth / colCount;
-  
+
   // Return widths in Excel units (1 unit ≈ 0.09 inches)
   const excelWidth = baseWidth / 0.09;
-  
+
   // Distribute widths based on column importance
-  if (colCount === 8) {
-    return [excelWidth * 1.3, excelWidth * 1.2, excelWidth * 1.2, excelWidth * 0.8, excelWidth * 0.5, excelWidth * 0.5, excelWidth * 0.5, excelWidth * 0.8];
+  // Order: Repère | Désignation | Type | Qté | P. Unitaire | Ks | Ku | P. totale | P. utile
+  if (colCount === 9) {
+    return [excelWidth * 1.0, excelWidth * 1.5, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 0.8, excelWidth * 0.4, excelWidth * 0.4, excelWidth * 0.8, excelWidth * 0.8];
+  } else if (colCount === 8) {
+    return [excelWidth * 1.0, excelWidth * 1.5, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 0.8, excelWidth * 0.4, excelWidth * 0.8, excelWidth * 0.8];
   } else if (colCount === 7) {
-    return [excelWidth * 1.4, excelWidth * 1.3, excelWidth * 1.3, excelWidth * 0.9, excelWidth * 0.6, excelWidth * 0.6, excelWidth * 0.9];
+    return [excelWidth * 1.0, excelWidth * 1.5, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 0.8, excelWidth * 0.8, excelWidth * 0.8];
   }
   return Array(colCount).fill(excelWidth);
 }
@@ -427,7 +410,7 @@ function writeMultiDepartExcelRows(
   startRowNum: number,
   el: ElementRow,
   articles: ArticleRow[],
-  colMapping: { REPERE: number; TYPE: number; DESIGNATION: number; POWER: number; QTY: number; KS: number; KU: number; TOTAL: number },
+  colMapping: { REPERE: number; DESIGNATION: number; TYPE: number; QTY: number; POWER: number; KS: number; KU: number; TOTAL: number; UTILE: number },
   colCount: number,
   showKu: boolean,
   showCoefs: boolean,
@@ -455,38 +438,37 @@ function writeMultiDepartExcelRows(
       row.getCell(colMapping.REPERE).value = '';
     }
 
+    const designation = article.designation?.trim() || '';
+    row.getCell(colMapping.DESIGNATION).value = designation;
+
     row.getCell(colMapping.TYPE).value =
     article.type_label?.trim() || '';
 
-    const designation = article.designation?.trim() || '';
-    row.getCell(colMapping.DESIGNATION).value = designation;
-    
     // Track maximum designation length
     if (designation.length > maxDesignationLengthRef.value) {
       maxDesignationLengthRef.value = designation.length;
     }
-    row.getCell(colMapping.POWER).value = wattsToKw(article.power_w);
     row.getCell(colMapping.QTY).value = article.quantity;
-    
-    // Respect use_coefs flag from parent element
-    const useCoefs = el.use_coefs !== 0;
-    const ks = useCoefs ? (article.coef_ks ?? 1) : 1;
-    const ku = useCoefs ? (article.coef_ku ?? 1) : 1;
-    
+    row.getCell(colMapping.POWER).value = wattsToKw(article.power_w);
+
+    // Show actual stored coefficient values when columns are visible
+    // regardless of use_coefs flag
     if (showCoefs) {
-      row.getCell(colMapping.KS).value = ks;
+      row.getCell(colMapping.KS).value = article.coef_ks ?? 1;
     }
     if (showKu) {
-      row.getCell(colMapping.KU).value = ku;
+      row.getCell(colMapping.KU).value = article.coef_ku ?? 1;
     }
 
     const ksCol = showCoefs ? colLetter(colMapping.KS) : '1';
     const ksValue = showCoefs ? `${ksCol}${rowNum}` : '1';
     const kuCol = showKu ? colLetter(colMapping.KU) : '1';
     const kuValue = showKu ? `${kuCol}${rowNum}` : '1';
+    const totalFormula = `${colLetter(colMapping.POWER)}${rowNum}*${colLetter(colMapping.QTY)}${rowNum}*${ksValue}*${kuValue}`;
     row.getCell(colMapping.TOTAL).value = {
-      formula: `${colLetter(colMapping.POWER)}${rowNum}*${colLetter(colMapping.QTY)}${rowNum}*${ksValue}*${kuValue}`,
+      formula: totalFormula,
     };
+    // P.UTILE will be set after all rows are written (sum of TOTAL for all lines)
     powerRows.push(rowNum);
 
     // Apply professional row styling - color by depart (all lines same color)
@@ -500,6 +482,20 @@ function writeMultiDepartExcelRows(
     }
   }
 
+  // Set P.UTILE on first row as sum of TOTAL for all lines in this multi-depart
+  if (powerRows.length > 0) {
+    const firstRow = powerRows[0]!;
+    const lastRow = powerRows[powerRows.length - 1]!;
+    const utileFormula = `SUM(${colLetter(colMapping.TOTAL)}${firstRow}:${colLetter(colMapping.TOTAL)}${lastRow})`;
+    sheet.getCell(firstRow, colMapping.UTILE).value = {
+      formula: utileFormula,
+    };
+    // Leave UTILE cells empty for other rows
+    for (let i = 1; i < powerRows.length; i++) {
+      sheet.getCell(powerRows[i]!, colMapping.UTILE).value = '';
+    }
+  }
+
   return { endRow: rowNum, powerRows };
 }
 
@@ -508,10 +504,10 @@ function writeSubtotalRow(
   rowNum: number,
   label: string,
   sumFormula: string,
-  colMapping: { REPERE: number; DESIGNATION: number; POWER: number; QTY: number; KS: number; KU: number; TOTAL: number },
+  colMapping: { REPERE: number; DESIGNATION: number; TYPE: number; QTY: number; POWER: number; KS: number; KU: number; TOTAL: number; UTILE: number },
   colCount: number
 ): void {
-  safeMergeCells(sheet, rowNum, colMapping.REPERE, rowNum, colMapping.TOTAL - 1);
+  safeMergeCells(sheet, rowNum, colMapping.REPERE, rowNum, colMapping.UTILE - 1);
   const labelCell = sheet.getCell(rowNum, colMapping.REPERE);
   labelCell.value = toCellString(label);
   labelCell.font = { bold: true, italic: true, size: 10 };
@@ -526,6 +522,16 @@ function writeSubtotalRow(
     fgColor: { argb: SUBTOTAL_ROW_COLOR },
   };
   totalCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+
+  const utileCell = sheet.getCell(rowNum, colMapping.UTILE);
+  utileCell.value = { formula: sumFormula };
+  utileCell.font = { bold: true, italic: true, size: 10 };
+  utileCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: SUBTOTAL_ROW_COLOR },
+  };
+  utileCell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
 
   for (let c = 1; c <= colCount; c++) {
     applyBorder(sheet.getCell(rowNum, c));
@@ -609,7 +615,9 @@ function createPanelSheet(
   const showKu = hasNonUnitaryKu(data.elements);
   // Show Ku column if Ku ≠ 1, regardless of use_coefs
   // Show Ks column only if use_coefs is enabled
-  const COL_COUNT_DYNAMIC = showKu ? 8 : (showCoefs ? 7 : 6);
+  // Base columns: Repère + Désignation + Type + Qté + P. Unitaire + P. totale + P. utile = 7
+  // Plus 2 coefficient columns if visible
+  const COL_COUNT_DYNAMIC = showKu ? 9 : (showCoefs ? 8 : 7);
 
   const { headerRow, svgSkipped } = addCompanyHeader(
     sheet,
@@ -623,54 +631,59 @@ function createPanelSheet(
   // Dynamic column mapping
   const COL_DYNAMIC = {
     REPERE: 1,
-    TYPE: 2,
-    DESIGNATION: 3,
-    POWER: 4,
-    QTY: 5,
+    DESIGNATION: 2,
+    TYPE: 3,
+    QTY: 4,
+    POWER: 5,
     KS: showCoefs ? 6 : 0,
     KU: showKu ? (showCoefs ? 7 : 6) : 0,
     TOTAL: showKu ? 8 : (showCoefs ? 7 : 6),
+    UTILE: showKu ? 9 : (showCoefs ? 8 : 7),
   } as const;
 
   const headers = showKu
     ? (showCoefs
         ? [
             'Repère',
-            'Type',
             'Désignation',
-            'P. Unitaire (kW)',
+            'Type',
             'Qté',
+            'P. Unitaire (kW)',
             'Ks',
             'Ku',
             'P. totale (kW)',
+            'P. utile (kW)',
           ]
         : [
             'Repère',
-            'Type',
             'Désignation',
-            'P. Unitaire (kW)',
+            'Type',
             'Qté',
+            'P. Unitaire (kW)',
             'Ku',
             'P. totale (kW)',
+            'P. utile (kW)',
           ]
       )
     : (showCoefs
         ? [
             'Repère',
-            'Type',
             'Désignation',
-            'P. Unitaire (kW)',
+            'Type',
             'Qté',
+            'P. Unitaire (kW)',
             'Ks',
             'P. totale (kW)',
+            'P. utile (kW)',
           ]
         : [
             'Repère',
-            'Type',
             'Désignation',
-            'P. Unitaire (kW)',
+            'Type',
             'Qté',
+            'P. Unitaire (kW)',
             'P. totale (kW)',
+            'P. utile (kW)',
           ]
       );
 
@@ -768,39 +781,41 @@ function createPanelSheet(
     }
 
     const row = sheet.getRow(rowNum);
-    
-    // Respect use_coefs flag
-    const useCoefs = el.use_coefs !== 0;
-    const resolvedCoefs = resolveElementCoefs(elementRowToPowerInput(el));
-    const ks = useCoefs ? resolvedCoefs.ks : 1;
-    const ku = useCoefs ? resolvedCoefs.ku : 1;
-    
+
     const typeValue = el.type_label || '';
     const designation = el.emplacement?.trim() || '';
 
     row.getCell(COL_DYNAMIC.REPERE).value = el.repere;
-    row.getCell(COL_DYNAMIC.TYPE).value = typeValue;
     row.getCell(COL_DYNAMIC.DESIGNATION).value = designation;
-    
+    row.getCell(COL_DYNAMIC.TYPE).value = typeValue;
+
     // Track maximum designation length
     if (designation.length > maxDesignationLength) {
       maxDesignationLength = designation.length;
     }
-    row.getCell(COL_DYNAMIC.POWER).value = wattsToKw(el.power_w);
     row.getCell(COL_DYNAMIC.QTY).value = el.quantity;
+    row.getCell(COL_DYNAMIC.POWER).value = wattsToKw(el.power_w);
+
+    // Show actual stored coefficient values when columns are visible
+    // regardless of use_coefs flag
     if (showCoefs) {
-      row.getCell(COL_DYNAMIC.KS).value = ks;
+      row.getCell(COL_DYNAMIC.KS).value = el.coef_ks ?? 1;
     }
     if (showKu) {
-      row.getCell(COL_DYNAMIC.KU).value = ku;
+      row.getCell(COL_DYNAMIC.KU).value = el.coef_ku ?? 1;
     }
 
     const ksCol = showCoefs ? colLetter(COL_DYNAMIC.KS) : '1';
     const ksValue = showCoefs ? `${ksCol}${rowNum}` : '1';
     const kuCol = showKu ? colLetter(COL_DYNAMIC.KU) : '1';
     const kuValue = showKu ? `${kuCol}${rowNum}` : '1';
+    const totalFormula = `${colLetter(COL_DYNAMIC.POWER)}${rowNum}*${colLetter(COL_DYNAMIC.QTY)}${rowNum}*${ksValue}*${kuValue}`;
     row.getCell(COL_DYNAMIC.TOTAL).value = {
-      formula: `${colLetter(COL_DYNAMIC.POWER)}${rowNum}*${colLetter(COL_DYNAMIC.QTY)}${rowNum}*${ksValue}*${kuValue}`,
+      formula: totalFormula,
+    };
+    // P.UTILE = P.TOTALE for single element
+    row.getCell(COL_DYNAMIC.UTILE).value = {
+      formula: totalFormula,
     };
 
     dataRowIndex++;
@@ -830,7 +845,7 @@ function createPanelSheet(
   const totalRowNum = rowNum;
 
   const totalRow = sheet.getRow(totalRowNum);
-  const mergeEndCol = COL_DYNAMIC.TOTAL - 1;
+  const mergeEndCol = COL_DYNAMIC.UTILE - 1;
   safeMergeCells(sheet, totalRowNum, COL_DYNAMIC.REPERE, totalRowNum, mergeEndCol);
   totalRow.getCell(COL_DYNAMIC.REPERE).value = 'TOTAL';
   totalRow.getCell(COL_DYNAMIC.REPERE).font = { bold: true };
@@ -850,17 +865,26 @@ function createPanelSheet(
     pattern: 'solid',
     fgColor: { argb: TOTAL_ROW_COLOR },
   };
+  totalRow.getCell(COL_DYNAMIC.UTILE).value = { formula: powerSumFormula };
+  totalRow.getCell(COL_DYNAMIC.UTILE).numFmt = '0.000';
+  totalRow.getCell(COL_DYNAMIC.UTILE).font = { bold: true };
+  totalRow.getCell(COL_DYNAMIC.UTILE).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: TOTAL_ROW_COLOR },
+  };
   applyBorder(totalRow.getCell(COL_DYNAMIC.REPERE));
   applyBorder(totalRow.getCell(COL_DYNAMIC.TOTAL));
+  applyBorder(totalRow.getCell(COL_DYNAMIC.UTILE));
 
   const totalPowerCell = `${colLetter(COL_DYNAMIC.TOTAL)}${totalRowNum}`;
-  const valueCol = COL_DYNAMIC.TOTAL;
+  const valueCol = COL_DYNAMIC.UTILE;
   const ksGlobalRow = totalRowNum + 1;
   const puissanceGlobaleRow = ksGlobalRow + 1;
   const intensiteRow = puissanceGlobaleRow + 1;
 
   const writeSummaryLabel = (row: number, text: string, bgColor?: string): void => {
-    safeMergeCells(sheet, row, COL_DYNAMIC.REPERE, row, mergeEndCol);
+    safeMergeCells(sheet, row, COL_DYNAMIC.REPERE, row, COL_DYNAMIC.UTILE - 1);
     const labelCell = sheet.getCell(row, COL_DYNAMIC.REPERE);
     labelCell.value = text;
     labelCell.font = { bold: true, size: 10 };
