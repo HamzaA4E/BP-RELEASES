@@ -464,12 +464,14 @@ export type ElementTableRow =
  * @param elements - Array of elements to process
  * @param articlesByElement - Optional map of articles by element ID for multi-depart calculations
  * @param collapsedJdbIds - Set of JDB IDs that should be collapsed (elements hidden)
+ * @param globalUseCoefs - If true, all elements use their stored coefficient values
  * @returns Array of table rows including JDB headers, elements, and subtotals
  */
 export function buildElementTableRows(
   elements: Element[],
   articlesByElement: Record<number, Article[]> = {},
-  collapsedJdbIds: Set<number> = new Set()
+  collapsedJdbIds: Set<number> = new Set(),
+  globalUseCoefs?: boolean
 ): ElementTableRow[] {
   const rows: ElementTableRow[] = [];
   let currentJdb: Element | null = null;
@@ -477,9 +479,9 @@ export function buildElementTableRows(
 
   const flushSubtotal = (): void => {
     if (!currentJdb || groupElements.length === 0) return;
-    
-    const totalPower = calculateGroupPower(groupElements, articlesByElement);
-    
+
+    const totalPower = calculateGroupPower(groupElements, articlesByElement, globalUseCoefs);
+
     rows.push({
       kind: 'subtotal',
       label: `Sous-total ${jeuDeBarresTitle(currentJdb)}`,
@@ -516,14 +518,16 @@ export function buildElementTableRows(
 /** Helper to calculate total power for a group of elements */
 function calculateGroupPower(
   groupElements: Element[],
-  articlesByElement: Record<number, Article[]>
+  articlesByElement: Record<number, Article[]>,
+  globalUseCoefs?: boolean
 ): number {
   return groupElements.reduce(
     (sum, element) =>
       sum +
       calcPuissanceTotale(
         element,
-        element.is_multi ? articlesByElement[element.id] : undefined
+        element.is_multi ? articlesByElement[element.id] : undefined,
+        globalUseCoefs
       ),
     0
   );

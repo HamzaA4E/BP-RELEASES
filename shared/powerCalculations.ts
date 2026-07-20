@@ -47,11 +47,18 @@ export function isInstalledPowerRow(el: {
   return el.type !== 'jeu_de_barres' && el.row_kind !== 'bar_set';
 }
 
-export function resolveElementCoefs(el: PowerElementInput): {
+export function resolveElementCoefs(el: PowerElementInput, globalUseCoefs?: boolean): {
   ks: number;
   ku: number;
 } {
-  // Si use_coefs est false, ignorer les coefficients (utiliser 1)
+  // Si globalUseCoefs est true (coefficients affichés au niveau panneau), utiliser les valeurs stockées
+  if (globalUseCoefs === true) {
+    return {
+      ks: el.coef_ks ?? el.ks ?? 1,
+      ku: el.coef_ku ?? el.ku ?? 1,
+    };
+  }
+  // Sinon, respecter le flag use_coefs individuel
   if (el.use_coefs === false) {
     return { ks: 1, ku: 1 };
   }
@@ -73,16 +80,17 @@ export function wattsToKw(powerW: number): number {
 /** Puissance totale d'un élément en W : P × Qté × Ks × Ku (arrondi). */
 export function calcPuissanceTotale(
   el: PowerElementInput,
-  articles?: ArticlePowerInput[]
+  articles?: ArticlePowerInput[],
+  globalUseCoefs?: boolean
 ): number {
   if (el.type === 'jeu_de_barres') return 0;
   if (el.is_multi && articles && articles.length > 0) {
     return articlesTotalPower(articles);
   }
-  const { ks, ku } = resolveElementCoefs(el);
-  // Si use_coefs est false, ignorer les coefficients (utiliser 1)
-  const effectiveKs = el.use_coefs === false ? 1 : ks;
-  const effectiveKu = el.use_coefs === false ? 1 : ku;
+  const { ks, ku } = resolveElementCoefs(el, globalUseCoefs);
+  // Si use_coefs est false et globalUseCoefs n'est pas true, ignorer les coefficients (utiliser 1)
+  const effectiveKs = (el.use_coefs === false && globalUseCoefs !== true) ? 1 : ks;
+  const effectiveKu = (el.use_coefs === false && globalUseCoefs !== true) ? 1 : ku;
   return Math.round(el.power_w * el.quantity * effectiveKs * effectiveKu);
 }
 

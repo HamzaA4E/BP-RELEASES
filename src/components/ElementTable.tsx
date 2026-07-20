@@ -1108,11 +1108,11 @@ function SortableDataRow({
   const rowHoverClass = isHovered
     ? "bg-slate-100 dark:bg-slate-800"
     : "row-hover";
-  const totalPower = calcPuissanceTotale(element);
+  const totalPower = calcPuissanceTotale(element, undefined, anyElementUsesCoefs);
   const badge = typeBadge(element);
   const typeLabel = displayTypeLabel(element);
   const emplacement = displayEmplacement(element);
-  const { ks, ku } = resolveElementCoefs(element);
+  const { ks, ku } = resolveElementCoefs(element, anyElementUsesCoefs);
   const coefsLine = formatCoefsLine(ks, ku);
 
  // Always include coefficient fields, but display differently based on use_coefs
@@ -1445,10 +1445,9 @@ export function ElementTable({
   };
 
   const totalPower = panelTotalPower(elements, articlesByElement);
-  const tableRows = buildElementTableRows(elements, articlesByElement, collapsedJdbIds);
-  
   // Check if any element has use_coefs enabled to show/hide coefficient columns in header
   const anyElementUsesCoefs = elements.some(el => el.use_coefs);
+  const tableRows = buildElementTableRows(elements, articlesByElement, collapsedJdbIds, anyElementUsesCoefs);
   // Calculate dynamic column count based on coefficient visibility
   // Base columns: drag + add + cat + repere + designation + type + qty + power + total + utile + actions = 11
   // Plus 2 coefficient columns if visible
