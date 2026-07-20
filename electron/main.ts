@@ -672,36 +672,45 @@ function registerIpcHandlers(): void {
         // Move projects to root (set folder_id to null) and move physical files to default location
         const projects = db.prepare('SELECT id, file_path FROM projects WHERE folder_id = ?').all(id) as Array<{ id: number; file_path: string | null }>;
         console.log('[folders:delete] Found projects to move:', projects.length);
-        
+
         for (const project of projects) {
           console.log('[folders:delete] Moving project:', project.id, 'with file:', project.file_path);
           // Set folder_id to null
           db.prepare('UPDATE projects SET folder_id = NULL WHERE id = ?').run(project.id);
           console.log('[folders:delete] Set folder_id to NULL for project:', project.id);
-          
+
           // Move physical file to default location if it exists
           if (project.file_path && fs.existsSync(project.file_path)) {
             try {
               const os = require('os');
               const desktopPath = path.join(os.homedir(), 'Desktop');
               const bilpowFolder = path.join(desktopPath, 'Projet BilPow');
-              
+
               if (!fs.existsSync(bilpowFolder)) {
                 fs.mkdirSync(bilpowFolder, { recursive: true });
               }
-              
+
               const fileName = path.basename(project.file_path);
               const newFilePath = path.join(bilpowFolder, fileName);
-              
+
               // Only move if not already in BilPow folder
               if (project.file_path !== newFilePath) {
-                fs.copyFileSync(project.file_path, newFilePath);
-                fs.unlinkSync(project.file_path);
-                db.prepare('UPDATE projects SET file_path = ? WHERE id = ?').run(newFilePath, project.id);
-                console.log('[folders:delete] Moved file from:', project.file_path, 'to:', newFilePath);
+                // Check if destination file already exists
+                if (fs.existsSync(newFilePath)) {
+                  console.log('[folders:delete] Destination file already exists, skipping move:', newFilePath);
+                  // Keep the file where it is, just update DB to null folder_id
+                } else {
+                  fs.copyFileSync(project.file_path, newFilePath);
+                  fs.unlinkSync(project.file_path);
+                  db.prepare('UPDATE projects SET file_path = ? WHERE id = ?').run(newFilePath, project.id);
+                  console.log('[folders:delete] Moved file from:', project.file_path, 'to:', newFilePath);
+                }
               }
             } catch (err) {
               console.error('[folders:delete] Failed to move project file to BilPow folder:', err);
+              console.log('[folders:delete] Keeping file at original location:', project.file_path);
+              // Don't fail the entire operation if one file can't be moved
+              // The project is still moved to root in the DB
             }
           }
         }
