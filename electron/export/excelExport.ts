@@ -89,11 +89,11 @@ function calculateOptimalColumnWidths(colCount: number, orientation: 'portrait' 
   // Distribute widths based on column importance
   // Order: Repère | Désignation | Type | Qté | P. Unitaire | Ks | Ku | P. totale | P. utile
   if (colCount === 9) {
-    return [excelWidth * 1.0, excelWidth * 1.5, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 0.8, excelWidth * 0.4, excelWidth * 0.4, excelWidth * 0.8, excelWidth * 0.8];
+    return [excelWidth * 1.2, excelWidth * 2.0, excelWidth * 1.2, excelWidth * 0.6, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 0.5, excelWidth * 1.0, excelWidth * 1.0];
   } else if (colCount === 8) {
-    return [excelWidth * 1.0, excelWidth * 1.5, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 0.8, excelWidth * 0.4, excelWidth * 0.8, excelWidth * 0.8];
+    return [excelWidth * 1.2, excelWidth * 2.0, excelWidth * 1.2, excelWidth * 0.6, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 1.0, excelWidth * 1.0];
   } else if (colCount === 7) {
-    return [excelWidth * 1.0, excelWidth * 1.5, excelWidth * 1.0, excelWidth * 0.5, excelWidth * 0.8, excelWidth * 0.8, excelWidth * 0.8];
+    return [excelWidth * 1.2, excelWidth * 2.0, excelWidth * 1.2, excelWidth * 0.6, excelWidth * 1.0, excelWidth * 1.0, excelWidth * 1.0];
   }
   return Array(colCount).fill(excelWidth);
 }
