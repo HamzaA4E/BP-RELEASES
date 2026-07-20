@@ -39,9 +39,6 @@ import {
   isJeuDeBarres,
   getJeuDeBarresForElement,
   getActiveJeuDeBarres,
-  isTypeAllowedUnderJdb,
-  findElementByRepereAndCategory,
-  departCategoryOf,
   findJdbSectionForElement,
   getElementsOutsideJdbSections,
 } from "@/utils/elementHelpers";
@@ -1352,80 +1349,31 @@ export function ElementTable({
           targetJdb = getActiveJeuDeBarres(elements, overIndex);
         }
         
-        // Cas 1: Sortie d'une section JDB vers l'extérieur
+        // Bloquer: Sortie d'une section JDB vers l'extérieur
         if (sourceJdb && !targetJdb) {
-          // Vérifier qu'on ne sort pas l'élément pour le mettre au milieu d'éléments sans JDB
-          const newIndex = elements.findIndex((e) => e.id === over.id);
-          const elementAbove = newIndex > 0 ? elements[newIndex - 1] : null;
-          if (elementAbove && !isJeuDeBarres(elementAbove)) {
-            const jdbAbove = getJeuDeBarresForElement(elements, elementAbove.id);
-            if (!jdbAbove) {
-              toast.error("Impossible de sortir cet élément au milieu d'éléments sans section. Placez-le avant le premier jeu de barres.");
-              return;
-            }
-          }
-          // Sortie autorisée
+          toast.error("Impossible de sortir un élément d'un jeu de barres vers l'extérieur. Les éléments doivent rester dans leur section.");
+          return;
         }
-        // Cas 2: Déplacement entre sections JDB
-        else if (sourceJdb && targetJdb && sourceJdb.id !== targetJdb.id) {
-          // Vérifier la compatibilité avec la section cible
-          const categoryLabel = jdbCategoryLabel(targetJdb.jdb_category);
-          const isAllowed = isTypeAllowedUnderJdb(activeElement.type, targetJdb);
-          
-          if (!isAllowed) {
-            const typeLabel = activeElement.type === 'eclairage' ? 'éclairage' : 
-                             activeElement.type === 'prise' ? 'prise de courant' : 'divers';
-            toast.error(`Impossible d'insérer un départ de ${typeLabel} dans un jeu de barres ${categoryLabel}. Les types ne sont pas compatibles.`);
-            return;
-          }
-
-          // Vérifier si un élément avec le même repère existe déjà dans cette section JDB
-          const existingElement = findElementByRepereAndCategory(
-            elements,
-            activeElement.repere,
-            departCategoryOf(activeElement),
-            activeElement.id,
-            targetJdb
-          );
-
-          if (existingElement) {
-            toast.error(`Un élément avec le repère "${activeElement.repere}" existe déjà dans cette section. Duplication non autorisée.`);
-            return;
-          }
+        
+        // Bloquer: Entrée dans une section JDB depuis l'extérieur
+        if (!sourceJdb && targetJdb) {
+          toast.error("Impossible d'insérer un élément extérieur dans un jeu de barres. Les éléments doivent être ajoutés directement dans la section.");
+          return;
         }
-        // Cas 3: Entrée dans une section JDB depuis l'extérieur
-        else if (!sourceJdb && targetJdb) {
-          // Vérifier la compatibilité avec la section cible
-          const categoryLabel = jdbCategoryLabel(targetJdb.jdb_category);
-          const isAllowed = isTypeAllowedUnderJdb(activeElement.type, targetJdb);
-          
-          if (!isAllowed) {
-            const typeLabel = activeElement.type === 'eclairage' ? 'éclairage' : 
-                             activeElement.type === 'prise' ? 'prise de courant' : 'divers';
-            toast.error(`Impossible d'insérer un départ de ${typeLabel} dans un jeu de barres ${categoryLabel}. Les types ne sont pas compatibles.`);
-            return;
-          }
-
-          // Vérifier si un élément avec le même repère existe déjà dans cette section JDB
-          const existingElement = findElementByRepereAndCategory(
-            elements,
-            activeElement.repere,
-            departCategoryOf(activeElement),
-            activeElement.id,
-            targetJdb
-          );
-
-          if (existingElement) {
-            toast.error(`Un élément avec le repère "${activeElement.repere}" existe déjà dans cette section. Duplication non autorisée.`);
-            return;
-          }
+        
+        // Bloquer: Déplacement entre sections JDB
+        if (sourceJdb && targetJdb && sourceJdb.id !== targetJdb.id) {
+          toast.error("Impossible de déplacer un élément entre jeux de barres différents. Créez un nouvel élément dans la section cible.");
+          return;
         }
-        // Cas 4: Déplacement dans la même section (réordonnement interne)
-        else if (sourceJdb && targetJdb && sourceJdb.id === targetJdb.id) {
-          // Réordonnement interne autorisé
+        
+        // Autoriser: Réordonnement interne dans la même section
+        if (sourceJdb && targetJdb && sourceJdb.id === targetJdb.id) {
+          // Réordonnement interne autorisé - pas de validation supplémentaire
         }
-        // Cas 5: Déplacement entre éléments sans section
-        else if (!sourceJdb && !targetJdb) {
+        
+        // Autoriser: Réordonnement entre éléments sans section
+        if (!sourceJdb && !targetJdb) {
           // Réordonnement entre éléments sans section autorisé
         }
       }
