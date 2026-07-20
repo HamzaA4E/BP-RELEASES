@@ -436,6 +436,40 @@ function migrateElementsTable(database: Database.Database): void {
     `UPDATE elements SET jdb_category = 'eclairage'
      WHERE type = 'jeu_de_barres' AND jdb_category IS NULL`
   );
+
+  // Migration for bar_set_index: assign unique indices to JDBs and their elements
+  migrateBarSetIndex(database);
+}
+
+function migrateBarSetIndex(database: Database.Database): void {
+  if (!tableExists(database, 'elements')) return;
+
+  const panels = database.prepare('SELECT DISTINCT panel_id FROM elements').all() as Array<{ panel_id: number }>;
+  
+  for (const { panel_id } of panels) {
+    const elements = database.prepare(
+      'SELECT id, type, row_kind, bar_set_index, order_index FROM elements WHERE panel_id = ? ORDER BY order_index'
+    ).all(panel_id) as Array<{ id: number; type: string; row_kind: string; bar_set_index: number; order_index: number }>;
+    
+    let currentBarSetIndex = 0;
+    let inBarSet = false;
+    
+    for (const el of elements) {
+      const isJdb = el.type === 'jeu_de_barres' || el.row_kind === 'bar_set';
+      
+      if (isJdb) {
+        currentBarSetIndex++;
+        database.prepare('UPDATE elements SET bar_set_index = ? WHERE id = ?').run(currentBarSetIndex, el.id);
+        inBarSet = true;
+      } else if (inBarSet) {
+        // Element is inside a bar set
+        database.prepare('UPDATE elements SET bar_set_index = ? WHERE id = ?').run(currentBarSetIndex, el.id);
+      } else {
+        // Element is outside bar sets
+        database.prepare('UPDATE elements SET bar_set_index = 0 WHERE id = ?').run(el.id);
+      }
+    }
+  }
 }
 
 function hasColumn(database: Database.Database, table: string, column: string): boolean {

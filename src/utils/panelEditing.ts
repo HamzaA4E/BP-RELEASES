@@ -155,6 +155,7 @@ export function buildLocalElement(
     use_coefs?: boolean;
     notes?: string | null;
     is_multi?: boolean;
+    bar_set_index?: number;
   },
   orderIndex: number,
 ): Element {
@@ -168,7 +169,7 @@ export function buildLocalElement(
     designation: data.type_label,
     emplacement: data.emplacement ?? "",
     row_kind: isJdb ? "bar_set" : "element",
-    bar_set_index: 0,
+    bar_set_index: data.bar_set_index ?? 0,
     phase_type: data.phase_type ?? "mono",
     jdb_category: isJdb ? (data.jdb_category ?? "eclairage") : null,
     power_w: data.power_w,
@@ -234,6 +235,7 @@ export function createElementPending(
       use_coefs: data.use_coefs,
       notes: data.notes ?? undefined,
       is_multi: data.is_multi,
+      bar_set_index: data.bar_set_index,
       order_index: orderIndex,
     },
   };

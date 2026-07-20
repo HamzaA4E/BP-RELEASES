@@ -879,7 +879,7 @@ export function PanelView() {
         ? getInsertIndexAfterJdbSection(elements, contextJdb.id)
         : getInsertIndexOutsideJdbSections(elements);
       const tempId = nextTempId();
-      const element = buildLocalElement(tempId, panId, data, insertAt);
+      const element = buildLocalElement(tempId, panId, { ...data, bar_set_index: contextJdb?.bar_set_index }, insertAt);
       const newIds = elements.map((e) => e.id);
       newIds.splice(insertAt, 0, tempId);
       const reordered = reorderElementsList([...elements, element], newIds);
@@ -992,8 +992,9 @@ export function PanelView() {
     // For repere field, check uniqueness locally for temporary elements
     if (field === "repere" && id < 0) {
       const trimmedValue = (value as string).trim();
+      const barSetIndex = el.bar_set_index ?? 0;
       const duplicate = elements.find(
-        (e) => e.id !== id && e.repere.trim() === trimmedValue && e.panel_id === el.panel_id
+        (e) => e.id !== id && e.repere.trim() === trimmedValue && e.panel_id === el.panel_id && (e.bar_set_index ?? 0) === barSetIndex
       );
       if (duplicate) {
         toast.error("Un départ avec ce repère existe déjà dans ce tableau");
@@ -1132,6 +1133,9 @@ export function PanelView() {
   const handleJdbCreate = (typeLabel: string, category: JdbCategory) => {
     const insertAt = elements.length;
     const tempId = nextTempId();
+    // Calculate next bar_set_index based on existing JDBs
+    const existingJdbCount = elements.filter((e) => e.type === "jeu_de_barres").length;
+    const nextBarSetIndex = existingJdbCount + 1;
     const element = buildLocalElement(
       tempId,
       panId,
@@ -1146,6 +1150,7 @@ export function PanelView() {
         jdb_category: category,
         coef_ks: 1,
         coef_ku: 1,
+        bar_set_index: nextBarSetIndex,
       },
       insertAt,
     );

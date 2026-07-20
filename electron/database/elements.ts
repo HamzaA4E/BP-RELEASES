@@ -193,13 +193,6 @@ export function createElement(data: {
 }): ElementRow {
   const db = getDatabase();
 
-  // Check repere uniqueness within the panel
-  const trimmedRepere = data.repere.trim();
-  const duplicate = db.prepare('SELECT id FROM elements WHERE repere = ? AND panel_id = ?').get(trimmedRepere, data.panel_id);
-  if (duplicate) {
-    throw new Error('Un départ avec ce repère existe déjà dans ce tableau');
-  }
-
   const maxOrder = db
     .prepare(
       'SELECT COALESCE(MAX(order_index), -1) as max_order FROM elements WHERE panel_id = ?'
@@ -242,7 +235,7 @@ export function createElement(data: {
     .run({
       panel_id: data.panel_id,
       type: data.type,
-      repere: trimmedRepere,
+      repere: data.repere,
       designation: type_label,
       type_label,
       emplacement,
@@ -293,10 +286,15 @@ export function updateElement(data: {
   const existing = getElementById(data.id);
   if (!existing) throw new Error('Element not found');
 
-  // Check repere uniqueness within the panel if repere is being changed
+  // Check repere uniqueness within the bar_set scope if repere is being changed
   const trimmedRepere = data.repere !== undefined ? data.repere.trim() : existing.repere;
   if (data.repere !== undefined && data.repere !== existing.repere) {
-    const duplicate = db.prepare('SELECT id FROM elements WHERE repere = ? AND panel_id = ? AND id != ?').get(trimmedRepere, existing.panel_id, data.id);
+    // Elements in a bar set should only check uniqueness within that bar set
+    // Elements outside bar sets should only check uniqueness outside bar sets
+    const existingBarSetIndex = existing.bar_set_index ?? 0;
+    const duplicate = db.prepare(
+      'SELECT id FROM elements WHERE repere = ? AND panel_id = ? AND id != ? AND COALESCE(bar_set_index, 0) = ?'
+    ).get(trimmedRepere, existing.panel_id, data.id, existingBarSetIndex);
     if (duplicate) {
       throw new Error('Un départ avec ce repère existe déjà dans ce tableau');
     }
